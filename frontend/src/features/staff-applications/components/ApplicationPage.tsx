@@ -72,8 +72,8 @@ function ApplicationDetails({ a }: { a: Application }) {
             )}
           </Section>
         </div>
-        <Attachments a={a} open={open} />
         <Messages a={a} open={open} />
+        <Attachments a={a} open={open} />
         <Section title="История статусов">
           <ol className="flex flex-col gap-3">
             {a.status_history.map((h, i) => (

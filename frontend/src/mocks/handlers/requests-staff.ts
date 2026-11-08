@@ -75,7 +75,7 @@ export const requestsStaffHandlers = [
       .sort(
         (x, y) =>
           Number(y.overdue) - Number(x.overdue) ||
-          (x.due_at ?? '~').localeCompare(y.due_at ?? '~') ||
+          (x.due_at ?? '9999').localeCompare(y.due_at ?? '9999') ||
           x.created_at.localeCompare(y.created_at),
       )
       .map(({ id, number, service_type, status, created_at, updated_at, due_at, overdue, last_message_at, last_message_from, student }) => ({

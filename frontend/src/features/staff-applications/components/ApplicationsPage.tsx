@@ -83,11 +83,11 @@ export function ApplicationsPage() {
                       aria-label={`${c.label}: ${s[c.key]}`}
                       onClick={() => setParam('status', active ? undefined : c.filter)}
                       className={cn(
-                        'flex h-full w-full flex-col items-start gap-0.5 rounded-xl border bg-card p-3 text-left shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                        'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-3 py-2.5 text-left shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-0.5 sm:py-3',
                         active && 'border-primary bg-accent',
                       )}
                     >
-                      <span className={cn('text-2xl font-semibold tabular-nums', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
+                      <span className={cn('text-xl font-semibold tabular-nums sm:text-2xl', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
                         {s[c.key]}
                       </span>
                       <span className="text-sm text-muted-foreground">{c.label}</span>
