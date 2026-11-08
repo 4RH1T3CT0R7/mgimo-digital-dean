@@ -110,6 +110,12 @@ export const serviceTypes: S['ServiceType'][] = [
   },
 ];
 
+/** Факультет заявки — по слепку студента (seed.md, «Общие ID»): нужен мокам кабинета сотрудника */
+export const FACULTY_ID: Record<string, string> = {
+  ФМО: '10000000-0000-4000-8000-000000000001',
+  МЭО: '10000000-0000-4000-8000-000000000002',
+};
+
 /** Слепки студентов по логину (seed.md, «Данные тестовых студентов») */
 export const students: Record<string, S['StudentSnapshot']> = {
   'student.mo': {
@@ -131,6 +137,10 @@ export const students: Record<string, S['StudentSnapshot']> = {
     student_card_no: '2302214',
   },
 };
+
+/** Студенты группы МО-24-03 без логина: у деканата ФМО есть новые и просроченные заявки */
+const orlova: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000001', full_name: 'Орлова Дарья Игоревна', short_name: 'Орлова Д. И.', student_card_no: '2401322' };
+const kovalev: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000002', full_name: 'Ковалёв Илья Андреевич', short_name: 'Ковалёв И. А.', student_card_no: '2401305' };
 
 const HOUR = 3_600_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -305,6 +315,34 @@ function initialApplications(): MockApplication[] {
         ['submitted', 200, 'student'],
         ['cancelled', 199, 'student'],
       ],
+    }),
+    // Для кабинета сотрудника ФМО: просроченные (академ — срок 10 дней, студбилет — 7) и свежий вопрос
+    buildApplication({
+      number: 10,
+      student: orlova,
+      serviceTypeId: 'academic-leave',
+      fields: { reason: 'По семейным обстоятельствам', start_date: '2027-02-01' },
+      createdHoursAgo: 12 * 24,
+      history: [['submitted', 12 * 24, 'student']],
+    }),
+    buildApplication({
+      number: 11,
+      student: kovalev,
+      serviceTypeId: 'student-card-reissue',
+      fields: { reason: 'Утерян' },
+      createdHoursAgo: 9 * 24,
+      history: [
+        ['submitted', 9 * 24, 'student'],
+        ['in_progress', 8 * 24, 'staff'],
+      ],
+    }),
+    buildApplication({
+      number: 12,
+      student: orlova,
+      serviceTypeId: 'dean-question',
+      fields: { topic: 'Стипендия', question: 'Когда начислят стипендию за ноябрь?' },
+      createdHoursAgo: 2,
+      history: [['submitted', 2, 'student']],
     }),
   ];
 }

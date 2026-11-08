@@ -1,11 +1,12 @@
 import { http, HttpResponse } from 'msw';
 import type { components } from '@/api/requests';
 import { toApiDate } from '@/shared/lib/format';
-import { FACULTY_ID, staffFixtures, staffServiceTypes, type StoredApplication } from '../fixtures/requests-staff';
+import { FACULTY_ID, applications as store, type MockApplication } from '../fixtures/requests';
 import { list, page } from '../scenario';
 import { mockUser } from './auth';
 
-// Кабинет сотрудника (T12): /staff/* сервиса requests. Данные живут в памяти до перезагрузки страницы.
+// Кабинет сотрудника (T12): /staff/* сервиса requests. Хранилище заявок общее с моками студента (T10):
+// в dev:mock действия деканата сразу видны студенту и наоборот. Сброс — resetApplications() из fixtures.
 type Status = components['schemas']['ApplicationStatus'];
 
 // Переходы сотрудника — data-model.md Б5
@@ -16,14 +17,7 @@ const TRANSITIONS: Partial<Record<Status, Status[]>> = {
 };
 const FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
-let store = staffFixtures();
-
-/** Вернуть данные к исходным (тесты) */
-export function resetStaffApplications() {
-  store = staffFixtures();
-}
-
-function view(a: StoredApplication) {
+function view(a: MockApplication) {
   const overdue = (a.status === 'submitted' || a.status === 'in_progress') && !!a.due_at && a.due_at < new Date().toISOString();
   return { ...a, overdue, allowed_transitions: TRANSITIONS[a.status] ?? [] };
 }
@@ -39,12 +33,9 @@ const find = (id: unknown) => scoped().find((a) => a.id === id);
 const error = (status: number, code: string, message: string, details?: object) => HttpResponse.json({ code, message, details }, { status });
 const notFound = () => error(404, 'not_found', 'Заявка не найдена');
 const conflict = () => error(409, 'invalid_transition', 'Это действие недоступно в текущем статусе заявки');
-const closed = (a: StoredApplication) => a.status === 'rejected' || a.status === 'cancelled';
+const closed = (a: MockApplication) => a.status === 'rejected' || a.status === 'cancelled';
 
 export const requestsStaffHandlers = [
-  // Запасной каталог для фильтра «Услуга»: моки студента (T10) подключены раньше и, если отвечают, побеждают
-  http.get('/api/requests/service-types', () => HttpResponse.json(staffServiceTypes)),
-
   http.get('/api/requests/staff/stats', () => {
     const items = list(scoped()).map(view);
     const count = (f: (a: (typeof items)[number]) => boolean) => items.filter(f).length;
