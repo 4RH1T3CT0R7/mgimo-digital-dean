@@ -495,7 +495,7 @@ export interface components {
             is_result?: boolean;
         };
         CertificateInfo: {
-            /** @example K7M2QX4P9A */
+            /** @example K7M2QX4PWA */
             code: string;
             /** Format: date-time */
             issued_at: string;
@@ -506,7 +506,7 @@ export interface components {
             valid_until: string;
             /**
              * @description Относительный адрес страницы проверки в SPA
-             * @example /verify/K7M2QX4P9A
+             * @example /verify/K7M2QX4PWA
              */
             verify_url: string;
         };

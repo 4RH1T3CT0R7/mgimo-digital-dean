@@ -192,6 +192,8 @@ export interface operations {
             /** @description Выход выполнен */
             204: {
                 headers: {
+                    /** @description Очистка cookie `sid` (Max-Age=0) */
+                    "Set-Cookie"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
