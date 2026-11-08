@@ -144,3 +144,21 @@ SELECT * FROM certificates WHERE application_id = sqlc.arg(application_id);
 
 -- name: GetCertificate :one
 SELECT * FROM certificates WHERE code = sqlc.arg(code);
+
+-- ---------- Проигрывание событий по тестовым данным (T07, флаг -seed-events) ----------
+
+-- name: ListStatusHistoryForReplay :many
+SELECT h.id, h.application_id, h.status, h.comment, a.number, a.student_id, a.faculty_id,
+       a.service_type_id, t.title AS service_title
+FROM status_history h
+JOIN applications a ON a.id = h.application_id
+JOIN service_types t ON t.id = a.service_type_id
+ORDER BY h.application_id, h.created_at, h.id;
+
+-- name: ListStaffMessagesForReplay :many
+SELECT m.id, m.application_id, m.author_label, a.number, a.student_id, a.service_type_id, t.title AS service_title
+FROM messages m
+JOIN applications a ON a.id = m.application_id
+JOIN service_types t ON t.id = a.service_type_id
+WHERE m.author_role = 'staff'
+ORDER BY m.created_at, m.id;

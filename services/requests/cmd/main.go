@@ -48,6 +48,16 @@ func main() {
 	}
 
 	srv := app.New(pool, logger, time.Now, bus, ac, siteURL)
+
+	// -seed-events: опубликовать события по тестовым данным и выйти (T07, deploy/seed.sh)
+	if len(os.Args) > 1 && os.Args[1] == "-seed-events" {
+		n, err := srv.ReplaySeedEvents(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		logger.Info("seed_events", "published", n)
+		return
+	}
 	public, internal := srv.Handlers()
 	if err := platform.Run("requests", public, internal); err != nil {
 		log.Fatal(err)
