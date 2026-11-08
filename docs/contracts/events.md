@@ -52,6 +52,7 @@
 | `number` | string | `000123` |
 | `student_id` | uuid | |
 | `faculty_id` | uuid | |
+| `service_type_id` | string | slug услуги, например `study-certificate` |
 | `service_title` | string | |
 | `old_status` | string \| null | null — заявка только создана |
 | `new_status` | string | |
@@ -67,6 +68,7 @@
 | `application_id` | uuid | |
 | `number` | string | |
 | `student_id` | uuid | |
+| `service_type_id` | string | slug услуги, например `study-certificate` |
 | `service_title` | string | |
 | `author_role` | `student` \| `staff` | |
 | `author_label` | string | «Деканат ФМО» |
@@ -82,7 +84,7 @@
 | lesson room_changed | `Другая аудитория: {discipline}` | `Занятие {cur.date} в {cur.start} пройдёт в {cur.room}.` |
 | status in_progress | `Заявка №{number} в работе` | `{service_title}: деканат начал обработку.` |
 | status needs_info | `Нужны уточнения по заявке №{number}` | `{service_title}: {comment}` |
-| status ready | `Готово: заявка №{number}` | `{service_title}: можно скачать или забрать в деканате.` (для справки с места учёбы — `Справка готова, её можно скачать.`) |
+| status ready | `Готово: заявка №{number}` | `{service_title}: можно скачать или забрать в деканате.` (если `service_type_id = study-certificate` — `Справка готова, её можно скачать.`) |
 | status rejected | `Заявка №{number} отклонена` | `{service_title}: {comment}` |
 | message from staff | `Ответ по заявке №{number}` | `{author_label} ответил по заявке «{service_title}».` |
 

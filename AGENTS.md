@@ -16,7 +16,8 @@
 
 - Микросервисы на Go (`services/auth|academic|requests|notifications|assistant`) в монорепозитории с **одним `go.mod`**; общий код — `pkg/`.
 - PostgreSQL (у каждого сервиса своя БД), NATS JetStream для событий, Caddy как шлюз.
-- Фронтенд: React + Vite + TypeScript, TanStack Query, Tailwind + shadcn/ui, PWA.
+- Фронтенд: React + Vite + TypeScript, TanStack Query, Tailwind + shadcn/ui, PWA. Соглашения — `frontend/README.md`.
+- Как работать с задачей (промпт, проверка, PR) — `docs/tasks/README.md`.
 - Подробно: `docs/architecture.md` §6–7.
 
 ## Обязательные правила
@@ -59,16 +60,18 @@
 25. Если агент ошибся и ошибку исправили — добавь запись в `docs/process/ai-mistakes.md` (это материал для жюри).
 26. Если ты не владелец каталога (таблица ниже), не меняй в нём файлы. Нужна правка — опиши её в PR или задаче для владельца.
 
-## Кто владеет каталогами (D39, D40)
+## Кто владеет каталогами (D40, D43)
 
 | Каталог / файл | Владелец |
 |---|---|
-| `services/`, `pkg/`, `deploy/`, `Dockerfile`, `Makefile`, `.github/`, `go.mod` | Капитан |
-| `docs/contracts/`, `docs/decisions.md`, `docs/progress.md`, `docs/plan.md`, `docs/tasks/`, `AGENTS.md` | Капитан |
-| `frontend/` (каркас, `src/app/`, `src/shared/`, дизайн-токены), `frontend/src/features/{today,schedule,grades,profile}/` | Участник Б |
-| `frontend/src/features/{requests,notifications,verify,staff,admin}/`, `e2e/` | Участник В |
-| `frontend/src/app/routes.tsx` | Участник Б; участник В добавляет только строки регистрации своих фич |
-| `docs/process/` | Все: каждый дописывает свои записи в конец файла |
+| `services/auth/`, `services/requests/`, `services/assistant/`, `pkg/`, `cmd/`, `deploy/`, `Dockerfile`, `Makefile`, `.github/`, `go.mod`, `go.sum` | Капитан |
+| `docs/contracts/`, `docs/decisions.md`, `docs/progress.md`, `docs/plan.md`, `docs/tasks/`, `AGENTS.md`, `CLAUDE.md` | Капитан |
+| `frontend/` — каркас: `src/app/`, `src/shared/`, `src/api/`, `src/test/`, конфиги; `src/features/{auth,requests,staff-applications}/`; `src/mocks/` кроме чужих файлов ниже | Капитан |
+| `services/academic/`; `frontend/src/features/{today,schedule,grades,profile,staff-lessons,verify,pwa,calendar-export}/`; `frontend/src/mocks/{handlers,fixtures}/academic.ts`; `frontend/public/{brand,icons,illustrations}/` | Всеволод Омельченко |
+| `services/notifications/`; `frontend/src/features/{notifications,staff-announcements,assistant}/`; `frontend/src/mocks/{handlers,fixtures}/{notifications,assistant}.ts`; `e2e/`; `content/` | Владислав Пилипенко |
+| `docs/process/` | Все: каждый дописывает свои записи **в конец** файла |
+
+Точечные правки в чужих файлах разрешает только ТЗ, и только те, что в нём явно перечислены (например, T16 — подключение PWA в `vite.config.ts`).
 
 ## Команды
 
