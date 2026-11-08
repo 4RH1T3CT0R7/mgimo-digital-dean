@@ -71,6 +71,7 @@ services:
       <<: *service-env
       DATABASE_URL: postgres://requests:${REQUESTS_DB_PASSWORD}@postgres:5432/requests?sslmode=disable
       ACADEMIC_INTERNAL_URL: http://academic:8081
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
 
   notifications:
     <<: *service
