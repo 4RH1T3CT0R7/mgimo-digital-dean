@@ -158,7 +158,8 @@ func lessonEvent(lesson api.Lesson, groups []db.ListLessonGroupsRow) events.Less
 	}
 	event.Current = events.LessonSlot{Date: lesson.Date.String(), StartTime: lesson.StartTime, EndTime: lesson.EndTime, Room: eventRoom(lesson.Room)}
 	if lesson.Status == api.LessonStatusCancelled {
-		event.Current = event.Previous
+		// API хранит самый первый слот для расписания; отменяется фактический слот.
+		event.Previous = event.Current
 	}
 
 	return event
