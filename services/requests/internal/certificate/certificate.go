@@ -7,9 +7,11 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-pdf/fpdf"
+	"rsc.io/qr"
 )
 
 var (
@@ -128,12 +130,23 @@ func Render(d Data) ([]byte, error) {
 	}
 
 	pdf.Ln(10)
+	// QR со ссылкой на проверку: получатель наводит камеру телефона и сразу видит, действительна ли справка.
+	// Только для абсолютного адреса — относительный (без SITE_ADDRESS) с телефона не открыть.
+	textWidth := 0.0
+	if strings.HasPrefix(d.VerifyURL, "http") {
+		if code, err := qr.Encode(d.VerifyURL, qr.M); err == nil {
+			const size = 38.0
+			pdf.RegisterImageOptionsReader("verify-qr", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(code.PNG()))
+			pdf.ImageOptions("verify-qr", 210-20-size, pdf.GetY(), size, size, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, d.VerifyURL)
+			textWidth = 210 - 40 - size - 6 // текст не заходит под QR
+		}
+	}
 	pdf.SetFont(font, "", 11)
-	pdf.CellFormat(0, 7, "Код проверки", "", 1, "L", false, 0, "")
+	pdf.CellFormat(textWidth, 7, "Код проверки", "", 1, "L", false, 0, "")
 	pdf.SetFont(font, "B", 22)
-	pdf.CellFormat(0, 12, d.Code, "", 1, "L", false, 0, "")
+	pdf.CellFormat(textWidth, 12, d.Code, "", 1, "L", false, 0, "")
 	pdf.SetFont(font, "", 11)
-	pdf.MultiCell(0, 6, "Проверить подлинность справки: "+d.VerifyURL, "", "L", false)
+	pdf.MultiCell(textWidth, 6, "Проверить подлинность справки: "+d.VerifyURL, "", "L", false)
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {

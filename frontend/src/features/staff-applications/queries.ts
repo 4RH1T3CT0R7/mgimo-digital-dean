@@ -4,8 +4,17 @@ import type { operations } from '@/api/requests';
 
 export type StaffListQuery = NonNullable<operations['listStaffApplications']['parameters']['query']>;
 
+// Живое обновление: новые заявки и ответы студентов появляются без перезагрузки (только на видимой вкладке).
+const LIST_REFRESH_MS = 30_000;
+const APPLICATION_REFRESH_MS = 15_000;
+const FINAL_STATUSES = ['ready', 'rejected', 'cancelled'];
+
 export function useStaffStats() {
-  return useQuery({ queryKey: ['requests', 'staff', 'stats'], queryFn: () => unwrap(requestsApi.GET('/staff/stats')) });
+  return useQuery({
+    queryKey: ['requests', 'staff', 'stats'],
+    queryFn: () => unwrap(requestsApi.GET('/staff/stats')),
+    refetchInterval: LIST_REFRESH_MS,
+  });
 }
 
 // ponytail: одна страница до 100 заявок — хватает прототипу; больше — «Показать ещё» на offset
@@ -14,6 +23,7 @@ export const LIST_LIMIT = 100;
 export function useStaffApplications(query: StaffListQuery) {
   return useQuery({
     queryKey: ['requests', 'staff', 'applications', query],
+    refetchInterval: LIST_REFRESH_MS,
     queryFn: () =>
       unwrap(
         requestsApi.GET('/staff/applications', {
@@ -36,6 +46,7 @@ export function useServiceTypes() {
 export function useStaffApplication(id: string) {
   return useQuery({
     queryKey: ['requests', 'staff', 'application', id],
+    refetchInterval: (q) => (q.state.data && FINAL_STATUSES.includes(q.state.data.status) ? false : APPLICATION_REFRESH_MS),
     queryFn: () => unwrap(requestsApi.GET('/staff/applications/{application_id}', { params: { path: { application_id: id } } })),
   });
 }

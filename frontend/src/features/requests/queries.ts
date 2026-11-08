@@ -18,9 +18,16 @@ export function useServiceTypes() {
 }
 
 /** Мои заявки; `answered` — только те, где пришёл ответ. */
+// Живое обновление: студент видит ответ и смену статуса деканатом без перезагрузки страницы.
+// Опрос идёт только на видимой вкладке (по умолчанию TanStack Query) и останавливается у завершённых заявок.
+const LIST_REFRESH_MS = 30_000;
+const APPLICATION_REFRESH_MS = 15_000;
+const FINAL_STATUSES = ['ready', 'rejected', 'cancelled'];
+
 export function useMyApplications(answered: boolean) {
   return useQuery({
     queryKey: [...applicationsKey, { answered }],
+    refetchInterval: LIST_REFRESH_MS,
     // ponytail: поиск по номеру — на клиенте среди 100 последних; у API студента нет параметра q
     queryFn: () => unwrap(requestsApi.GET('/me/applications', { params: { query: { answered: answered || undefined, limit: 100 } } })),
   });
@@ -29,6 +36,7 @@ export function useMyApplications(answered: boolean) {
 export function useMyApplication(id: string) {
   return useQuery({
     queryKey: [...applicationsKey, id],
+    refetchInterval: (q) => (q.state.data && FINAL_STATUSES.includes(q.state.data.status) ? false : APPLICATION_REFRESH_MS),
     queryFn: () => unwrap(requestsApi.GET('/me/applications/{application_id}', { params: { path: { application_id: id } } })),
   });
 }
