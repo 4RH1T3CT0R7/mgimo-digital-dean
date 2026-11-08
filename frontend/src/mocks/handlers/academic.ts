@@ -143,21 +143,24 @@ export const academicHandlers = [
     {
       return HttpResponse.json({ code: 'validation_failed', message: 'Проверьте поля', details: { fields } }, { status: 400 });
     }
+    const previous = lesson.change?.previous ?? { date: lesson.date, start_time: lesson.start_time, end_time: lesson.end_time, room: lesson.room };
     const updated: components['schemas']['Lesson'] = { ...lesson,
       date: body.type === 'moved' ? body.new_date! : lesson.date,
       start_time: body.type === 'moved' ? body.new_start_time! : lesson.start_time,
       end_time: body.type === 'moved' ? body.new_end_time! : lesson.end_time,
       room: body.new_room ?? lesson.room,
-      status: body.type === 'room_changed' ? 'changed' : body.type,
-      change: { type: body.type, previous: { date: lesson.date, start_time: lesson.start_time, end_time: lesson.end_time, room: lesson.room }, reason: body.reason ?? null, changed_at: new Date().toISOString() },
+      status: body.type === 'room_changed' ? (lesson.status === 'moved' ? 'moved' : 'changed') : body.type,
+      change: { type: body.type, previous, reason: body.reason ?? null, changed_at: new Date().toISOString() },
       moved_to: null,
     };
     updated.pair_number = pairs.find((pair) => pair.start === updated.start_time && pair.end === updated.end_time)?.number ?? lesson.pair_number;
     academicState.lessons = academicState.lessons.filter((item) => item.id !== lesson.id);
 
-    if (body.type === 'moved')
+    if (updated.status === 'moved')
     {
-      academicState.lessons.push({ ...lesson, status: 'moved_away', moved_to: { date: updated.date, start_time: updated.start_time } });
+      academicState.lessons.push({ ...updated, ...previous,
+        pair_number: pairs.find((pair) => pair.start === previous.start_time)?.number ?? 8,
+        status: 'moved_away', moved_to: { date: updated.date, start_time: updated.start_time } });
     }
     academicState.lessons.push(updated);
     academicState.asOf = updated.change!.changed_at;
