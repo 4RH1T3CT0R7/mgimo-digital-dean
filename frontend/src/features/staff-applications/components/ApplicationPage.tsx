@@ -14,7 +14,7 @@ import { QueryView } from '@/shared/ui/query-view';
 import { StatusBadge } from '@/shared/ui/status-badge';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
-import { AUTHOR_ROLE, statusLabel, statusTone, type Status } from '../labels';
+import { AUTHOR_ROLE, REPLY_TEMPLATES, statusLabel, statusTone, type Status } from '../labels';
 import { useChangeStatus, useSendMessage, useStaffApplication, useUploadResult } from '../queries';
 
 type Application = components['schemas']['StaffApplication'];
@@ -305,6 +305,23 @@ function Messages({ a, open }: { a: Application; open: boolean }) {
       {open ? (
         <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-2">
           <Label htmlFor="reply">Ответ студенту</Label>
+          <div role="group" aria-label="Шаблоны ответов" className="flex flex-wrap gap-2">
+            {REPLY_TEMPLATES.map((t) => (
+              <Button
+                key={t.title}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setText((cur) => (cur.trim() ? `${cur.trimEnd()}
+${t.text}` : t.text));
+                  setError(null);
+                }}
+              >
+                {t.title}
+              </Button>
+            ))}
+          </div>
           <Textarea
             id="reply"
             value={text}

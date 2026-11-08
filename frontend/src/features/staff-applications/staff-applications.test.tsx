@@ -136,3 +136,17 @@ describe('Заявка /staff/requests/:id', () => {
     expect(screen.getByLabelText('Ответ студенту')).toHaveValue('');
   });
 });
+
+describe('Шаблоны ответов', () => {
+  it('шаблон вставляется в поле ответа и дописывается к уже введённому тексту', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: SUBMITTED_QUESTION, login: 'dekanat.mo' });
+    const field = await screen.findByLabelText('Ответ студенту');
+    const templates = screen.getByRole('group', { name: 'Шаблоны ответов' });
+    await user.click(within(templates).getByRole('button', { name: 'Приняли в работу' }));
+    expect(field).toHaveValue('Заявку приняли в работу. Сообщим, как только всё будет готово.');
+    await user.click(within(templates).getByRole('button', { name: 'Спасибо' }));
+    expect((field as HTMLTextAreaElement).value.split('\n')).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Отправить' }));
+    expect(await screen.findByText(/Заявку приняли в работу/)).toBeInTheDocument();
+  });
+});
