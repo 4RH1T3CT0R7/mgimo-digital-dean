@@ -24,7 +24,8 @@ export function CertificateCard({ application, headingLevel = 'h2' }: Props & { 
             Справка готова
           </Heading>
           <p className="text-sm text-muted-foreground">
-            Действует до {formatDate(certificate.valid_until, { withYear: true })}. Получатель проверит её по коду на странице проверки.
+            {/* formatDate с годом заканчивается на «г.» — своя точка не нужна */}
+            Действует до {formatDate(certificate.valid_until, { withYear: true })} Получатель проверит её по коду на странице проверки.
           </p>
         </div>
       </div>

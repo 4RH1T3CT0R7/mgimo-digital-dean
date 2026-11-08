@@ -167,7 +167,7 @@ function ApplicationForm({ service }: { service: ServiceType }) {
 
             {service.kind === 'document' && (
               <div className="flex flex-col gap-2">
-                <Label htmlFor="comment">
+                <Label htmlFor="comment" className="leading-snug">
                   Комментарий для деканата <Optional />
                 </Label>
                 <Textarea id="comment" value={comment} maxLength={2000} onChange={(e) => setComment(e.target.value)} aria-invalid={!!errors.comment || undefined} aria-describedby={errors.comment ? 'comment-error' : undefined} />
@@ -261,7 +261,7 @@ function FieldControl({ field, value, error, onChange }: { field: FormField; val
 
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>
+      <Label htmlFor={id} className="leading-snug">
         {field.label} {!field.required && <Optional />}
       </Label>
       {field.type === 'select' ? (
