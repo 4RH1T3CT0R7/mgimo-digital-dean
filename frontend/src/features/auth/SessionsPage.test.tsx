@@ -6,7 +6,8 @@ import { renderWithProviders } from '@/test/render';
 describe('Безопасность: сеансы', () => {
   it('студент открывает из шапки, видит устройства и выходит на всех других', async () => {
     const { user } = renderWithProviders(<AppRoutes />, { route: '/requests', login: 'student.mo' });
-    await user.click(await screen.findByRole('link', { name: 'Безопасность: где выполнен вход' }));
+    await user.click(await screen.findByRole('button', { name: /Меню пользователя/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Безопасность' }));
     const list = await screen.findByRole('list', { name: 'Сеансы' });
     const items = within(list).getAllByRole('listitem');
     expect(items).toHaveLength(3);

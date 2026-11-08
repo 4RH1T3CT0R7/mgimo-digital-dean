@@ -14,7 +14,7 @@ export function SelectTrigger({ className, children, ...props }: ComponentProps<
       data-slot="select-trigger"
       className={cn(
         fieldClass,
-        'flex h-10 items-center justify-between gap-2 py-2 text-left data-[placeholder]:text-muted-foreground [&>span]:truncate',
+        'flex h-11 items-center justify-between gap-2 py-2 text-left data-[placeholder]:text-muted-foreground [&>span]:truncate',
         className,
       )}
       {...props}
@@ -56,7 +56,7 @@ export function SelectItem({ className, children, ...props }: ComponentProps<typ
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex w-full cursor-default items-center gap-2 rounded-sm py-2 pr-8 pl-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex w-full cursor-default items-center gap-2 rounded-md py-2.5 pr-8 pl-2.5 text-[0.9375rem] outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}

@@ -7,6 +7,9 @@ import { server } from './render';
 HTMLElement.prototype.scrollIntoView ??= () => {};
 HTMLElement.prototype.hasPointerCapture ??= () => false;
 HTMLElement.prototype.releasePointerCapture ??= () => {};
+// Тема (app/theme.ts) спрашивает системную тему; в тестах — светлая
+window.matchMedia ??= (query: string) =>
+  ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList;
 globalThis.ResizeObserver ??= class {
   observe() {}
   unobserve() {}
@@ -18,5 +21,6 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   sessionStorage.clear();
+  localStorage.clear();
 });
 afterAll(() => server.close());

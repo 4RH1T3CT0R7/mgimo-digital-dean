@@ -10,7 +10,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'study-certificate',
     title: 'Справка с места учёбы',
-    description: 'Формируется сразу: PDF с кодом проверки, который можно отправить по месту требования.',
+    description: 'PDF с кодом проверки: получатель может убедиться в подлинности справки на сайте.',
     category: 'certificates',
     kind: 'instant_certificate',
     sla_days: 0,
@@ -29,7 +29,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'military-certificate',
     title: 'Справка в военкомат',
-    description: 'Справка для военного комиссариата об обучении. Готовит деканат.',
+    description: 'Готовит деканат. Укажите военкомат и как удобнее получить: в деканате или электронной копией.',
     category: 'certificates',
     kind: 'document',
     sla_days: 5,
@@ -42,7 +42,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'transcript',
     title: 'Выписка оценок / транскрипт',
-    description: 'Выписка всех оценок за выбранный период на русском или английском языке.',
+    description: 'Все оценки за выбранный период, на русском или английском языке.',
     category: 'certificates',
     kind: 'document',
     sla_days: 10,
@@ -55,7 +55,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'financial-aid',
     title: 'Материальная помощь',
-    description: 'Единовременная материальная помощь студентам в трудной ситуации.',
+    description: 'Для студентов в трудной ситуации. Понадобятся подтверждающие документы, например справка о составе семьи.',
     category: 'finance',
     kind: 'document',
     sla_days: 14,
@@ -68,7 +68,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'academic-leave',
     title: 'Академический отпуск',
-    description: 'Заявление на академический отпуск. Деканат свяжется, если понадобятся документы.',
+    description: 'Укажите дату начала и основание. Документы можно приложить сразу или позже — деканат напишет, если они понадобятся.',
     category: 'deanery',
     kind: 'document',
     sla_days: 10,
@@ -88,7 +88,7 @@ export const serviceTypes: S['ServiceType'][] = [
   {
     id: 'student-card-reissue',
     title: 'Повторная выдача студенческого билета',
-    description: 'Новый студенческий билет взамен утерянного или повреждённого.',
+    description: 'Если билет утерян, повреждён или сменилась фамилия.',
     category: 'deanery',
     kind: 'document',
     sla_days: 7,

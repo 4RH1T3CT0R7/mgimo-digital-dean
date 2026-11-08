@@ -24,7 +24,7 @@ describe('Охрана маршрутов', () => {
     expect(links.map((l) => l.textContent?.replace(/\d+$/, ''))).toHaveLength(5);
     expect(within(tabBar()).getByRole('link', { name: 'Сегодня' })).toHaveAttribute('aria-current', 'page');
     expect(await within(tabBar()).findByRole('link', { name: /Уведомления, непрочитанных: 3/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Профиль/ })).toHaveTextContent('Лебедева А. В.');
+    expect(screen.getByRole('button', { name: 'Меню пользователя: Лебедева А. В.' })).toBeInTheDocument();
   });
 
   it('student на /staff — обратно на свою главную', async () => {
@@ -84,7 +84,8 @@ describe('Выход', () => {
     const listener = vi.fn();
     const off = onLogout(listener);
     const { user } = renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
-    await user.click(await screen.findByRole('button', { name: 'Выйти' }));
+    await user.click(await screen.findByRole('button', { name: /Меню пользователя/ }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Выйти' }));
     expect(await screen.findByRole('heading', { name: 'Вход в личный кабинет' })).toBeInTheDocument();
     expect(listener).toHaveBeenCalledOnce();
     off();
@@ -103,5 +104,31 @@ describe('Выход', () => {
     expect(window.location.pathname).toBe('/login');
     expect(listener).toHaveBeenCalled();
     off();
+  });
+});
+
+describe('Меню пользователя и тема', () => {
+  it('у студента: профиль, безопасность, тема; выбор темы ставит класс и запоминается', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
+    await user.click(await screen.findByRole('button', { name: 'Меню пользователя: Лебедева А. В.' }));
+    expect(screen.getByRole('menuitem', { name: 'Профиль' })).toHaveAttribute('href', '/profile');
+    expect(screen.getByRole('menuitem', { name: 'Безопасность' })).toHaveAttribute('href', '/security');
+    expect(screen.getByRole('menuitemradio', { name: 'Как в системе' })).toHaveAttribute('aria-checked', 'true');
+
+    await user.click(screen.getByRole('menuitemradio', { name: 'Тёмная' }));
+    expect(document.documentElement).toHaveClass('dark');
+    expect(localStorage.getItem('theme')).toBe('dark');
+
+    await user.click(screen.getByRole('button', { name: /Меню пользователя/ }));
+    await user.click(screen.getByRole('menuitemradio', { name: 'Как в системе' }));
+    expect(document.documentElement).not.toHaveClass('dark'); // в тестах система — светлая
+    expect(localStorage.getItem('theme')).toBeNull();
+  });
+
+  it('у сотрудника профиля нет, безопасность — в кабинете сотрудника', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: '/staff', login: 'dekanat.mo' });
+    await user.click(await screen.findByRole('button', { name: 'Меню пользователя: Деканат ФМО' }));
+    expect(screen.queryByRole('menuitem', { name: 'Профиль' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Безопасность' })).toHaveAttribute('href', '/staff/security');
   });
 });

@@ -8,7 +8,7 @@ export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
 export function DialogOverlay({ className, ...props }: ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return <DialogPrimitive.Overlay data-slot="dialog-overlay" className={cn('fixed inset-0 z-50 bg-black/40', className)} {...props} />;
+  return <DialogPrimitive.Overlay data-slot="dialog-overlay" className={cn('fixed inset-0 z-50 bg-black/50', className)} {...props} />;
 }
 
 export function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {

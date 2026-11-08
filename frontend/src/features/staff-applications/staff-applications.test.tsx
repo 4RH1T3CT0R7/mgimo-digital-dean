@@ -89,7 +89,8 @@ describe('Заявка /staff/requests/:id', () => {
 
   it('у завершённой заявки кнопок нет', async () => {
     renderWithProviders(<AppRoutes />, { route: appUrl(1), login: 'dekanat.mo' });
-    expect(await screen.findByText('Заявка завершена — статус больше не меняется.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Заявка № 000001' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Действия с заявкой' })).not.toBeInTheDocument();
   });
 
   it('«Отклонить» без комментария не отправляется, с комментарием — отклоняет', async () => {
@@ -101,7 +102,7 @@ describe('Заявка /staff/requests/:id', () => {
     );
     const { user } = renderWithProviders(<AppRoutes />, { route: SUBMITTED_QUESTION, login: 'dekanat.mo' });
     await user.click(await screen.findByRole('button', { name: 'Отклонить' }));
-    const dialog = screen.getByRole('dialog', { name: 'Отклонить заявку' });
+    const dialog = screen.getByRole('dialog', { name: 'Отклонить заявку № 000012?' });
     await user.click(within(dialog).getByRole('button', { name: 'Отклонить' }));
     expect(within(dialog).getByText('Напишите комментарий для студента')).toBeInTheDocument();
     expect(within(dialog).getByLabelText(/Комментарий для студента/)).toHaveAttribute('aria-invalid', 'true');
@@ -109,9 +110,10 @@ describe('Заявка /staff/requests/:id', () => {
 
     await user.type(within(dialog).getByLabelText(/Комментарий для студента/), 'Вопрос не по адресу');
     await user.click(within(dialog).getByRole('button', { name: 'Отклонить' }));
-    expect(await screen.findByText('Статус заявки: «Отклонена»')).toBeInTheDocument();
+    expect(await screen.findByText('Заявка № 000012 отклонена')).toBeInTheDocument();
     expect(sent).toHaveBeenCalledOnce();
-    expect(await screen.findByText('Заявка завершена — статус больше не меняется.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Заявка № 000012' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Действия с заявкой' })).not.toBeInTheDocument();
     expect(screen.getByText('Вопрос не по адресу')).toBeInTheDocument(); // комментарий в истории
   });
 
@@ -131,7 +133,7 @@ describe('Заявка /staff/requests/:id', () => {
     await user.type(await screen.findByLabelText('Ответ студенту'), 'Стипендию начислят до 25 числа.');
     await user.click(screen.getByRole('button', { name: 'Отправить' }));
     expect(await screen.findByText('Стипендию начислят до 25 числа.')).toBeInTheDocument();
-    expect(screen.getByText(/^Деканат ФМО ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^Деканат ФМО, /)).toBeInTheDocument();
     expect(screen.getByLabelText('Ответ студенту')).toHaveValue('');
   });
 });

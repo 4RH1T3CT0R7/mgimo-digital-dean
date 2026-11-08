@@ -25,7 +25,7 @@ export function CertificateCard({ application, headingLevel = 'h2' }: Props & { 
           </Heading>
           <p className="text-sm text-muted-foreground">
             {/* formatDate с годом заканчивается на «г.» — своя точка не нужна */}
-            Действует до {formatDate(certificate.valid_until, { withYear: true })} Получатель проверит её по коду на странице проверки.
+            Действует до {formatDate(certificate.valid_until, { withYear: true })} Получатель может убедиться в подлинности по коду ниже.
           </p>
         </div>
       </div>
@@ -44,7 +44,7 @@ export function CertificateCard({ application, headingLevel = 'h2' }: Props & { 
         <Button asChild variant="outline">
           <Link to={certificate.verify_url} target="_blank" rel="noopener">
             <ExternalLinkIcon aria-hidden />
-            Открыть проверку
+            Страница проверки
             <span className="sr-only"> (в новой вкладке)</span>
           </Link>
         </Button>

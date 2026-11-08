@@ -1,8 +1,9 @@
-import { ArrowLeftIcon, ClockIcon, FileIcon, LoaderCircleIcon, XIcon } from 'lucide-react';
+import { ClockIcon, FileIcon, LoaderCircleIcon, XIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { apiErrorMessage, fieldErrors } from '@/shared/lib/errors';
+import { BackLink } from '@/shared/ui/back-link';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent } from '@/shared/ui/card';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -22,14 +23,7 @@ type FormField = ServiceType['fields'][number];
 type Errors = Record<string, string>;
 
 export function BackToRequests() {
-  return (
-    <Button asChild variant="link" className="mb-2 h-auto px-0">
-      <Link to="/requests">
-        <ArrowLeftIcon aria-hidden />
-        Все заявки
-      </Link>
-    </Button>
-  );
+  return <BackLink to="/requests">Все заявки</BackLink>;
 }
 
 export function NewRequestPage() {
@@ -47,10 +41,10 @@ export function NewRequestPage() {
               <PageHeader title="Новая заявка" />
               <EmptyState
                 title="Такой услуги нет"
-                description="Возможно, она больше не оказывается. Выберите услугу из каталога."
+                description="Возможно, она больше не оказывается. Выберите другую из списка."
                 action={
                   <Button asChild variant="outline">
-                    <Link to="/requests#catalog">К каталогу услуг</Link>
+                    <Link to="/requests#catalog">К списку услуг</Link>
                   </Button>
                 }
               />
@@ -154,10 +148,13 @@ function ApplicationForm({ service }: { service: ServiceType }) {
   return (
     <>
       <PageHeader title={service.title} subtitle={service.description} />
-      <p className="-mt-3 mb-5 flex items-center gap-2 text-sm text-muted-foreground">
-        <ClockIcon className="size-4" aria-hidden />
-        {instant ? 'Справка формируется сразу после подачи' : `Срок готовности — ${slaLabel(service.sla_days)}`}
-      </p>
+      {/* У мгновенной справки срок уже сказан в описании */}
+      {!instant && (
+        <p className="-mt-3 mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <ClockIcon className="size-4" aria-hidden />
+          Срок готовности — {slaLabel(service.sla_days)}
+        </p>
+      )}
       <Card className="max-w-2xl">
         <CardContent>
           <form noValidate onSubmit={onSubmit} className="flex flex-col gap-5">
@@ -230,7 +227,7 @@ function ApplicationForm({ service }: { service: ServiceType }) {
 }
 
 function Optional() {
-  return <span className="font-normal text-muted-foreground">· необязательно</span>;
+  return <span className="font-normal text-muted-foreground">(необязательно)</span>;
 }
 
 function FieldError({ id, error }: { id: string; error?: string }) {
