@@ -124,17 +124,19 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
 
       {/* Телефон: нижняя панель вкладок */}
       <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {/* Ширина вкладки — по подписи + поровну свободного места: «Уведомления» не обрезается на 360 px */}
-        <ul className="flex h-tabbar">
+        {/* Пять равных колонок и кегль 10 px: «Уведомления» (~60 px) помещается в колонку (69 px при 345 px
+            с полосой прокрутки) с запасом. Раньше ширина шла по подписи и запас был 2 px — при активной
+            «Заявки» подпись обрезалась. */}
+        <ul className="grid h-tabbar grid-cols-5">
           {nav.map((item) => {
             const active = isActive(item, pathname);
             return (
-              <li key={item.to} className="flex-auto">
+              <li key={item.to} className="min-w-0">
                 <Link
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex h-full flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none font-medium text-muted-foreground transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset',
+                    'flex h-full flex-col items-center justify-center gap-1 px-0.5 text-[10px] leading-none font-medium tracking-tight text-muted-foreground transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset',
                     active && 'text-accent-foreground',
                   )}
                 >
