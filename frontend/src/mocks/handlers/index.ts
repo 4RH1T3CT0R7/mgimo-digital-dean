@@ -4,6 +4,7 @@ import { assistantHandlers } from './assistant';
 import { authHandlers } from './auth';
 import { notificationsHandlers } from './notifications';
 import { requestsHandlers } from './requests';
+import { requestsStaffHandlers } from './requests-staff';
 
 // Общие для браузера (dev:mock) и тестов (src/test/render.tsx)
 export const handlers = [
@@ -11,6 +12,7 @@ export const handlers = [
   ...authHandlers,
   ...academicHandlers,
   ...requestsHandlers,
+  ...requestsStaffHandlers,
   ...notificationsHandlers,
   ...assistantHandlers,
 ];
