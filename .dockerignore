@@ -1,0 +1,8 @@
+.git
+.env
+frontend
+e2e
+docs
+content
+deploy
+**/node_modules

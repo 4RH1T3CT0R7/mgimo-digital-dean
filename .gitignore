@@ -1,0 +1,18 @@
+# Секреты — никогда в git (security.md)
+.env
+.env.*
+!.env.example
+
+# Сборка
+/bin/
+frontend/dist/
+**/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+
+# Редакторы и ОС
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

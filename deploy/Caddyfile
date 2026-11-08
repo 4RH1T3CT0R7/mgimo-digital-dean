@@ -1,0 +1,81 @@
+# Шлюз API и раздача SPA (architecture.md §3).
+# Внутренние порты сервисов (8081) сюда не проксируются никогда (D31).
+
+(protected) {
+	# Личность проверяет auth; при успехе его заголовки копируются в запрос к сервису (D26)
+	forward_auth auth:8081 {
+		uri /internal/verify
+		copy_headers X-User-Id X-User-Role X-Faculty-Id
+	}
+	reverse_proxy {args[0]}:8080
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		-Server
+	}
+}
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	import security_headers
+
+	# Ответы с ошибками Caddy идут мимо обычной цепочки — заголовки нужны и им
+	handle_errors {
+		import security_headers
+		respond "{err.status_code} {err.status_text}"
+	}
+
+	# Заголовки личности снаружи не принимаются: их выставляет только auth (security.md §3)
+	request_header -X-User-Id
+	request_header -X-User-Role
+	request_header -X-Faculty-Id
+
+	# Внутренний API не доступен снаружи даже по подобранному адресу
+	@internal path_regexp ^/api/[^/]+/internal(/|$)
+	handle @internal {
+		respond 404
+	}
+
+	# Без проверки сессии
+	handle /api/auth/login {
+		uri strip_prefix /api/auth
+		reverse_proxy auth:8080
+	}
+	handle /api/auth/logout {
+		uri strip_prefix /api/auth
+		reverse_proxy auth:8080
+	}
+	handle /api/requests/public/* {
+		uri strip_prefix /api/requests
+		reverse_proxy requests:8080
+	}
+
+	# С проверкой сессии
+	handle_path /api/auth/* {
+		import protected auth
+	}
+	handle_path /api/academic/* {
+		import protected academic
+	}
+	handle_path /api/requests/* {
+		import protected requests
+	}
+	handle_path /api/notifications/* {
+		import protected notifications
+	}
+	handle /api/* {
+		respond 404
+	}
+
+	# SPA: неизвестные пути отдают index.html, роутинг делает фронтенд
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

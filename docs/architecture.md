@@ -104,7 +104,7 @@ docs/
 
 | Слой | Выбор |
 |---|---|
-| Бэкенд | Go 1.25, `net/http`, oapi-codegen v2, pgx v5, sqlc, goose, `log/slog`, bcrypt (`golang.org/x/crypto`) |
+| Бэкенд | Go 1.26, `net/http`, oapi-codegen v2, pgx v5, sqlc, goose, `log/slog`, bcrypt (`golang.org/x/crypto`) |
 | События | NATS JetStream (`nats.go`) |
 | PDF (I1) | Go-библиотека с поддержкой UTF-8 и встроенным шрифтом под лицензией OFL (конкретная — в ТЗ задачи) |
 | Фронтенд | React + Vite + TypeScript, React Router, TanStack Query, openapi-fetch, Tailwind CSS, shadcn/ui (Radix), lucide-react, vite-plugin-pwa |
