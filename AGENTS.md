@@ -57,6 +57,18 @@
 23. Ветка на задачу: `tNN-кратко` (например, `t07-requests-api`). В `main` напрямую не пушим — только через PR.
 24. Сообщения коммитов: `feat(requests): …`, `fix(academic): …`, `docs: …`, `test(auth): …`. Описание — по-русски.
 25. Если агент ошибся и ошибку исправили — добавь запись в `docs/process/ai-mistakes.md` (это материал для жюри).
+26. Если ты не владелец каталога (таблица ниже), не меняй в нём файлы. Нужна правка — опиши её в PR или задаче для владельца.
+
+## Кто владеет каталогами (D39, D40)
+
+| Каталог / файл | Владелец |
+|---|---|
+| `services/`, `pkg/`, `deploy/`, `Dockerfile`, `Makefile`, `.github/`, `go.mod` | Капитан |
+| `docs/contracts/`, `docs/decisions.md`, `docs/progress.md`, `docs/plan.md`, `docs/tasks/`, `AGENTS.md` | Капитан |
+| `frontend/` (каркас, `src/app/`, `src/shared/`, дизайн-токены), `frontend/src/features/{today,schedule,grades,profile}/` | Участник Б |
+| `frontend/src/features/{requests,notifications,verify,staff,admin}/`, `e2e/` | Участник В |
+| `frontend/src/app/routes.tsx` | Участник Б; участник В добавляет только строки регистрации своих фич |
+| `docs/process/` | Все: каждый дописывает свои записи в конец файла |
 
 ## Команды
 
