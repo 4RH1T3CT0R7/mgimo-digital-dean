@@ -201,6 +201,48 @@ func (s *Server) CancelMyApplication(ctx context.Context, req api.CancelMyApplic
 	return api.CancelMyApplication200JSONResponse(view), nil
 }
 
+const maxFeedbackLen = 1000
+
+// PutMyFeedback — «помог ли ответ деканата». Только завершённая заявка, которую обрабатывал деканат.
+func (s *Server) PutMyFeedback(ctx context.Context, req api.PutMyFeedbackRequestObject) (api.PutMyFeedbackResponseObject, error) {
+	me, a, err := s.mine(ctx, req.ApplicationId)
+	if err != nil {
+		return nil, err
+	}
+	if req.Body == nil {
+		return nil, platform.Validation(map[string]string{"helpful": "Обязательное поле"})
+	}
+	comment := optionalText(req.Body.Comment)
+	if comment != nil && utf8.RuneCountInString(*comment) > maxFeedbackLen {
+		return nil, platform.Validation(map[string]string{"comment": "Не больше 1000 символов"})
+	}
+	st, err := s.q.GetServiceType(ctx, a.ServiceTypeID)
+	if err != nil {
+		return nil, err
+	}
+	if st.Kind == string(api.InstantCertificate) {
+		return nil, invalidTransition()
+	}
+	helpful, now := req.Body.Helpful, s.now()
+	n, err := s.q.SetFeedback(ctx, db.SetFeedbackParams{ID: a.ID, StudentID: me.UserID, Helpful: &helpful,
+		Comment: comment, Now: &now})
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 { // заявка не завершена
+		return nil, invalidTransition()
+	}
+	platform.Log(ctx).Info("application", "event", "feedback", "application_id", a.ID.String(), "helpful", req.Body.Helpful)
+	if a, err = s.q.GetStudentApplication(ctx, db.GetStudentApplicationParams{ID: a.ID, StudentID: me.UserID}); err != nil {
+		return nil, err
+	}
+	view, err := s.details(ctx, a, st)
+	if err != nil {
+		return nil, err
+	}
+	return api.PutMyFeedback200JSONResponse(view), nil
+}
+
 // PostMyMessage — вопрос или уточнение студента. В needs_info заявка возвращается деканату (Б5).
 func (s *Server) PostMyMessage(ctx context.Context, req api.PostMyMessageRequestObject) (api.PostMyMessageResponseObject, error) {
 	me, a, err := s.mine(ctx, req.ApplicationId)

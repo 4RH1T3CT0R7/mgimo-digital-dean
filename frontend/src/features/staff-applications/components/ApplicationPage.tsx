@@ -1,4 +1,4 @@
-import { ArrowLeftIcon, FileIcon } from 'lucide-react';
+import { ArrowLeftIcon, FileIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'react-router';
 import type { components } from '@/api/requests';
@@ -53,6 +53,16 @@ function ApplicationDetails({ a }: { a: Application }) {
 
       <div className="flex flex-col gap-4">
         <StatusActions a={a} />
+        {a.feedback && (
+          <Section title="Оценка студента">
+            <p className="flex items-center gap-2 font-medium">
+              {a.feedback.helpful ? <ThumbsUpIcon className="size-5 text-success-strong" aria-hidden /> : <ThumbsDownIcon className="size-5 text-danger-strong" aria-hidden />}
+              {a.feedback.helpful ? 'Ответ помог' : 'Ответ не помог'}
+            </p>
+            {a.feedback.comment && <p className="mt-2 text-sm break-words whitespace-pre-wrap">«{a.feedback.comment}»</p>}
+            <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(a.feedback.at)}</p>
+          </Section>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <Section title="Студент">
             <InfoList

@@ -331,6 +331,9 @@ func (s *Server) details(ctx context.Context, a db.Application, st db.ServiceTyp
 		info.ValidUntil.Time = c.ValidUntil.Time
 		out.Certificate = &info
 	}
+	if a.FeedbackHelpful != nil && a.FeedbackAt != nil {
+		out.Feedback = &api.Feedback{Helpful: *a.FeedbackHelpful, Comment: a.FeedbackComment, At: a.FeedbackAt.In(msk)}
+	}
 	return out, nil
 }
 

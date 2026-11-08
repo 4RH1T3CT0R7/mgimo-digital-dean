@@ -69,7 +69,7 @@ INSERT INTO applications (id, student_id, faculty_id, service_type_id, status, f
                           student_snapshot, created_at, updated_at, due_at)
 VALUES ($1, $2, $3, $4, $5,
         $6, $7, $8, $9, $9, $10)
-RETURNING id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from
+RETURNING id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from, feedback_helpful, feedback_comment, feedback_at
 `
 
 type CreateApplicationParams struct {
@@ -115,6 +115,9 @@ func (q *Queries) CreateApplication(ctx context.Context, arg CreateApplicationPa
 		&i.DueAt,
 		&i.LastMessageAt,
 		&i.LastMessageFrom,
+		&i.FeedbackHelpful,
+		&i.FeedbackComment,
+		&i.FeedbackAt,
 	)
 	return i, err
 }
@@ -217,7 +220,7 @@ func (q *Queries) GetCertificateByApplication(ctx context.Context, applicationID
 }
 
 const getScopedApplication = `-- name: GetScopedApplication :one
-SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from FROM applications
+SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from, feedback_helpful, feedback_comment, feedback_at FROM applications
 WHERE id = $1 AND ($2::uuid IS NULL OR faculty_id = $2)
 `
 
@@ -244,6 +247,9 @@ func (q *Queries) GetScopedApplication(ctx context.Context, arg GetScopedApplica
 		&i.DueAt,
 		&i.LastMessageAt,
 		&i.LastMessageFrom,
+		&i.FeedbackHelpful,
+		&i.FeedbackComment,
+		&i.FeedbackAt,
 	)
 	return i, err
 }
@@ -274,7 +280,7 @@ func (q *Queries) GetServiceType(ctx context.Context, id string) (ServiceType, e
 
 const getStudentApplication = `-- name: GetStudentApplication :one
 
-SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from FROM applications WHERE id = $1 AND student_id = $2
+SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from, feedback_helpful, feedback_comment, feedback_at FROM applications WHERE id = $1 AND student_id = $2
 `
 
 type GetStudentApplicationParams struct {
@@ -302,6 +308,9 @@ func (q *Queries) GetStudentApplication(ctx context.Context, arg GetStudentAppli
 		&i.DueAt,
 		&i.LastMessageAt,
 		&i.LastMessageFrom,
+		&i.FeedbackHelpful,
+		&i.FeedbackComment,
+		&i.FeedbackAt,
 	)
 	return i, err
 }
@@ -562,7 +571,7 @@ func (q *Queries) ListMessages(ctx context.Context, applicationID uuid.UUID) ([]
 }
 
 const listStaffApplications = `-- name: ListStaffApplications :many
-SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from FROM applications
+SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from, feedback_helpful, feedback_comment, feedback_at FROM applications
 WHERE ($1::uuid IS NULL OR faculty_id = $1)
   AND (cardinality($2::text[]) = 0 OR status = ANY ($2::text[]))
   AND ($3::text IS NULL OR service_type_id = $3)
@@ -618,6 +627,9 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 			&i.DueAt,
 			&i.LastMessageAt,
 			&i.LastMessageFrom,
+			&i.FeedbackHelpful,
+			&i.FeedbackComment,
+			&i.FeedbackAt,
 		); err != nil {
 			return nil, err
 		}
@@ -764,7 +776,7 @@ func (q *Queries) ListStatusHistoryForReplay(ctx context.Context) ([]ListStatusH
 }
 
 const listStudentApplications = `-- name: ListStudentApplications :many
-SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from FROM applications
+SELECT id, number, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot, created_at, updated_at, due_at, last_message_at, last_message_from, feedback_helpful, feedback_comment, feedback_at FROM applications
 WHERE student_id = $1
   AND (cardinality($2::text[]) = 0 OR status = ANY ($2::text[]))
   AND ($3::boolean IS NULL OR
@@ -812,6 +824,9 @@ func (q *Queries) ListStudentApplications(ctx context.Context, arg ListStudentAp
 			&i.DueAt,
 			&i.LastMessageAt,
 			&i.LastMessageFrom,
+			&i.FeedbackHelpful,
+			&i.FeedbackComment,
+			&i.FeedbackAt,
 		); err != nil {
 			return nil, err
 		}
@@ -823,6 +838,35 @@ func (q *Queries) ListStudentApplications(ctx context.Context, arg ListStudentAp
 	return items, nil
 }
 
+const setFeedback = `-- name: SetFeedback :execrows
+UPDATE applications
+SET feedback_helpful = $1, feedback_comment = $2, feedback_at = $3
+WHERE id = $4 AND student_id = $5 AND status IN ('ready', 'rejected')
+`
+
+type SetFeedbackParams struct {
+	Helpful   *bool
+	Comment   *string
+	Now       *time.Time
+	ID        uuid.UUID
+	StudentID uuid.UUID
+}
+
+// Оценка — только у завершённой заявки студента; гонка со сменой статуса даст 0 строк → 409.
+func (q *Queries) SetFeedback(ctx context.Context, arg SetFeedbackParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setFeedback,
+		arg.Helpful,
+		arg.Comment,
+		arg.Now,
+		arg.ID,
+		arg.StudentID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const staffStats = `-- name: StaffStats :one
 SELECT count(*) FILTER (WHERE a.status = 'submitted')   AS submitted,
        count(*) FILTER (WHERE a.status = 'in_progress') AS in_progress,
@@ -831,7 +875,9 @@ SELECT count(*) FILTER (WHERE a.status = 'submitted')   AS submitted,
        (SELECT count(DISTINCT h.application_id) FROM status_history h
         JOIN applications r ON r.id = h.application_id
         WHERE h.status = 'ready' AND h.actor_role = 'staff' AND h.created_at >= $2
-          AND ($3::uuid IS NULL OR r.faculty_id = $3)) AS ready_today
+          AND ($3::uuid IS NULL OR r.faculty_id = $3)) AS ready_today,
+       count(a.feedback_helpful)                        AS feedback_total,
+       count(*) FILTER (WHERE a.feedback_helpful)       AS feedback_helpful
 FROM applications a
 WHERE ($3::uuid IS NULL OR a.faculty_id = $3)
 `
@@ -843,11 +889,13 @@ type StaffStatsParams struct {
 }
 
 type StaffStatsRow struct {
-	Submitted  int64
-	InProgress int64
-	NeedsInfo  int64
-	Overdue    int64
-	ReadyToday int64
+	Submitted       int64
+	InProgress      int64
+	NeedsInfo       int64
+	Overdue         int64
+	ReadyToday      int64
+	FeedbackTotal   int64
+	FeedbackHelpful int64
 }
 
 // ready_today — сколько заявок деканат перевёл в ready с начала дня (мгновенные справки не считаются).
@@ -860,6 +908,8 @@ func (q *Queries) StaffStats(ctx context.Context, arg StaffStatsParams) (StaffSt
 		&i.NeedsInfo,
 		&i.Overdue,
 		&i.ReadyToday,
+		&i.FeedbackTotal,
+		&i.FeedbackHelpful,
 	)
 	return i, err
 }

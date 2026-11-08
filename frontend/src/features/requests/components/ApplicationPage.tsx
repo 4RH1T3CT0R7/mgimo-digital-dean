@@ -1,4 +1,4 @@
-import { CircleAlertIcon, DownloadIcon, FileCheckIcon, FileIcon, LoaderCircleIcon, SendIcon } from 'lucide-react';
+import { CircleAlertIcon, DownloadIcon, FileCheckIcon, FileIcon, LoaderCircleIcon, SendIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError, apiErrorMessage } from '@/shared/lib/errors';
@@ -19,6 +19,7 @@ import {
   useDownloadAttachment,
   useMyApplication,
   usePostMessage,
+  useSendFeedback,
   useServiceTypes,
   useUploadAttachment,
   type Application,
@@ -105,6 +106,7 @@ function ApplicationDetails({ application: a }: { application: Application }) {
             </section>
           )}
           <Chat application={a} />
+          {(a.status === 'ready' || a.status === 'rejected') && a.service_type.kind !== 'instant_certificate' && <FeedbackCard application={a} />}
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
@@ -350,5 +352,77 @@ function CancelDialog({ application }: { application: Application }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** «Помог ли ответ деканата?» — оценку видит деканат (кабинет сотрудника, счётчики на главной). */
+function FeedbackCard({ application: a }: { application: Application }) {
+  const send = useSendFeedback(a.id);
+  const [editing, setEditing] = useState(!a.feedback);
+  const [askComment, setAskComment] = useState(false); // выбрано «Нет» — спрашиваем, что улучшить
+  const [comment, setComment] = useState('');
+
+  function submit(helpful: boolean) {
+    send.mutate(
+      { helpful, comment: helpful ? null : comment.trim() || null },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          setAskComment(false);
+          toast.success('Спасибо за оценку!');
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  }
+
+  if (!editing && a.feedback) {
+    const Icon = a.feedback.helpful ? ThumbsUpIcon : ThumbsDownIcon;
+    return (
+      <section aria-label="Ваша оценка" className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-5 py-3 text-sm">
+        <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <p className="min-w-0 flex-1">Вы отметили, что ответ деканата {a.feedback.helpful ? 'помог' : 'не помог'}. Спасибо!</p>
+        <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+          Изменить
+        </Button>
+      </section>
+    );
+  }
+
+  return (
+    <section aria-labelledby="feedback-title" className="flex flex-col gap-3 rounded-xl border bg-card p-5">
+      <div>
+        <h2 id="feedback-title" className="text-base font-semibold">
+          Помог ли ответ деканата?
+        </h2>
+        <p className="text-sm text-muted-foreground">Оценку видит деканат — так он понимает, что улучшить.</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={send.isPending} onClick={() => submit(true)}>
+          <ThumbsUpIcon aria-hidden />
+          Да, помог
+        </Button>
+        <Button variant={askComment ? 'secondary' : 'outline'} aria-expanded={askComment} disabled={send.isPending} onClick={() => setAskComment(true)}>
+          <ThumbsDownIcon aria-hidden />
+          Нет
+        </Button>
+      </div>
+      {askComment && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(false);
+          }}
+          className="flex flex-col gap-2"
+        >
+          <Label htmlFor="feedback-comment">Что можно улучшить? Необязательно</Label>
+          <Textarea id="feedback-comment" value={comment} onChange={(e) => setComment(e.target.value)} maxLength={1000} rows={3} />
+          <Button type="submit" disabled={send.isPending} className="sm:self-end">
+            {send.isPending && <LoaderCircleIcon className="animate-spin" aria-hidden />}
+            Отправить оценку
+          </Button>
+        </form>
+      )}
+    </section>
   );
 }

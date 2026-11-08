@@ -516,6 +516,49 @@ func next[T any](t *testing.T, ch chan T) T {
 	return zero
 }
 
+// Оценка ответа деканата: только своя завершённая заявка не мгновенной услуги; видна сотруднику и в счётчиках.
+func TestFeedback(t *testing.T) {
+	e := setup(t, nil)
+	a := e.create(asA, "transcript", nil)
+	path := "/me/applications/" + a.Id.String() + "/feedback"
+	helpful := func(v bool, comment *string) api.FeedbackRequest { return api.FeedbackRequest{Helpful: v, Comment: comment} }
+
+	expectError(t, e.do(http.MethodPut, path, &asA, helpful(true, nil)), http.StatusConflict, "invalid_transition") // ещё не готова
+	e.forceStatus(a.Id, string(api.Ready))
+	expectError(t, e.do(http.MethodPut, path, &asB, helpful(true, nil)), http.StatusNotFound, "not_found") // чужая
+	expectError(t, e.do(http.MethodPut, path, &asStaffMO, helpful(true, nil)), http.StatusForbidden, "forbidden")
+	long := strings.Repeat("я", 1001)
+	expectError(t, e.do(http.MethodPut, path, &asA, helpful(false, &long)), http.StatusBadRequest, "validation_failed")
+
+	got := decode[api.Application](t, e.do(http.MethodPut, path, &asA, helpful(true, nil)))
+	if got.Feedback == nil || !got.Feedback.Helpful || got.Feedback.Comment != nil {
+		t.Fatalf("оценка не сохранилась: %+v", got.Feedback)
+	}
+	// Повтор заменяет оценку; комментарий обрезается.
+	comment := "  Долго ждал ответа  "
+	got = decode[api.Application](t, e.do(http.MethodPut, path, &asA, helpful(false, &comment)))
+	if got.Feedback.Helpful || got.Feedback.Comment == nil || *got.Feedback.Comment != "Долго ждал ответа" {
+		t.Fatalf("оценка не заменилась: %+v", got.Feedback)
+	}
+
+	staff := decode[api.StaffApplication](t, e.do(http.MethodGet, "/staff/applications/"+a.Id.String(), &asStaffMO, nil))
+	if staff.Feedback == nil || staff.Feedback.Helpful {
+		t.Fatalf("сотрудник не видит оценку: %+v", staff.Feedback)
+	}
+	stats := decode[api.StaffStats](t, e.do(http.MethodGet, "/staff/stats", &asStaffMO, nil))
+	if stats.FeedbackTotal != 1 || stats.FeedbackHelpful != 0 {
+		t.Fatalf("счётчики оценок: %+v", stats)
+	}
+	if stats := decode[api.StaffStats](t, e.do(http.MethodGet, "/staff/stats", &asStaffMEO, nil)); stats.FeedbackTotal != 0 {
+		t.Fatalf("оценка ФМО попала в счётчики МЭО: %+v", stats)
+	}
+
+	// У мгновенной справки оценки нет: её выдаёт система, а не деканат.
+	cert := e.create(asA, "study-certificate", map[string]string{"purpose": "По месту требования"})
+	expectError(t, e.do(http.MethodPut, "/me/applications/"+cert.Id.String()+"/feedback", &asA, helpful(true, nil)),
+		http.StatusConflict, "invalid_transition")
+}
+
 func TestMessagesStatusesAndEvents(t *testing.T) {
 	bus, err := events.Connect(context.Background(), platformtest.NewNATS(t), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {

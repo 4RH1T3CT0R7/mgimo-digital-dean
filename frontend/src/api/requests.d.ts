@@ -91,6 +91,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/applications/{application_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Оценить ответ деканата
+         * @description Роли — student. Только для завершённых заявок (`ready`, `rejected`), которые обрабатывал деканат:
+         *     у мгновенной справки (`instant_certificate`) оценки нет. Иначе 409. Повторный вызов заменяет оценку.
+         */
+        put: operations["putMyFeedback"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/applications/{application_id}/messages": {
         parameters: {
             query?: never;
@@ -448,6 +469,20 @@ export interface components {
             attachments: components["schemas"]["Attachment"][];
             /** @description Только для instant_certificate в статусе ready */
             certificate?: components["schemas"]["CertificateInfo"] | null;
+            /** @description Оценка ответа деканата студентом; null — оценки нет */
+            feedback?: components["schemas"]["Feedback"] | null;
+        };
+        Feedback: {
+            /** @description Ответ деканата помог */
+            helpful: boolean;
+            comment?: string | null;
+            /** Format: date-time */
+            at: string;
+        };
+        FeedbackRequest: {
+            helpful: boolean;
+            /** @description Что можно улучшить; пустая строка — без комментария */
+            comment?: string | null;
         };
         StatusHistoryEntry: {
             status: components["schemas"]["ApplicationStatus"];
@@ -558,6 +593,10 @@ export interface components {
             needs_info: number;
             overdue: number;
             ready_today: number;
+            /** @description Сколько заявок студенты оценили (за всё время, в пределах факультета) */
+            feedback_total: number;
+            /** @description Из них с оценкой «помогло» */
+            feedback_helpful: number;
         };
         Error: {
             code: string;
@@ -788,6 +827,37 @@ export interface operations {
                     "application/json": components["schemas"]["Application"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["InvalidTransition"];
+        };
+    };
+    putMyFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: components["parameters"]["ApplicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Оценка сохранена */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Application"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
