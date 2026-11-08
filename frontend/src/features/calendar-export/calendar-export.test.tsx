@@ -8,9 +8,26 @@ import { ExportCalendarButton } from './ExportCalendarButton';
 
 const createDescriptor = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
 const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
-const createObjectURL = vi.fn(() => 'blob:calendar');
+const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:calendar');
 const revokeObjectURL = vi.fn();
 const calendar = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n';
+
+function blobText(blob: Blob): Promise<string>
+{
+    if (typeof blob.text === 'function')
+    {
+        return blob.text();
+    }
+
+    // Blob из jsdom читается FileReader, Blob из Node fetch — методом text.
+    return new Promise((resolve, reject) =>
+    {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(blob);
+    });
+}
 
 beforeEach(() =>
 {
@@ -59,7 +76,10 @@ describe('T16: выгрузка календаря', () =>
 
         await waitFor(() => expect(clicks).toEqual([{ file: 'mgimo-schedule.ics', url: 'blob:calendar' }]));
         expect(fetch).toHaveBeenCalledWith(`/api/academic/me/schedule.ics?from=${toApiDate()}`, expect.objectContaining({ credentials: 'include', cache: 'no-store' }));
-        expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+        expect(createObjectURL).toHaveBeenCalledOnce();
+        const downloaded = createObjectURL.mock.calls[0][0];
+        expect(downloaded.type.split(';')[0]).toBe('text/calendar');
+        expect(await blobText(downloaded)).toBe(calendar);
         expect(screen.getByRole('button', { name: 'В календарь' })).toBeEnabled();
     });
 
