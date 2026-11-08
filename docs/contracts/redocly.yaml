@@ -1,0 +1,8 @@
+# Конфигурация линтера контрактов: npx @redocly/cli lint *.yaml internal/*.yaml
+extends:
+  - recommended
+rules:
+  # Репозиторий приватный, лицензия проекта не выбрана — поле license не заполняем.
+  info-license: off
+  # POST /logout всегда отвечает 204 (выход идемпотентен), 4xx у него нет.
+  operation-4xx-response: off

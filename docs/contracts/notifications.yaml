@@ -13,7 +13,9 @@ security:
   - sessionCookie: []
 tags:
   - name: student
+    description: Эндпоинты студента (/me/*)
   - name: staff
+    description: Эндпоинты сотрудника деканата и администратора (/staff/*)
 paths:
   /me/feed:
     get:

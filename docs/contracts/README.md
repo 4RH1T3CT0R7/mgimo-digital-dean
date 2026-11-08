@@ -16,6 +16,13 @@
 | [`events.md`](events.md) | События NATS JetStream | капитан |
 | [`data-model.md`](data-model.md) | Таблицы каждой БД и бизнес-правила | владельцы сервисов |
 | [`seed.md`](seed.md) | Тестовые аккаунты и вымышленные данные | капитан |
+| [`redocly.yaml`](redocly.yaml) | Настройки линтера контрактов | капитан |
+
+Проверка контрактов (должна проходить без ошибок):
+
+```
+cd docs/contracts && npx @redocly/cli@1.34.5 lint auth.yaml academic.yaml requests.yaml notifications.yaml assistant.yaml internal/auth.yaml internal/academic.yaml
+```
 
 ## Соглашения (общие для всех контрактов)
 

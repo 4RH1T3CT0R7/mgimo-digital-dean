@@ -12,8 +12,11 @@ security:
   - sessionCookie: []
 tags:
   - name: student
+    description: Эндпоинты студента (/me/*)
   - name: staff
+    description: Эндпоинты сотрудника деканата и администратора (/staff/*)
   - name: public
+    description: Без входа (/public/*)
 paths:
   /service-types:
     get:
@@ -764,6 +767,7 @@ components:
               items:
                 $ref: '#/components/schemas/Attachment'
             certificate:
+              type: object
               allOf:
                 - $ref: '#/components/schemas/CertificateInfo'
               nullable: true

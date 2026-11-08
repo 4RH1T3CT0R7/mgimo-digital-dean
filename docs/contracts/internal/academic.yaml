@@ -7,6 +7,8 @@ info:
     Клиенты: `requests` (слепок студента при подаче заявки), `notifications` (принадлежность студента, адресаты объявлений).
 servers:
   - url: http://academic:8081
+# Аутентификации нет намеренно: порт 8081 доступен только во внутренней сети Docker, шлюз его не проксирует (D31).
+security: []
 paths:
   /internal/students/{student_id}:
     get:

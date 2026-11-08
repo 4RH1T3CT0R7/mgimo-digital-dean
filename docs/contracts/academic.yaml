@@ -11,8 +11,11 @@ security:
   - sessionCookie: []
 tags:
   - name: student
+    description: Эндпоинты студента (/me/*)
   - name: staff
+    description: Эндпоинты сотрудника деканата и администратора (/staff/*)
   - name: common
+    description: Общие справочники для всех ролей
 paths:
   /faculties:
     get:
@@ -524,10 +527,12 @@ components:
           type: string
           enum: [offline, online]
         room:
+          type: object
           allOf:
             - $ref: '#/components/schemas/Room'
           nullable: true
         teacher:
+          type: object
           allOf:
             - $ref: '#/components/schemas/TeacherRef'
           nullable: true
@@ -539,6 +544,7 @@ components:
         status:
           $ref: '#/components/schemas/LessonStatus'
         change:
+          type: object
           allOf:
             - $ref: '#/components/schemas/LessonChange'
           nullable: true
@@ -576,6 +582,7 @@ components:
               type: string
               pattern: '^\d{2}:\d{2}$'
             room:
+              type: object
               allOf:
                 - $ref: '#/components/schemas/Room'
               nullable: true
@@ -703,6 +710,7 @@ components:
         control_form:
           $ref: '#/components/schemas/ControlForm'
         teacher:
+          type: object
           allOf:
             - $ref: '#/components/schemas/TeacherRef'
           nullable: true
@@ -808,11 +816,13 @@ components:
           maximum: 100
           description: Рейтинговый процент; null для зачёта без оценки или если ещё не сдано
         grade5:
+          type: string
           allOf:
             - $ref: '#/components/schemas/Grade5'
           nullable: true
           description: Вычисляется из percent по шкале D20; null для зачёта
         ects:
+          type: string
           allOf:
             - $ref: '#/components/schemas/Ects'
           nullable: true
