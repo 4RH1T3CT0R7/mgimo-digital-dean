@@ -629,6 +629,53 @@ func (q *Queries) ListStaffApplications(ctx context.Context, arg ListStaffApplic
 	return items, nil
 }
 
+const listStaffMessagesForReplay = `-- name: ListStaffMessagesForReplay :many
+SELECT m.id, m.application_id, m.author_label, a.number, a.student_id, a.service_type_id, t.title AS service_title
+FROM messages m
+JOIN applications a ON a.id = m.application_id
+JOIN service_types t ON t.id = a.service_type_id
+WHERE m.author_role = 'staff'
+ORDER BY m.created_at, m.id
+`
+
+type ListStaffMessagesForReplayRow struct {
+	ID            uuid.UUID
+	ApplicationID uuid.UUID
+	AuthorLabel   string
+	Number        int64
+	StudentID     uuid.UUID
+	ServiceTypeID string
+	ServiceTitle  string
+}
+
+func (q *Queries) ListStaffMessagesForReplay(ctx context.Context) ([]ListStaffMessagesForReplayRow, error) {
+	rows, err := q.db.Query(ctx, listStaffMessagesForReplay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListStaffMessagesForReplayRow
+	for rows.Next() {
+		var i ListStaffMessagesForReplayRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ApplicationID,
+			&i.AuthorLabel,
+			&i.Number,
+			&i.StudentID,
+			&i.ServiceTypeID,
+			&i.ServiceTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listStatusHistory = `-- name: ListStatusHistory :many
 
 SELECT id, application_id, status, comment, actor_role, actor_id, created_at FROM status_history WHERE application_id = $1 ORDER BY id
@@ -652,6 +699,59 @@ func (q *Queries) ListStatusHistory(ctx context.Context, applicationID uuid.UUID
 			&i.ActorRole,
 			&i.ActorID,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStatusHistoryForReplay = `-- name: ListStatusHistoryForReplay :many
+
+SELECT h.id, h.application_id, h.status, h.comment, a.number, a.student_id, a.faculty_id,
+       a.service_type_id, t.title AS service_title
+FROM status_history h
+JOIN applications a ON a.id = h.application_id
+JOIN service_types t ON t.id = a.service_type_id
+ORDER BY h.application_id, h.created_at, h.id
+`
+
+type ListStatusHistoryForReplayRow struct {
+	ID            int64
+	ApplicationID uuid.UUID
+	Status        string
+	Comment       *string
+	Number        int64
+	StudentID     uuid.UUID
+	FacultyID     uuid.UUID
+	ServiceTypeID string
+	ServiceTitle  string
+}
+
+// ---------- Проигрывание событий по тестовым данным (T07, флаг -seed-events) ----------
+func (q *Queries) ListStatusHistoryForReplay(ctx context.Context) ([]ListStatusHistoryForReplayRow, error) {
+	rows, err := q.db.Query(ctx, listStatusHistoryForReplay)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListStatusHistoryForReplayRow
+	for rows.Next() {
+		var i ListStatusHistoryForReplayRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ApplicationID,
+			&i.Status,
+			&i.Comment,
+			&i.Number,
+			&i.StudentID,
+			&i.FacultyID,
+			&i.ServiceTypeID,
+			&i.ServiceTitle,
 		); err != nil {
 			return nil, err
 		}

@@ -57,7 +57,7 @@
     - изменения в каждой неделе 16.11–06.12 (перенос, отмена, смена аудитории у каждого тестового студента);
     - оценки, рейтинги, контрольные точки так, как описано в `seed.md`.
 
-    Список изменённых занятий (id, дата, тип) запиши в `services/academic/seed/CHANGES.md` — он нужен капитану в T07.
+    Флаг `-seed-events` (образец — `services/requests/internal/app/replay.go` и проверка флага в `services/requests/cmd/main.go`): публикует `academic.lesson.changed` по всем изменённым занятиям из БД с **детерминированными ID** (`uuid.NewSHA1` от ID занятия) — так уведомления о переносах из тестовых данных создаст сам `notifications`. Добавь `academic` в список сервисов с `-seed-events` в `deploy/seed.sh` — это единственная разрешённая правка вне твоего каталога.
 13. Тесты G1–G4, C1–C2, A1–A21.
 
 ## Обязательные тест-кейсы
@@ -171,7 +171,7 @@ T02 (образец `auth`, `pkg/platform`, `platformtest`), T03 (`pkg/events`).
 - [ ] `time.Now()` не используется в логике (только в `cmd/main.go` при создании `now`).
 - [ ] Через шлюз под `student.mo` (после `make seed`): `/api/academic/me/schedule` отдаёт неделю с переносом, отменой и сменой аудитории.
 - [ ] `.ics` импортируется в Google Calendar или в календарь телефона — скриншот в PR.
-- [ ] `services/academic/seed/CHANGES.md` есть.
+- [ ] `bash deploy/seed.sh` публикует события `academic` (в логе `seed_events published=N`, N > 0); повторный запуск даёт те же ID событий (тест по образцу `replay_test.go`).
 - [ ] Нет изменений вне `services/academic/` (`git diff --stat main`).
 - [ ] CI зелёный.
 
