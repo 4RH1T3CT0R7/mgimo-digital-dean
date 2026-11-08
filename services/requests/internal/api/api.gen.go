@@ -119,6 +119,9 @@ type Application struct {
 	// DueAt Ожидаемая дата готовности; null для завершённых
 	DueAt *time.Time `json:"due_at"`
 
+	// Feedback Оценка ответа деканата студентом; null — оценки нет
+	Feedback *Feedback `json:"feedback"`
+
 	// Fields Значения полей с подписями, в порядке формы
 	Fields []struct {
 		Key   string `json:"key"`
@@ -248,6 +251,22 @@ type Error struct {
 	Message string                  `json:"message"`
 }
 
+// Feedback defines model for Feedback.
+type Feedback struct {
+	At      time.Time `json:"at"`
+	Comment *string   `json:"comment"`
+
+	// Helpful Ответ деканата помог
+	Helpful bool `json:"helpful"`
+}
+
+// FeedbackRequest defines model for FeedbackRequest.
+type FeedbackRequest struct {
+	// Comment Что можно улучшить; пустая строка — без комментария
+	Comment *string `json:"comment"`
+	Helpful bool    `json:"helpful"`
+}
+
 // FormField defines model for FormField.
 type FormField struct {
 	Key       string `json:"key"`
@@ -336,6 +355,9 @@ type StaffApplication struct {
 	// DueAt Ожидаемая дата готовности; null для завершённых
 	DueAt *time.Time `json:"due_at"`
 
+	// Feedback Оценка ответа деканата студентом; null — оценки нет
+	Feedback *Feedback `json:"feedback"`
+
 	// Fields Значения полей с подписями, в порядке формы
 	Fields []struct {
 		Key   string `json:"key"`
@@ -408,11 +430,16 @@ type StaffApplicationSummaryLastMessageFrom string
 
 // StaffStats defines model for StaffStats.
 type StaffStats struct {
-	InProgress int `json:"in_progress"`
-	NeedsInfo  int `json:"needs_info"`
-	Overdue    int `json:"overdue"`
-	ReadyToday int `json:"ready_today"`
-	Submitted  int `json:"submitted"`
+	// FeedbackHelpful Из них с оценкой «помогло»
+	FeedbackHelpful int `json:"feedback_helpful"`
+
+	// FeedbackTotal Сколько заявок студенты оценили (за всё время, в пределах факультета)
+	FeedbackTotal int `json:"feedback_total"`
+	InProgress    int `json:"in_progress"`
+	NeedsInfo     int `json:"needs_info"`
+	Overdue       int `json:"overdue"`
+	ReadyToday    int `json:"ready_today"`
+	Submitted     int `json:"submitted"`
 }
 
 // StatusChangeRequest defines model for StatusChangeRequest.
@@ -528,6 +555,9 @@ type CreateApplicationJSONRequestBody = CreateApplicationRequest
 // UploadMyAttachmentMultipartRequestBody defines body for UploadMyAttachment for multipart/form-data ContentType.
 type UploadMyAttachmentMultipartRequestBody = UploadRequest
 
+// PutMyFeedbackJSONRequestBody defines body for PutMyFeedback for application/json ContentType.
+type PutMyFeedbackJSONRequestBody = FeedbackRequest
+
 // PostMyMessageJSONRequestBody defines body for PostMyMessage for application/json ContentType.
 type PostMyMessageJSONRequestBody = MessageRequest
 
@@ -563,6 +593,9 @@ type ServerInterface interface {
 	// Скачать справку с места учёбы (I1)
 	// (GET /me/applications/{application_id}/certificate.pdf)
 	DownloadMyCertificate(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
+	// Оценить ответ деканата
+	// (PUT /me/applications/{application_id}/feedback)
+	PutMyFeedback(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
 	// Написать в деканат по заявке (I3)
 	// (POST /me/applications/{application_id}/messages)
 	PostMyMessage(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
@@ -836,6 +869,37 @@ func (siw *ServerInterfaceWrapper) DownloadMyCertificate(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DownloadMyCertificate(w, r, applicationId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutMyFeedback operation middleware
+func (siw *ServerInterfaceWrapper) PutMyFeedback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "application_id" -------------
+	var applicationId ApplicationId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "application_id", r.PathValue("application_id"), &applicationId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "application_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutMyFeedback(w, r, applicationId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1305,6 +1369,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/me/applications/{application_id}/attachments/{attachment_id}", wrapper.DownloadMyAttachment)
 	m.HandleFunc("POST "+options.BaseURL+"/me/applications/{application_id}/cancel", wrapper.CancelMyApplication)
 	m.HandleFunc("GET "+options.BaseURL+"/me/applications/{application_id}/certificate.pdf", wrapper.DownloadMyCertificate)
+	m.HandleFunc("PUT "+options.BaseURL+"/me/applications/{application_id}/feedback", wrapper.PutMyFeedback)
 	m.HandleFunc("POST "+options.BaseURL+"/me/applications/{application_id}/messages", wrapper.PostMyMessage)
 	m.HandleFunc("GET "+options.BaseURL+"/public/certificates/{code}", wrapper.VerifyCertificate)
 	m.HandleFunc("GET "+options.BaseURL+"/service-types", wrapper.ListServiceTypes)
@@ -1713,6 +1778,69 @@ type DownloadMyCertificate404JSONResponse struct{ NotFoundJSONResponse }
 func (response DownloadMyCertificate404JSONResponse) VisitDownloadMyCertificateResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedbackRequestObject struct {
+	ApplicationId ApplicationId `json:"application_id"`
+	Body          *PutMyFeedbackJSONRequestBody
+}
+
+type PutMyFeedbackResponseObject interface {
+	VisitPutMyFeedbackResponse(w http.ResponseWriter) error
+}
+
+type PutMyFeedback200JSONResponse Application
+
+func (response PutMyFeedback200JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedback400JSONResponse struct{ ValidationFailedJSONResponse }
+
+func (response PutMyFeedback400JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedback401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response PutMyFeedback401JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedback403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response PutMyFeedback403JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedback404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PutMyFeedback404JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutMyFeedback409JSONResponse struct{ InvalidTransitionJSONResponse }
+
+func (response PutMyFeedback409JSONResponse) VisitPutMyFeedbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2232,6 +2360,9 @@ type StrictServerInterface interface {
 	// Скачать справку с места учёбы (I1)
 	// (GET /me/applications/{application_id}/certificate.pdf)
 	DownloadMyCertificate(ctx context.Context, request DownloadMyCertificateRequestObject) (DownloadMyCertificateResponseObject, error)
+	// Оценить ответ деканата
+	// (PUT /me/applications/{application_id}/feedback)
+	PutMyFeedback(ctx context.Context, request PutMyFeedbackRequestObject) (PutMyFeedbackResponseObject, error)
 	// Написать в деканат по заявке (I3)
 	// (POST /me/applications/{application_id}/messages)
 	PostMyMessage(ctx context.Context, request PostMyMessageRequestObject) (PostMyMessageResponseObject, error)
@@ -2481,6 +2612,39 @@ func (sh *strictHandler) DownloadMyCertificate(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DownloadMyCertificateResponseObject); ok {
 		if err := validResponse.VisitDownloadMyCertificateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMyFeedback operation middleware
+func (sh *strictHandler) PutMyFeedback(w http.ResponseWriter, r *http.Request, applicationId ApplicationId) {
+	var request PutMyFeedbackRequestObject
+
+	request.ApplicationId = applicationId
+
+	var body PutMyFeedbackJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMyFeedback(ctx, request.(PutMyFeedbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMyFeedback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutMyFeedbackResponseObject); ok {
+		if err := validResponse.VisitPutMyFeedbackResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

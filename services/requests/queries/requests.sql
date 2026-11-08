@@ -40,6 +40,12 @@ WHERE id = sqlc.arg(id);
 -- name: TouchApplication :exec
 UPDATE applications SET updated_at = sqlc.arg(now) WHERE id = sqlc.arg(id);
 
+-- Оценка — только у завершённой заявки студента; гонка со сменой статуса даст 0 строк → 409.
+-- name: SetFeedback :execrows
+UPDATE applications
+SET feedback_helpful = sqlc.arg(helpful), feedback_comment = sqlc.narg(comment), feedback_at = sqlc.arg(now)
+WHERE id = sqlc.arg(id) AND student_id = sqlc.arg(student_id) AND status IN ('ready', 'rejected');
+
 -- ---------- Заявки: чтение с правами ----------
 -- Студент — только свои (student_id из сессии); сотрудник — свой факультет, admin — все (faculty_id = NULL).
 
@@ -99,7 +105,9 @@ SELECT count(*) FILTER (WHERE a.status = 'submitted')   AS submitted,
        (SELECT count(DISTINCT h.application_id) FROM status_history h
         JOIN applications r ON r.id = h.application_id
         WHERE h.status = 'ready' AND h.actor_role = 'staff' AND h.created_at >= sqlc.arg(day_start)
-          AND (sqlc.narg(faculty_id)::uuid IS NULL OR r.faculty_id = sqlc.narg(faculty_id))) AS ready_today
+          AND (sqlc.narg(faculty_id)::uuid IS NULL OR r.faculty_id = sqlc.narg(faculty_id))) AS ready_today,
+       count(a.feedback_helpful)                        AS feedback_total,
+       count(*) FILTER (WHERE a.feedback_helpful)       AS feedback_helpful
 FROM applications a
 WHERE (sqlc.narg(faculty_id)::uuid IS NULL OR a.faculty_id = sqlc.narg(faculty_id));
 

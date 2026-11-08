@@ -106,6 +106,21 @@ export function usePostMessage(applicationId: string) {
   });
 }
 
+/** «Помог ли ответ деканата» — повторная отправка заменяет оценку. */
+export function useSendFeedback(applicationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: S['FeedbackRequest']) =>
+      unwrap(
+        requestsApi.PUT('/me/applications/{application_id}/feedback', {
+          params: { path: { application_id: applicationId } },
+          body,
+        }),
+      ),
+    onSuccess: (application) => queryClient.setQueryData([...applicationsKey, applicationId], application),
+  });
+}
+
 function saveBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

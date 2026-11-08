@@ -25,7 +25,8 @@ func (s *Server) GetStaffStats(ctx context.Context, _ api.GetStaffStatsRequestOb
 		return nil, err
 	}
 	return api.GetStaffStats200JSONResponse{Submitted: int(r.Submitted), InProgress: int(r.InProgress),
-		NeedsInfo: int(r.NeedsInfo), Overdue: int(r.Overdue), ReadyToday: int(r.ReadyToday)}, nil
+		NeedsInfo: int(r.NeedsInfo), Overdue: int(r.Overdue), ReadyToday: int(r.ReadyToday),
+		FeedbackTotal: int(r.FeedbackTotal), FeedbackHelpful: int(r.FeedbackHelpful)}, nil
 }
 
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
@@ -215,7 +216,7 @@ func (s *Server) staffView(ctx context.Context, a db.Application) (api.StaffAppl
 		CreatedAt: v.CreatedAt, UpdatedAt: v.UpdatedAt, DueAt: v.DueAt, Overdue: v.Overdue,
 		LastMessageAt: v.LastMessageAt, LastMessageFrom: (*api.StaffApplicationLastMessageFrom)(v.LastMessageFrom),
 		Comment: v.Comment, Fields: v.Fields, StatusHistory: v.StatusHistory, Messages: v.Messages,
-		Attachments: v.Attachments, Certificate: v.Certificate,
+		Attachments: v.Attachments, Certificate: v.Certificate, Feedback: v.Feedback,
 		Student: student, AllowedTransitions: allowedTransitions(v.Status, actorStaff),
 	}, nil
 }

@@ -26,6 +26,9 @@ type Application struct {
 	DueAt           *time.Time
 	LastMessageAt   *time.Time
 	LastMessageFrom *string
+	FeedbackHelpful *bool
+	FeedbackComment *string
+	FeedbackAt      *time.Time
 }
 
 type Attachment struct {

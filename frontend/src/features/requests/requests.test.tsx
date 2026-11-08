@@ -163,3 +163,29 @@ describe('Заявка', () => {
     expect(await screen.findByText('Заявка не найдена')).toBeInTheDocument();
   });
 });
+
+describe('Оценка ответа деканата', () => {
+  it('студент отмечает «не помог» с комментарием — сотрудник видит оценку и счётчик', async () => {
+    const student = renderWithProviders(<AppRoutes />, { route: `/requests/${id(1)}`, login: 'student.mo' });
+    const card = await screen.findByRole('region', { name: 'Помог ли ответ деканата?' });
+    await student.user.click(within(card).getByRole('button', { name: 'Нет' }));
+    await student.user.type(within(card).getByLabelText(/Что можно улучшить/), 'Хотелось бы ответ быстрее');
+    await student.user.click(within(card).getByRole('button', { name: 'Отправить оценку' }));
+    expect(await screen.findByText('Вы отметили, что ответ деканата не помог. Спасибо!')).toBeInTheDocument();
+    student.unmount();
+
+    const staff = renderWithProviders(<AppRoutes />, { route: `/staff/requests/${id(1)}`, login: 'dekanat.mo' });
+    expect(await screen.findByText('Ответ не помог')).toBeInTheDocument();
+    expect(screen.getByText('«Хотелось бы ответ быстрее»')).toBeInTheDocument();
+    staff.unmount();
+
+    renderWithProviders(<AppRoutes />, { route: '/staff', login: 'dekanat.mo' });
+    expect(await screen.findByText('Оценки студентов: помогло 0 из 1 ответа (0 %)')).toBeInTheDocument();
+  });
+
+  it('у мгновенной справки оценки нет — её выдаёт система', async () => {
+    renderWithProviders(<AppRoutes />, { route: `/requests/${id(4)}`, login: 'student.mo' });
+    await screen.findByText(statusIs('Готово'));
+    expect(screen.queryByText('Помог ли ответ деканата?')).not.toBeInTheDocument();
+  });
+});

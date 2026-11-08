@@ -1,9 +1,9 @@
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon, ThumbsUpIcon } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import type { components } from '@/api/requests';
 import { FacultyFilter, useFacultyFilter } from '@/app/layout/FacultyFilter';
-import { formatDate } from '@/shared/lib/format';
+import { formatDate, plural } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { EmptyState } from '@/shared/ui/empty-state';
@@ -72,30 +72,38 @@ export function ApplicationsPage() {
       <section aria-label="Счётчики" className="mb-6">
         <QueryView query={stats} loading={<LoadingState rows={1} />}>
           {(s) => (
-            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              {COUNTERS.map((c) => {
-                const active = filter === c.filter;
-                return (
-                  <li key={c.key}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
-                      aria-label={`${c.label}: ${s[c.key]}`}
-                      onClick={() => setParam('status', active ? undefined : c.filter)}
-                      className={cn(
-                        'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-3 py-2.5 text-left shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-0.5 sm:py-3',
-                        active && 'border-primary bg-accent',
-                      )}
-                    >
-                      <span className={cn('text-xl font-semibold tabular-nums sm:text-2xl', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
-                        {s[c.key]}
-                      </span>
-                      <span className="text-sm text-muted-foreground">{c.label}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {COUNTERS.map((c) => {
+                  const active = filter === c.filter;
+                  return (
+                    <li key={c.key}>
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={`${c.label}: ${s[c.key]}`}
+                        onClick={() => setParam('status', active ? undefined : c.filter)}
+                        className={cn(
+                          'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-3 py-2.5 text-left shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-0.5 sm:py-3',
+                          active && 'border-primary bg-accent',
+                        )}
+                      >
+                        <span className={cn('text-xl font-semibold tabular-nums sm:text-2xl', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
+                          {s[c.key]}
+                        </span>
+                        <span className="text-sm text-muted-foreground">{c.label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <ThumbsUpIcon className="size-4 shrink-0" aria-hidden />
+                {s.feedback_total > 0
+                  ? `Оценки студентов: помогло ${s.feedback_helpful} из ${s.feedback_total} ${plural(s.feedback_total, ['ответа', 'ответов', 'ответов'])} (${Math.round((s.feedback_helpful / s.feedback_total) * 100)} %)`
+                  : 'Студенты ещё не оценивали ответы деканата'}
+              </p>
+            </>
           )}
         </QueryView>
       </section>

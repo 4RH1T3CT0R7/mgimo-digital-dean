@@ -142,6 +142,19 @@ export const requestsHandlers = [
     return HttpResponse.json(forStudent(a));
   }),
 
+  http.put('/api/requests/me/applications/:id/feedback', async ({ params, request }) => {
+    const a = own(params.id);
+    if (!a) return notFound();
+    const body = (await request.json()) as S['FeedbackRequest'];
+    const comment = body.comment?.trim() || null;
+    if (comment && comment.length > 1000) return invalid({ comment: 'Не больше 1000 символов' });
+    if (!(a.status === 'ready' || a.status === 'rejected') || a.service_type.kind === 'instant_certificate') {
+      return error(409, 'invalid_transition', 'Оценить можно только завершённую заявку');
+    }
+    a.feedback = { helpful: body.helpful, comment, at: new Date().toISOString() };
+    return HttpResponse.json(forStudent(a));
+  }),
+
   http.post('/api/requests/me/applications/:id/messages', async ({ params, request }) => {
     const a = own(params.id);
     if (!a) return notFound();

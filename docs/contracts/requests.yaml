@@ -133,6 +133,39 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/InvalidTransition'
+  /me/applications/{application_id}/feedback:
+    put:
+      tags: [student]
+      operationId: putMyFeedback
+      summary: Оценить ответ деканата
+      description: |
+        Роли — student. Только для завершённых заявок (`ready`, `rejected`), которые обрабатывал деканат:
+        у мгновенной справки (`instant_certificate`) оценки нет. Иначе 409. Повторный вызов заменяет оценку.
+      parameters:
+        - $ref: '#/components/parameters/ApplicationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '200':
+          description: Оценка сохранена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Application'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/InvalidTransition'
   /me/applications/{application_id}/messages:
     post:
       tags: [student]
@@ -772,6 +805,36 @@ components:
                 - $ref: '#/components/schemas/CertificateInfo'
               nullable: true
               description: Только для instant_certificate в статусе ready
+            feedback:
+              type: object
+              allOf:
+                - $ref: '#/components/schemas/Feedback'
+              nullable: true
+              description: Оценка ответа деканата студентом; null — оценки нет
+    Feedback:
+      type: object
+      required: [helpful, at]
+      properties:
+        helpful:
+          type: boolean
+          description: Ответ деканата помог
+        comment:
+          type: string
+          nullable: true
+        at:
+          type: string
+          format: date-time
+    FeedbackRequest:
+      type: object
+      required: [helpful]
+      properties:
+        helpful:
+          type: boolean
+        comment:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Что можно улучшить; пустая строка — без комментария
     StatusHistoryEntry:
       type: object
       required: [status, at, by_role]
@@ -950,7 +1013,7 @@ components:
           nullable: true
     StaffStats:
       type: object
-      required: [submitted, in_progress, needs_info, overdue, ready_today]
+      required: [submitted, in_progress, needs_info, overdue, ready_today, feedback_total, feedback_helpful]
       properties:
         submitted:
           type: integer
@@ -962,6 +1025,12 @@ components:
           type: integer
         ready_today:
           type: integer
+        feedback_total:
+          type: integer
+          description: Сколько заявок студенты оценили (за всё время, в пределах факультета)
+        feedback_helpful:
+          type: integer
+          description: Из них с оценкой «помогло»
     Error:
       type: object
       required: [code, message]

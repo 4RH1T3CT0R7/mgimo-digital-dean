@@ -46,6 +46,8 @@ export const requestsStaffHandlers = [
       needs_info: count((a) => a.status === 'needs_info'),
       overdue: count((a) => a.overdue),
       ready_today: count((a) => a.status === 'ready' && toApiDate(a.updated_at) === today),
+      feedback_total: count((a) => !!a.feedback),
+      feedback_helpful: count((a) => !!a.feedback?.helpful),
     });
   }),
 
