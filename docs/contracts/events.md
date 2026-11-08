@@ -37,7 +37,7 @@
 | `group_ids` | uuid[] | Все группы занятия |
 | `discipline_name` | string | |
 | `change_type` | `moved` \| `cancelled` \| `room_changed` | |
-| `previous` | `{date, start_time, end_time, room}` | `room` — строка «Главный корпус, 3047» или null |
+| `previous` | `{date, start_time, end_time, room}` | Состояние **до этого изменения** (не до первого): при «перенос 17.11 → 19.11, затем отмена» в событии отмены `previous` = 19.11. Исходное расписание хранит `change.previous` в API. `room` — строка «Главный корпус, 3047» или null |
 | `current` | `{date, start_time, end_time, room}` | Для `cancelled` равно `previous` |
 | `reason` | string \| null | |
 
