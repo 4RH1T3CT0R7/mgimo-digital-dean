@@ -1,10 +1,12 @@
 import type { RouteObject } from 'react-router';
-import { StubPage } from '@/shared/ui/stub-page';
+import { ApplicationPage } from './components/ApplicationPage';
+import { NewRequestPage } from './components/NewRequestPage';
+import { RequestsPage } from './components/RequestsPage';
 
 export const publicRoutes: RouteObject[] = [];
 export const studentRoutes: RouteObject[] = [
-  { path: '/requests', element: <StubPage title="Заявки" task="T10" /> },
-  { path: '/requests/new/:serviceTypeId', element: <StubPage title="Новая заявка" task="T10" /> },
-  { path: '/requests/:id', element: <StubPage title="Заявка" task="T10" /> },
+  { path: '/requests', element: <RequestsPage /> },
+  { path: '/requests/new/:serviceTypeId', element: <NewRequestPage /> },
+  { path: '/requests/:id', element: <ApplicationPage /> },
 ];
 export const staffRoutes: RouteObject[] = [];
