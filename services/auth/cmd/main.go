@@ -1,25 +1,36 @@
-// Сервис auth: вход, сессии, роли. Заглушка каркаса (T01); логика — в T02.
+// Сервис auth: вход, сессии, роли, проверка сессии для шлюза.
 package main
 
 import (
+	"context"
 	"log"
-	"net/http"
+	"time"
 
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform"
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/auth/internal/app"
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/auth/migrations"
 )
 
 func main() {
 	platform.HealthcheckFromArgs()
+	ctx := context.Background()
+	logger := platform.NewLogger("auth")
 
-	internal := platform.HealthOnlyMux()
-	// Пока сессий нет — любая проверка от шлюза отклоняется (T02 заменит реальной логикой).
-	internal.HandleFunc("GET /internal/verify", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"code":"unauthenticated","message":"Войдите в систему"}`))
-	})
+	pool, err := platform.OpenDB(ctx, platform.MustEnv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+	if err := platform.Migrate(ctx, pool, migrations.FS); err != nil {
+		log.Fatal(err)
+	}
 
-	if err := platform.Run("auth", platform.HealthOnlyMux(), internal); err != nil {
+	srv, err := app.New(pool, logger, time.Now, app.DefaultBcryptCost)
+	if err != nil {
+		log.Fatal(err)
+	}
+	public, internal := srv.Handlers()
+	if err := platform.Run("auth", public, internal); err != nil {
 		log.Fatal(err)
 	}
 }
