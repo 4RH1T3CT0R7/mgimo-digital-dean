@@ -25,6 +25,7 @@ type Session struct {
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	LastSeenAt time.Time
+	Device     string
 }
 
 type User struct {

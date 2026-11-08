@@ -78,6 +78,36 @@ paths:
                 $ref: '#/components/schemas/Me'
         '401':
           $ref: '#/components/responses/Unauthenticated'
+  /me/sessions:
+    get:
+      operationId: listMySessions
+      summary: Где выполнен вход — действующие сеансы
+      description: |
+        Роли — student, staff, admin. Сначала недавно активные. Текущий сеанс определяется по cookie `sid`.
+        Об устройстве хранится только подпись «браузер · система» — без User-Agent целиком и без IP (152-ФЗ, минимизация).
+      responses:
+        '200':
+          description: Сеансы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /me/sessions/others:
+    delete:
+      operationId: endOtherSessions
+      summary: Выйти на всех других устройствах
+      description: Роли — student, staff, admin. Текущий сеанс остаётся.
+      responses:
+        '200':
+          description: Сколько сеансов завершено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EndedSessions'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 components:
   securitySchemes:
     sessionCookie:
@@ -145,6 +175,39 @@ components:
           format: uuid
           nullable: true
           description: Только у роли staff
+    Session:
+      type: object
+      required: [device, created_at, last_seen_at, current]
+      properties:
+        device:
+          type: string
+          description: Браузер и система
+          example: Chrome · Windows
+        created_at:
+          type: string
+          format: date-time
+          description: Когда выполнен вход
+        last_seen_at:
+          type: string
+          format: date-time
+          description: Последний запрос с этого устройства
+        current:
+          type: boolean
+          description: Сеанс, с которого пришёл запрос
+    SessionList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+    EndedSessions:
+      type: object
+      required: [ended]
+      properties:
+        ended:
+          type: integer
     Error:
       type: object
       required: [code, message]
