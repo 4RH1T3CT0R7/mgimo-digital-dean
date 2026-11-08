@@ -25,7 +25,7 @@ export function RequestsPage() {
           <Button asChild>
             <a href="#catalog">
               <PlusIcon aria-hidden />
-              Новая заявка
+              Подать заявку
             </a>
           </Button>
         }
@@ -82,7 +82,7 @@ function ApplicationList({ answered, search }: { answered: boolean; search: stri
         answered ? (
           <EmptyState title="Ответов пока нет" description="Когда деканат ответит или попросит уточнить, заявка появится здесь." />
         ) : (
-          <EmptyState title="Заявок пока нет" description="Выберите услугу в каталоге ниже — заявка появится в этом списке." />
+          <EmptyState title="Заявок пока нет" description="Выберите услугу ниже — заявка появится в этом списке." />
         )
       }
     >
@@ -120,9 +120,9 @@ function ApplicationRow({ application: a }: { application: ApplicationSummary })
             {a.due_at && <span className={cn(a.overdue && 'font-medium text-danger-strong')}>срок — до {formatDate(a.due_at)}</span>}
           </p>
           {a.last_message_from === 'staff' && (
-            <p className="flex items-center gap-1.5 text-sm font-medium text-info-strong">
-              <MessageSquareIcon className="size-4" aria-hidden />
-              Сообщение от деканата
+            <p className="flex items-center gap-1.5 text-sm font-medium">
+              <MessageSquareIcon className="size-4 text-muted-foreground" aria-hidden />
+              Деканат ответил в переписке
             </p>
           )}
         </div>
@@ -140,9 +140,8 @@ function Catalog() {
         <h2 id="catalog-title" className="text-xl font-semibold">
           Подать заявку
         </h2>
-        <p className="mt-1 text-muted-foreground">Выберите услугу — статус заявки появится в списке выше.</p>
       </div>
-      <QueryView query={serviceTypes} isEmpty={(list) => list.length === 0} empty={<EmptyState title="Услуги пока недоступны" description="Загляните позже." />}>
+      <QueryView query={serviceTypes} isEmpty={(list) => list.length === 0} empty={<EmptyState title="Услуг пока нет" description="С вопросом можно обратиться в деканат лично." />}>
         {(list) =>
           (Object.keys(categoryLabels) as ServiceType['category'][]).map((category) => {
             const items = list.filter((s) => s.category === category);

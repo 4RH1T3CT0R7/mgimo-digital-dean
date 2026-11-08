@@ -1,5 +1,5 @@
-import { SearchIcon, ThumbsUpIcon } from 'lucide-react';
-import type { FormEvent } from 'react';
+import { SearchIcon, SlidersHorizontalIcon, ThumbsUpIcon } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import type { components } from '@/api/requests';
 import { FacultyFilter, useFacultyFilter } from '@/app/layout/FacultyFilter';
@@ -22,12 +22,12 @@ type Stats = components['schemas']['StaffStats'];
 
 const ALL = 'all';
 
-const COUNTERS: { key: keyof Stats; label: string; filter: ListFilter }[] = [
+const COUNTERS: { key: keyof Stats; label: string; filter?: ListFilter }[] = [
   { key: 'submitted', label: 'Новые', filter: 'submitted' },
   { key: 'in_progress', label: 'В работе', filter: 'in_progress' },
   { key: 'needs_info', label: 'Ждут студента', filter: 'needs_info' },
   { key: 'overdue', label: 'Просрочены', filter: 'overdue' },
-  { key: 'ready_today', label: 'Готово сегодня', filter: 'ready' },
+  { key: 'ready_today', label: 'Готово сегодня' },
 ];
 
 export function ApplicationsPage() {
@@ -50,6 +50,9 @@ export function ApplicationsPage() {
   });
   const visible = (items: Summary[]) => (overdue ? items.filter((a) => a.overdue) : items);
   const filtered = Boolean(filter || service || q || facultyId);
+  // Телефон: поля фильтров по кнопке — иначе первый экран целиком занят фильтрами; заданный фильтр — поля видны
+  const [showFilters, setShowFilters] = useState(false);
+  const filtersOpen = showFilters || Boolean(service || q || facultyId);
 
   function setParam(key: string, value: string | undefined) {
     setParams((prev) => {
@@ -75,24 +78,36 @@ export function ApplicationsPage() {
             <>
               <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {COUNTERS.map((c) => {
-                  const active = filter === c.filter;
+                  const active = !!c.filter && filter === c.filter;
+                  const body = (
+                    <>
+                      <span className={cn('text-xl font-semibold tabular-nums sm:text-2xl', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
+                        {s[c.key]}
+                      </span>
+                      <span className="text-sm text-muted-foreground">{c.label}</span>
+                    </>
+                  );
+                  const box = 'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-4 py-3 text-left sm:flex-col sm:gap-1 sm:py-4';
                   return (
                     <li key={c.key}>
-                      <button
-                        type="button"
-                        aria-pressed={active}
-                        aria-label={`${c.label}: ${s[c.key]}`}
-                        onClick={() => setParam('status', active ? undefined : c.filter)}
-                        className={cn(
-                          'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-1 sm:py-4',
-                          active && 'border-primary bg-accent',
-                        )}
-                      >
-                        <span className={cn('text-xl font-semibold tabular-nums sm:text-2xl', c.key === 'overdue' && s.overdue > 0 && 'text-danger-strong')}>
-                          {s[c.key]}
-                        </span>
-                        <span className="text-sm text-muted-foreground">{c.label}</span>
-                      </button>
+                      {/* «Готово сегодня» — только число: списка «готово за сегодня» в API нет, фильтр показал бы все готовые */}
+                      {c.filter ? (
+                        <button
+                          type="button"
+                          aria-pressed={active}
+                          aria-label={`${c.label}: ${s[c.key]}`}
+                          onClick={() => setParam('status', active ? undefined : c.filter)}
+                          className={cn(
+                            box,
+                            'transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                            active && 'border-primary bg-accent',
+                          )}
+                        >
+                          {body}
+                        </button>
+                      ) : (
+                        <div className={box}>{body}</div>
+                      )}
                     </li>
                   );
                 })}
@@ -108,7 +123,11 @@ export function ApplicationsPage() {
         </QueryView>
       </section>
 
-      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Button variant="outline" className="mb-4 w-full md:hidden" aria-expanded={filtersOpen} aria-controls="staff-filters" onClick={() => setShowFilters((v) => !v)}>
+        <SlidersHorizontalIcon aria-hidden />
+        {filtersOpen ? 'Скрыть фильтры' : 'Фильтры и поиск'}
+      </Button>
+      <div id="staff-filters" className={cn('mb-5 gap-4 sm:grid-cols-2 md:grid lg:grid-cols-3', filtersOpen ? 'grid' : 'hidden')}>
         <div className="flex flex-col gap-2">
           <Label htmlFor="status-filter">Статус</Label>
           <Select value={filter ?? ALL} onValueChange={(v) => setParam('status', v === ALL ? undefined : v)}>
@@ -249,9 +268,11 @@ function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
               <span className="text-sm text-muted-foreground">
                 {a.student.full_name}, {a.student.group_name}
               </span>
-              <span className="text-sm">
-                Срок: <Due a={a} />
-              </span>
+              {a.due_at && (
+                <span className="text-sm">
+                  Срок: <Due a={a} />
+                </span>
+              )}
             </Link>
           </li>
         ))}

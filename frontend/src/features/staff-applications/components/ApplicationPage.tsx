@@ -1,22 +1,25 @@
-import { ArrowLeftIcon, FileIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
-import { useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useLocation, useParams } from 'react-router';
+import { FileIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { useLocation, useParams } from 'react-router';
 import type { components } from '@/api/requests';
+import { FileDrop } from '@/features/requests/components/FileDrop';
+import { StatusHistory } from '@/features/requests/components/StatusHistory';
+import { applicationSteps, feedbackQuestion, formatSize } from '@/features/requests/labels';
 import { ApiError, apiErrorMessage, fieldErrors } from '@/shared/lib/errors';
 import { formatDate, formatDateTime } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
+import { BackLink } from '@/shared/ui/back-link';
 import { Button } from '@/shared/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Label } from '@/shared/ui/label';
 import { PageHeader } from '@/shared/ui/page-header';
 import { QueryView } from '@/shared/ui/query-view';
-import { applicationSteps } from '@/features/requests/labels';
+import { Section } from '@/shared/ui/section';
 import { StatusBadge } from '@/shared/ui/status-badge';
 import { StatusSteps } from '@/shared/ui/status-steps';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
-import { AUTHOR_ROLE, REPLY_TEMPLATES, statusLabel, statusTone, type Status } from '../labels';
+import { REPLY_TEMPLATES, statusLabel, statusTone, type Status } from '../labels';
 import { useChangeStatus, useSendMessage, useStaffApplication, useUploadResult } from '../queries';
 
 type Application = components['schemas']['StaffApplication'];
@@ -27,13 +30,7 @@ export function ApplicationPage() {
   const application = useStaffApplication(id);
   return (
     <>
-      <Link
-        to={back}
-        className="mb-3 inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-primary hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      >
-        <ArrowLeftIcon className="size-4" aria-hidden />
-        Все заявки
-      </Link>
+      <BackLink to={back}>Все заявки</BackLink>
       <QueryView query={application}>{(a) => <ApplicationDetails a={a} />}</QueryView>
     </>
   );
@@ -45,91 +42,70 @@ function ApplicationDetails({ a }: { a: Application }) {
   const s = a.student;
   return (
     <>
-      <PageHeader title={`Заявка № ${a.number}`} subtitle={a.service_type.title} />
-      <div className="-mt-2 mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-        <StatusBadge tone={statusTone(a.status)}>{statusLabel(a.status, a.service_type.kind)}</StatusBadge>
-        {a.overdue && <StatusBadge tone="danger">Просрочено</StatusBadge>}
-        <span>Подана {formatDateTime(a.created_at)}</span>
-        {a.due_at && <span className={a.overdue ? 'font-medium text-danger-strong' : undefined}>Срок — {formatDate(a.due_at)}</span>}
+      <PageHeader title={`Заявка № ${a.number}`} subtitle={a.service_type.title} actions={<StatusActions a={a} />} />
+      <div className="-mt-2 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+        <StatusBadge tone={statusTone(a.status)}>
+          <span className="sr-only">Статус: </span>
+          {statusLabel(a.status, a.service_type.kind)}
+        </StatusBadge>
+        {a.overdue && a.due_at && <StatusBadge tone="danger">Просрочено: срок был {formatDate(a.due_at)}</StatusBadge>}
+        {a.service_type.kind === 'instant_certificate' && <span>Выдана {formatDateTime(a.created_at)}</span>}
       </div>
       {a.service_type.kind !== 'instant_certificate' && (
-        <section aria-label="Ход заявки" className="mb-5 rounded-xl border bg-card px-4 pt-5 pb-4 md:px-6">
-          <StatusSteps label="Ход заявки" steps={applicationSteps(a)} />
+        <section aria-label="Ход заявки" className="mb-6 rounded-xl border bg-card px-4 pt-5 pb-4 md:px-6">
+          <StatusSteps label="Ход заявки" steps={applicationSteps(a, 'staff')} />
         </section>
       )}
 
       {/* Компьютер: слева работа с заявкой, справа сведения; телефон — одной колонкой в том же порядке */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-5">
-          <StatusActions a={a} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-6">
           <Messages a={a} open={open} />
           <Attachments a={a} open={open} />
         </div>
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-6">
           {a.feedback && (
             <Section title="Оценка студента">
-              <p className="flex items-center gap-2 font-medium">
-                {a.feedback.helpful ? <ThumbsUpIcon className="size-5 text-success-strong" aria-hidden /> : <ThumbsDownIcon className="size-5 text-danger-strong" aria-hidden />}
-                {a.feedback.helpful ? 'Ответ помог' : 'Ответ не помог'}
-              </p>
-              {a.feedback.comment && <p className="mt-2 text-sm break-words whitespace-pre-wrap">«{a.feedback.comment}»</p>}
-              <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(a.feedback.at)}</p>
+              <div>
+                <p className="text-sm text-muted-foreground">{feedbackQuestion(a.service_type.kind)}</p>
+                <p className="mt-1 flex items-center gap-2 font-medium">
+                  {a.feedback.helpful ? (
+                    <ThumbsUpIcon className="size-5 text-success-strong" aria-hidden />
+                  ) : (
+                    <ThumbsDownIcon className="size-5 text-danger-strong" aria-hidden />
+                  )}
+                  {a.feedback.helpful ? 'Да' : 'Нет'}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(a.feedback.at)}</p>
+              </div>
+              {a.feedback.comment && <p className="text-sm break-words whitespace-pre-wrap">«{a.feedback.comment}»</p>}
             </Section>
           )}
-          <Section title="Студент">
+          <Section title="Сведения">
             <InfoList
               items={[
-                ['ФИО', s.full_name],
-                ['Факультет', s.faculty_short],
-                ['Курс и группа', `${s.course} курс, ${s.group_name}`],
+                ['Студент', s.full_name],
+                ['Факультет, курс и группа', `${s.faculty_short}, ${s.course} курс, ${s.group_name}`],
                 ['№ студенческого билета', s.student_card_no],
+                ...a.fields.map((f): [string, string] => [f.label, f.value]),
+                ...(a.comment ? [['Комментарий студента', a.comment] as [string, string]] : []),
               ]}
             />
           </Section>
-          <Section title="Данные заявки">
-            {a.fields.length === 0 && !a.comment ? (
-              <p className="text-sm text-muted-foreground">Студент не заполнял полей.</p>
-            ) : (
-              <InfoList items={[...a.fields.map((f): [string, string] => [f.label, f.value]), ...(a.comment ? [['Комментарий студента', a.comment] as [string, string]] : [])]} />
-            )}
-          </Section>
-          <Section title="История статусов">
-            <ol className="flex flex-col gap-3">
-              {a.status_history.map((h, i) => (
-                <li key={i} className="border-l-2 border-border pl-3">
-                  <p className="font-medium">{statusLabel(h.status, a.service_type.kind)}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {AUTHOR_ROLE[h.by_role]}, {formatDateTime(h.at)}
-                  </p>
-                  {h.comment && <p className="mt-1 text-sm break-words whitespace-pre-wrap">{h.comment}</p>}
-                </li>
-              ))}
-            </ol>
-          </Section>
+          <StatusHistory application={a} viewer="staff" />
         </div>
       </div>
     </>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
 function InfoList({ items }: { items: [string, string][] }) {
   return (
-    <dl className="flex flex-col gap-3 text-sm">
+    <dl className="flex flex-col gap-3">
       {items.map(([label, value]) => (
         <div key={label}>
-          <dt className="text-muted-foreground">{label}</dt>
-          <dd className="font-medium break-words whitespace-pre-wrap">{value}</dd>
+          <dt className="text-sm text-muted-foreground">{label}</dt>
+          <dd className="break-words whitespace-pre-wrap">{/^\d{4}-\d{2}-\d{2}$/.test(value) ? formatDate(value, { withYear: true }) : value}</dd>
         </div>
       ))}
     </dl>
@@ -140,23 +116,27 @@ function InfoList({ items }: { items: [string, string][] }) {
 
 type DialogStatus = 'needs_info' | 'ready' | 'rejected';
 
-const DIALOGS: Record<DialogStatus, { title: string; description: string; submit: string; required: boolean }> = {
+// Одно действие — одно слово на кнопке, в диалоге и в уведомлении (docs/design.md, «Тексты»)
+const DIALOGS: Record<DialogStatus, { title: string; description: string; submit: string; cancel: string; required: boolean }> = {
   needs_info: {
     title: 'Запросить уточнения',
     description: 'Студент увидит комментарий и сможет ответить в переписке.',
     submit: 'Запросить',
+    cancel: 'Не запрашивать',
     required: true,
   },
   ready: {
     title: 'Завершить заявку',
     description: 'Студент получит уведомление. Изменить статус после этого будет нельзя.',
     submit: 'Завершить',
+    cancel: 'Не завершать',
     required: false,
   },
   rejected: {
     title: 'Отклонить заявку',
     description: 'Напишите причину — студент её увидит. Отменить отклонение нельзя.',
     submit: 'Отклонить',
+    cancel: 'Не отклонять',
     required: true,
   },
 };
@@ -164,46 +144,50 @@ const DIALOGS: Record<DialogStatus, { title: string; description: string; submit
 function actionLabel(to: Status, a: Application): string {
   if (to === 'in_progress') return a.status === 'submitted' ? 'Взять в работу' : 'Вернуть в работу';
   if (to === 'needs_info') return 'Запросить уточнения';
-  if (to === 'ready') return a.service_type.kind === 'question' ? 'Ответ дан' : 'Готово';
+  if (to === 'ready') return 'Завершить заявку';
   if (to === 'rejected') return 'Отклонить';
   return statusLabel(to);
+}
+
+function doneMessage(to: Status, a: Application): string {
+  const n = `Заявка № ${a.number}`;
+  if (to === 'in_progress') return a.status === 'submitted' ? `${n} взята в работу` : `${n} возвращена в работу`;
+  if (to === 'needs_info') return 'Запрос уточнений отправлен студенту';
+  if (to === 'ready') return `${n} завершена`;
+  if (to === 'rejected') return `${n} отклонена`;
+  return `${n}: ${statusLabel(to)}`;
 }
 
 function StatusActions({ a }: { a: Application }) {
   const change = useChangeStatus(a.id);
   const [dialog, setDialog] = useState<DialogStatus | null>(null);
+  if (a.allowed_transitions.length === 0) return null; // завершённая заявка: итог виден на шкале
 
   function onClick(to: Status) {
     if (to in DIALOGS) return setDialog(to as DialogStatus);
     change.mutate(
       { status: to },
       {
-        onSuccess: () => toast.success(`Статус заявки: «${statusLabel(to, a.service_type.kind)}»`),
+        onSuccess: () => toast.success(doneMessage(to, a)),
         onError: (err) => toast.error(apiErrorMessage(err)),
       },
     );
   }
 
   return (
-    <Section title="Статус">
-      {a.allowed_transitions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Заявка завершена — статус больше не меняется.</p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {a.allowed_transitions.map((to) => (
-            <Button
-              key={to}
-              variant={to === 'rejected' ? 'destructive' : to === 'needs_info' ? 'outline' : 'default'}
-              disabled={change.isPending}
-              onClick={() => onClick(to)}
-            >
-              {actionLabel(to, a)}
-            </Button>
-          ))}
-        </div>
-      )}
+    <div role="group" aria-label="Действия с заявкой" className="flex flex-wrap gap-2">
+      {a.allowed_transitions.map((to) => (
+        <Button
+          key={to}
+          variant={to === 'rejected' ? 'destructive' : to === 'needs_info' ? 'outline' : 'default'}
+          disabled={change.isPending}
+          onClick={() => onClick(to)}
+        >
+          {actionLabel(to, a)}
+        </Button>
+      ))}
       {dialog && <StatusDialog a={a} to={dialog} onClose={() => setDialog(null)} />}
-    </Section>
+    </div>
   );
 }
 
@@ -221,7 +205,7 @@ function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; on
       { status: to, comment: text || null },
       {
         onSuccess: () => {
-          toast.success(`Статус заявки: «${statusLabel(to, a.service_type.kind)}»`);
+          toast.success(doneMessage(to, a));
           onClose();
         },
         onError: (err) => {
@@ -239,7 +223,9 @@ function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; on
       <DialogContent>
         <form onSubmit={onSubmit} noValidate className="grid gap-4">
           <DialogHeader>
-            <DialogTitle>{cfg.title}</DialogTitle>
+            <DialogTitle>
+              {cfg.title} № {a.number}?
+            </DialogTitle>
             <DialogDescription>{cfg.description}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
@@ -259,7 +245,7 @@ function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; on
               }}
             />
             {error && (
-              <p id="status-comment-error" className="text-sm text-destructive">
+              <p id="status-comment-error" className="text-sm text-danger-strong">
                 {error}
               </p>
             )}
@@ -267,7 +253,7 @@ function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; on
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline">
-                Отмена
+                {cfg.cancel}
               </Button>
             </DialogClose>
             <Button type="submit" variant={to === 'rejected' ? 'destructive' : 'default'} disabled={change.isPending}>
@@ -301,7 +287,7 @@ function Messages({ a, open }: { a: Application; open: boolean }) {
   }
 
   return (
-    <Section title="Переписка">
+    <Section title="Переписка со студентом">
       {a.messages.length === 0 ? (
         <p className="text-sm text-muted-foreground">Сообщений пока нет.</p>
       ) : (
@@ -314,16 +300,16 @@ function Messages({ a, open }: { a: Application; open: boolean }) {
                 m.author_role === 'staff' ? 'self-end bg-accent' : 'self-start bg-muted',
               )}
             >
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[0.8125rem] text-muted-foreground">
                 {m.author_label}, {formatDateTime(m.created_at)}
               </p>
-              <p className="text-sm break-words whitespace-pre-wrap">{m.text}</p>
+              <p className="break-words whitespace-pre-wrap">{m.text}</p>
             </li>
           ))}
         </ol>
       )}
       {open ? (
-        <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-2">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-2 border-t pt-4">
           <Label htmlFor="reply">Ответ студенту</Label>
           <div role="group" aria-label="Шаблоны ответов" className="flex flex-wrap gap-2">
             {REPLY_TEMPLATES.map((t) => (
@@ -355,7 +341,7 @@ ${t.text}` : t.text));
             }}
           />
           {error && (
-            <p id="reply-error" className="text-sm text-destructive">
+            <p id="reply-error" className="text-sm text-danger-strong">
               {error}
             </p>
           )}
@@ -364,95 +350,61 @@ ${t.text}` : t.text));
           </Button>
         </form>
       ) : (
-        <p className="mt-4 text-sm text-muted-foreground">Заявка закрыта — отвечать в ней нельзя.</p>
+        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">Заявка закрыта — отвечать в ней нельзя.</p>
       )}
     </Section>
   );
 }
 
-// ---------- Вложения и результат ----------
-
-const MAX_FILE = 5 * 1024 * 1024;
-const FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
-
-function fileSize(bytes: number): string {
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} КБ` : `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`;
-}
+// ---------- Файлы и результат ----------
 
 function Attachments({ a, open }: { a: Application; open: boolean }) {
   const upload = useUploadResult(a.id);
-  const [file, setFile] = useState<File | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  function onChange(f: File | null) {
-    setFile(f);
-    if (f && !FILE_TYPES.includes(f.type)) setError('Такой тип файла не подходит: можно PDF, JPG или PNG.');
-    else if (f && f.size > MAX_FILE) setError('Файл слишком большой: можно до 5 МБ.');
-    else setError(null);
-  }
-
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = e.currentTarget;
-    if (!file) return setError('Выберите файл');
-    if (error) return;
-    upload.mutate(file, {
-      onSuccess: () => {
-        toast.success('Документ загружен — студент его увидит');
-        form.reset();
-        setFile(null);
-      },
-      onError: (err) => toast.error(apiErrorMessage(err)),
-    });
+  // Файл загружается сразу после выбора — как у студента; размер и тип проверяет FileDrop
+  async function onAdd(files: File[]) {
+    for (const file of files) {
+      try {
+        await upload.mutateAsync(file);
+        toast.success(`Документ «${file.name}» загружен — студент его увидит`);
+      } catch (err) {
+        toast.error(apiErrorMessage(err));
+        return;
+      }
+    }
   }
 
   return (
-    <Section title="Документы">
+    <Section title="Файлы">
       {a.attachments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Документов нет.</p>
+        <p className="text-sm text-muted-foreground">Файлов нет.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {a.attachments.map((f) => (
-            <li key={f.id} className="flex items-start gap-3 rounded-lg border px-3 py-2">
+            <li key={f.id} className="flex items-start gap-3 rounded-lg border px-3 py-2.5">
               <FileIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <a
                   href={`/api/requests/staff/applications/${a.id}/attachments/${f.id}`}
                   download={f.file_name}
-                  className="text-sm font-medium break-all text-primary underline-offset-4 hover:underline"
+                  className="font-medium break-all text-primary underline-offset-4 hover:underline"
                 >
                   {f.file_name}
                 </a>
-                <span className="text-xs text-muted-foreground">
-                  {fileSize(f.size)}, {f.uploaded_by_role === 'staff' ? 'от деканата' : 'от студента'}, {formatDateTime(f.created_at)}
+                <span className="text-sm text-muted-foreground">
+                  {formatSize(f.size)}, {f.uploaded_by_role === 'staff' ? 'от деканата' : 'от студента'}, {formatDateTime(f.created_at)}
                 </span>
               </div>
-              {f.is_result && <StatusBadge tone="success">Результат</StatusBadge>}
+              {f.is_result && <StatusBadge tone="success">Документ для студента</StatusBadge>}
             </li>
           ))}
         </ul>
       )}
       {open && (
-        <form onSubmit={onSubmit} noValidate className="mt-4 flex flex-col gap-2">
-          <Label htmlFor="result-file">Загрузить результат (PDF, JPG или PNG, до 5 МБ)</Label>
-          <input
-            id="result-file"
-            type="file"
-            accept={FILE_TYPES.join(',')}
-            aria-invalid={!!error}
-            aria-describedby={error ? 'result-file-error' : undefined}
-            onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-            className="w-full min-w-0 text-sm file:mr-3 file:h-10 file:rounded-md file:border file:border-input file:bg-card file:px-4 file:font-medium file:text-foreground hover:file:bg-accent focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          />
-          {error && (
-            <p id="result-file-error" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button type="submit" variant="outline" className="self-start" disabled={upload.isPending}>
-            Загрузить
-          </Button>
-        </form>
+        <div className={cn('flex flex-col gap-2', a.attachments.length > 0 && 'border-t pt-4')}>
+          <Label htmlFor="result-file">Документ для студента</Label>
+          <FileDrop id="result-file" disabled={upload.isPending} onAdd={(files) => void onAdd(files)} />
+        </div>
       )}
     </Section>
   );

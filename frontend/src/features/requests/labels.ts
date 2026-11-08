@@ -16,7 +16,7 @@ const statusLabels: Record<ApplicationStatus, string> = {
 };
 
 export const statusTones: Record<ApplicationStatus, Tone> = {
-  submitted: 'info',
+  submitted: 'neutral',
   in_progress: 'info',
   needs_info: 'warning',
   ready: 'success',
@@ -59,7 +59,7 @@ type StepsSource = Pick<S['Application'], 'status' | 'status_history' | 'service
  * Шаги заявки для шкалы статуса: Подана → В работе → Готово (data-model.md, Б5).
  * Уточнение, отказ и отзыв показываются на том шаге, где процесс остановился.
  */
-export function applicationSteps(a: StepsSource): Step[] {
+export function applicationSteps(a: StepsSource, viewer: 'student' | 'staff' = 'student'): Step[] {
   const at = (status: ApplicationStatus) => {
     const h = a.status_history.findLast((e) => e.status === status);
     return h ? formatDate(h.at) : undefined;
@@ -75,7 +75,11 @@ export function applicationSteps(a: StepsSource): Step[] {
     case 'in_progress':
       return [submitted, { label: 'В работе', state: 'current', hint: at('in_progress') }, { label: ready, state: 'upcoming', hint: due }];
     case 'needs_info':
-      return [submitted, { label: 'Нужны уточнения', state: 'attention', hint: at('needs_info') }, { label: ready, state: 'upcoming', hint: due }];
+      return [
+        submitted,
+        { label: viewer === 'staff' ? 'Ждёт студента' : 'Нужны уточнения', state: 'attention', hint: at('needs_info') },
+        { label: ready, state: 'upcoming', hint: due },
+      ];
     case 'ready':
       return [submitted, { label: 'В работе', state: 'done', hint: at('in_progress') }, { label: ready, state: 'done', hint: at('ready') }];
     case 'rejected':
@@ -87,4 +91,9 @@ export function applicationSteps(a: StepsSource): Step[] {
     case 'cancelled':
       return [submitted, { label: 'Отозвана', state: 'stopped', hint: at('cancelled') }];
   }
+}
+
+/** Вопрос оценки (D50) — один и тот же у студента и у сотрудника. Оценивается только выполненная заявка. */
+export function feedbackQuestion(kind: S['ServiceKind']): string {
+  return kind === 'question' ? 'Ответ помог?' : 'Заявку выполнили так, как вам было нужно?';
 }

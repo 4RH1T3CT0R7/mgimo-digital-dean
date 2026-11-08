@@ -64,7 +64,7 @@ export function FileDrop({
         <span>
           Перетащите файлы сюда или <span className="font-medium text-primary underline underline-offset-4">выберите на устройстве</span>
         </span>
-        <span className="text-xs text-muted-foreground">PDF, JPG или PNG, до 5 МБ</span>
+        <span className="text-[0.8125rem] text-muted-foreground">PDF, JPG или PNG, до 5 МБ</span>
         <input
           id={id}
           type="file"

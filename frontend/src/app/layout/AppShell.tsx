@@ -140,10 +140,10 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
 
       {/* Телефон: нижняя панель вкладок */}
       <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {/* Пять равных колонок и кегль 10 px: «Уведомления» (~60 px) помещается в колонку (69 px при 345 px
+        {/* Равные колонки по числу вкладок (5 у студента, 4 у сотрудника) и кегль 10 px: «Уведомления» (~60 px) помещается в колонку (69 px при 345 px
             с полосой прокрутки) с запасом. Раньше ширина шла по подписи и запас был 2 px — при активной
             «Заявки» подпись обрезалась. */}
-        <ul className="grid h-tabbar grid-cols-5">
+        <ul className="grid h-tabbar auto-cols-fr grid-flow-col">
           {nav.map((item) => {
             const active = isActive(item, pathname);
             return (

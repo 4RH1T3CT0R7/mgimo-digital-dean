@@ -10,7 +10,7 @@ beforeEach(() => resetApplications());
 
 const id = (n: number) => `50000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 // Статус в шапке заявки: «Статус: » — скрытая подпись для экранного диктора
-const statusIs = (label: string) => (_: string, el: Element | null) => el?.textContent === `Статус: ${label}`;
+const statusIs = (label: string) => (_: string, el: Element | null) => el?.textContent === `Статус: ${label}` && !!el.firstElementChild?.classList.contains('sr-only');
 
 describe('Список заявок', () => {
   it('мои заявки со статусами, поиск по номеру, каталог по категориям', async () => {
@@ -30,7 +30,7 @@ describe('Список заявок', () => {
   it('?scenario=empty — пустые состояния', async () => {
     renderWithProviders(<AppRoutes />, { route: '/requests?scenario=empty', login: 'student.mo' });
     expect(await screen.findByText('Заявок пока нет')).toBeInTheDocument();
-    expect(await screen.findByText('Услуги пока недоступны')).toBeInTheDocument();
+    expect(await screen.findByText('Услуг пока нет')).toBeInTheDocument();
   });
 });
 
@@ -83,7 +83,7 @@ describe('Новая заявка', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Справка готова' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Скачать PDF' })).toBeInTheDocument();
     const code = screen.getByText(/^[A-Z2-7]{10}$/).textContent;
-    expect(screen.getByRole('link', { name: /Открыть проверку/ })).toHaveAttribute('href', `/verify/${code}`);
+    expect(screen.getByRole('link', { name: /Страница проверки/ })).toHaveAttribute('href', `/verify/${code}`);
   });
 
   it('предзаполнение из адреса (?purpose=…) — для ИИ-помощника', async () => {
@@ -155,7 +155,7 @@ describe('Заявка', () => {
     renderWithProviders(<AppRoutes />, { route: `/requests/${id(4)}`, login: 'student.mo' });
     expect(await screen.findByRole('heading', { name: 'Справка готова' })).toBeInTheDocument();
     expect(screen.getByText('K7M2QX4PWA')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Открыть проверку/ })).toHaveAttribute('href', '/verify/K7M2QX4PWA');
+    expect(screen.getByRole('link', { name: /Страница проверки/ })).toHaveAttribute('href', '/verify/K7M2QX4PWA');
   });
 
   it('чужая заявка — «Заявка не найдена»', async () => {
@@ -167,15 +167,15 @@ describe('Заявка', () => {
 describe('Оценка ответа деканата', () => {
   it('студент отмечает «не помог» с комментарием — сотрудник видит оценку и счётчик', async () => {
     const student = renderWithProviders(<AppRoutes />, { route: `/requests/${id(1)}`, login: 'student.mo' });
-    const card = await screen.findByRole('region', { name: 'Помог ли ответ деканата?' });
+    const card = await screen.findByRole('region', { name: 'Ответ помог?' });
     await student.user.click(within(card).getByRole('button', { name: 'Нет' }));
     await student.user.type(within(card).getByLabelText(/Что можно улучшить/), 'Хотелось бы ответ быстрее');
     await student.user.click(within(card).getByRole('button', { name: 'Отправить оценку' }));
-    expect(await screen.findByText('Вы отметили, что ответ деканата не помог. Спасибо!')).toBeInTheDocument();
+    expect(await screen.findByText('Ответ помог? Ваш ответ: «Нет».')).toBeInTheDocument();
     student.unmount();
 
     const staff = renderWithProviders(<AppRoutes />, { route: `/staff/requests/${id(1)}`, login: 'dekanat.mo' });
-    expect(await screen.findByText('Ответ не помог')).toBeInTheDocument();
+    expect(await screen.findByText('Оценка студента')).toBeInTheDocument();
     expect(screen.getByText('«Хотелось бы ответ быстрее»')).toBeInTheDocument();
     staff.unmount();
 
@@ -186,6 +186,6 @@ describe('Оценка ответа деканата', () => {
   it('у мгновенной справки оценки нет — её выдаёт система', async () => {
     renderWithProviders(<AppRoutes />, { route: `/requests/${id(4)}`, login: 'student.mo' });
     await screen.findByText(statusIs('Готово'));
-    expect(screen.queryByText('Помог ли ответ деканата?')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ответ помог?|выполнили так, как вам было нужно/)).not.toBeInTheDocument();
   });
 });

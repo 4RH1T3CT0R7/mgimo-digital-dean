@@ -13,7 +13,7 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
       </span>
       <span className={cn('flex flex-col leading-tight', compact && 'sr-only sm:not-sr-only sm:flex')}>
         <span className="text-sm font-semibold">Цифровой деканат</span>
-        <span className="text-[11px] text-muted-foreground">концепт для конкурса</span>
+        <span className="text-xs text-muted-foreground">концепт для конкурса</span>
       </span>
     </Link>
   );

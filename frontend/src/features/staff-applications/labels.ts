@@ -4,11 +4,11 @@ import type { Tone } from '@/shared/ui/status-badge';
 export type Status = components['schemas']['ApplicationStatus'];
 type Kind = components['schemas']['ServiceKind'];
 
-// Подписи — как у студента (T10), чтобы обе стороны видели одни и те же слова
+// Подписи — те же слова, что в счётчиках и фильтре на главной сотрудника (LIST_FILTERS ниже, в единственном числе)
 const STATUS: Record<Status, { label: string; tone: Tone }> = {
-  submitted: { label: 'Подана', tone: 'info' },
+  submitted: { label: 'Новая', tone: 'neutral' },
   in_progress: { label: 'В работе', tone: 'info' },
-  needs_info: { label: 'Нужны уточнения', tone: 'warning' },
+  needs_info: { label: 'Ждёт студента', tone: 'warning' },
   ready: { label: 'Готово', tone: 'success' },
   rejected: { label: 'Отклонена', tone: 'danger' },
   cancelled: { label: 'Отозвана', tone: 'neutral' },
@@ -38,7 +38,7 @@ export const LIST_FILTERS: { value: ListFilter; label: string }[] = [
 export const AUTHOR_ROLE: Record<'student' | 'staff' | 'system', string> = {
   student: 'Студент',
   staff: 'Деканат',
-  system: 'Система',
+  system: 'Автоматически',
 };
 
 /** Частые ответы деканата: вставляются в поле ответа одним нажатием, текст можно поправить перед отправкой. */
