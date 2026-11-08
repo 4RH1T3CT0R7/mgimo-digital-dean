@@ -854,7 +854,7 @@ components:
       properties:
         code:
           type: string
-          example: K7M2QX4P9A
+          example: K7M2QX4PWA
         issued_at:
           type: string
           format: date-time
@@ -865,7 +865,7 @@ components:
         verify_url:
           type: string
           description: Относительный адрес страницы проверки в SPA
-          example: /verify/K7M2QX4P9A
+          example: /verify/K7M2QX4PWA
     CertificateVerification:
       type: object
       required: [valid, title, holder, faculty_short, issued_at, valid_until]

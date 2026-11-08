@@ -1,0 +1,62 @@
+-- Каталог услуг (docs/contracts/seed.md, раздел requests). Применяется к пустой БД после миграций.
+-- fields — массив FormField из docs/contracts/requests.yaml.
+INSERT INTO service_types (id, title, description, category, kind, sla_days, fields,
+                           attachments_allowed, attachments_required, attachments_hint, sort_order, active)
+VALUES
+('study-certificate', 'Справка с места учёбы',
+ 'Формируется сразу: PDF с кодом проверки, который можно отправить по месту требования.',
+ 'certificates', 'instant_certificate', 0,
+ '[{"key": "purpose", "label": "Для чего нужна справка", "type": "select", "required": true,
+    "options": ["По месту требования", "Для органов соцзащиты", "Для работодателя", "Для налоговой", "Другое"]},
+   {"key": "destination", "label": "Куда предоставляется", "type": "text", "required": false,
+    "placeholder": "Например, по месту работы родителей", "max_length": 200}]',
+ false, false, NULL, 1, true),
+
+('military-certificate', 'Справка в военкомат',
+ 'Справка для военного комиссариата об обучении. Готовит деканат.',
+ 'certificates', 'document', 5,
+ '[{"key": "commissariat", "label": "Военный комиссариат", "type": "text", "required": true,
+    "placeholder": "Название военного комиссариата", "max_length": 300},
+   {"key": "delivery", "label": "Как получить", "type": "select", "required": true,
+    "options": ["Забрать в деканате", "Электронная копия"]}]',
+ false, false, NULL, 2, true),
+
+('transcript', 'Выписка оценок / транскрипт',
+ 'Выписка всех оценок за выбранный период на русском или английском языке.',
+ 'certificates', 'document', 10,
+ '[{"key": "language", "label": "Язык", "type": "select", "required": false, "options": ["Русский", "Английский"]},
+   {"key": "period", "label": "Период", "type": "select", "required": false,
+    "options": ["Весь период обучения", "Последний семестр"]}]',
+ false, false, NULL, 3, true),
+
+('financial-aid', 'Материальная помощь',
+ 'Единовременная материальная помощь студентам в трудной ситуации.',
+ 'finance', 'document', 14,
+ '[{"key": "reason", "label": "Основание", "type": "select", "required": false,
+    "options": ["Сложная жизненная ситуация", "Рождение ребёнка", "Лечение", "Другое"]},
+   {"key": "details", "label": "Опишите ситуацию", "type": "textarea", "required": true, "max_length": 2000}]',
+ true, true, 'Документы, подтверждающие основание', 4, true),
+
+('academic-leave', 'Академический отпуск',
+ 'Заявление на академический отпуск. Деканат свяжется, если понадобятся документы.',
+ 'deanery', 'document', 10,
+ '[{"key": "reason", "label": "Основание", "type": "select", "required": false,
+    "options": ["По медицинским показаниям", "По семейным обстоятельствам", "Призыв на военную службу", "Другое"]},
+   {"key": "start_date", "label": "С какой даты", "type": "date", "required": true},
+   {"key": "details", "label": "Комментарий", "type": "textarea", "required": false, "max_length": 2000}]',
+ true, false, NULL, 5, true),
+
+('student-card-reissue', 'Повторная выдача студенческого билета',
+ 'Новый студенческий билет взамен утерянного или повреждённого.',
+ 'deanery', 'document', 7,
+ '[{"key": "reason", "label": "Причина", "type": "select", "required": false,
+    "options": ["Утерян", "Повреждён", "Смена фамилии"]}]',
+ false, false, NULL, 6, true),
+
+('dean-question', 'Вопрос в деканат',
+ 'Задайте вопрос — ответ придёт в переписке по заявке.',
+ 'deanery', 'question', 3,
+ '[{"key": "topic", "label": "Тема", "type": "select", "required": false,
+    "options": ["Учебный процесс", "Расписание", "Документы", "Стипендия", "Другое"]},
+   {"key": "question", "label": "Ваш вопрос", "type": "textarea", "required": true, "max_length": 2000}]',
+ true, false, NULL, 7, true);
