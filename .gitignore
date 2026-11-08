@@ -16,3 +16,6 @@ e2e/playwright-report/
 *.swp
 .DS_Store
 Thumbs.db
+
+# Пароли тестовых аккаунтов и прочие секреты — только локально (D38)
+.secrets/

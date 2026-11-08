@@ -21,22 +21,21 @@ const (
 )
 
 // Middleware — общая обёртка каждого сервера сервиса: request id, лог запроса, recover,
-// личность из заголовков шлюза, доступ к исходному запросу (cookie, IP) из хендлеров strict-server.
+// проверка Content-Type, личность из заголовков шлюза, доступ к исходному запросу (cookie, IP)
+// из хендлеров strict-server.
 func Middleware(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		reqID := r.Header.Get("X-Request-Id")
-		if reqID == "" {
-			reqID = newRequestID()
-		}
+		reqID := sanitizeRequestID(r.Header.Get("X-Request-Id"))
 		w.Header().Set("X-Request-Id", reqID)
 
 		l := log.With("request_id", reqID)
-		ctx := context.WithValue(r.Context(), ctxLogger, l)
+		ctx := r.Context()
 		if id, ok := IdentityFromHeaders(r.Header); ok {
 			ctx = withIdentity(ctx, id)
 			l = l.With("user_id", id.UserID.String())
 		}
+		ctx = context.WithValue(ctx, ctxLogger, l) // после user_id: он должен быть в логах хендлеров
 		r = r.WithContext(ctx)
 		ctx = context.WithValue(ctx, ctxRequest, r)
 		r = r.WithContext(ctx)
@@ -53,8 +52,43 @@ func Middleware(log *slog.Logger, next http.Handler) http.Handler {
 					"duration_ms", time.Since(start).Milliseconds())
 			}
 		}()
+
+		if !allowedBody(r) {
+			WriteError(rec, &Error{Status: http.StatusUnsupportedMediaType, Code: "unsupported_media_type",
+				Message: "Запрос должен быть в формате JSON"})
+			return
+		}
 		next.ServeHTTP(rec, r)
 	})
+}
+
+// allowedBody — запросы, меняющие данные, принимают тело только в JSON или multipart (файлы).
+// Простые формы с чужого сайта (text/plain, x-www-form-urlencoded) так не пройдут — защита от CSRF
+// в дополнение к SameSite у cookie (security.md §3).
+func allowedBody(r *http.Request) bool {
+	switch r.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+	default:
+		return true
+	}
+	if r.ContentLength == 0 && len(r.TransferEncoding) == 0 {
+		return true // тела нет (например, POST /logout)
+	}
+	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]))
+	return ct == "application/json" || ct == "multipart/form-data"
+}
+
+// sanitizeRequestID — свой ID из заголовка, только если он короткий и безопасный, иначе новый.
+func sanitizeRequestID(v string) string {
+	if v == "" || len(v) > 64 {
+		return newRequestID()
+	}
+	for _, c := range v {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return newRequestID()
+		}
+	}
+	return v
 }
 
 // Log — логгер запроса (с request_id и user_id). Вне запроса — логгер по умолчанию.

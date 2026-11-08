@@ -52,3 +52,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build --build-arg SERVICE=${{ matrix.service }} -t mgimo-${{ matrix.service }} .
+
+  # Весь стек в Docker + проверки шлюза и изоляции (deploy/smoke.sh, security.md §6)
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: .env со случайными паролями
+        run: |
+          r() { openssl rand -hex 24; }
+          printf 'SITE_ADDRESS=localhost\nPOSTGRES_PASSWORD=%s\nAUTH_DB_PASSWORD=%s\nACADEMIC_DB_PASSWORD=%s\nREQUESTS_DB_PASSWORD=%s\nNOTIFICATIONS_DB_PASSWORD=%s\n' "$(r)" "$(r)" "$(r)" "$(r)" "$(r)" > .env
+          mkdir -p frontend/dist
+      - run: docker compose -f deploy/docker-compose.yml --env-file .env up -d --build --wait
+      - run: bash deploy/seed.sh
+      - run: bash deploy/smoke.sh
+      - name: Логи при ошибке
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml --env-file .env logs --tail=200
