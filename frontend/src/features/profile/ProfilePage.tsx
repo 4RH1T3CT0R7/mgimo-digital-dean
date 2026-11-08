@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useLogout } from '@/features/auth/queries';
+import { InstallAppButton } from '@/features/pwa/InstallAppButton';
 import { Button } from '@/shared/ui/button';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { PageHeader } from '@/shared/ui/page-header';
@@ -44,6 +45,7 @@ export function ProfilePage()
                             </dl>
                         </Section>
                         <Section title="Мои данные">
+                            <InstallAppButton />
                             <p className="text-sm text-muted-foreground">В кабинете отображаются сведения об обучении. Если нашли ошибку, сообщите в деканат.</p>
                             <Link to="/privacy" className="flex min-h-11 items-center text-primary underline underline-offset-4">Как мы обрабатываем ваши данные</Link>
                             <Button variant="outline" disabled={logout.isPending} onClick={() => logout.mutate()}>{logout.isPending ? 'Выходим…' : 'Выйти'}</Button>
