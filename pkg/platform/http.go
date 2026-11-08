@@ -53,13 +53,34 @@ func Middleware(log *slog.Logger, next http.Handler) http.Handler {
 			}
 		}()
 
+		// Ответы API содержат личные данные — браузер и прокси не должны их кэшировать (security.md, 152-ФЗ).
+		w.Header().Set("Cache-Control", "no-store")
+
 		if !allowedBody(r) {
 			WriteError(rec, &Error{Status: http.StatusUnsupportedMediaType, Code: "unsupported_media_type",
 				Message: "Запрос должен быть в формате JSON"})
 			return
 		}
+		// JSON-тело — не больше MaxJSONBody: защита памяти сервиса от огромных запросов.
+		// Файлы (multipart) ограничивают сами обработчики загрузки.
+		if isJSON(r) {
+			if r.ContentLength > MaxJSONBody {
+				WriteError(rec, &Error{Status: http.StatusRequestEntityTooLarge, Code: "payload_too_large",
+					Message: "Слишком большой запрос"})
+				return
+			}
+			r.Body = http.MaxBytesReader(rec, r.Body, MaxJSONBody)
+		}
 		next.ServeHTTP(rec, r)
 	})
+}
+
+// MaxJSONBody — предел JSON-тела запроса (1 МБ: самое длинное поле по контрактам — 4000 символов).
+const MaxJSONBody = 1 << 20
+
+func isJSON(r *http.Request) bool {
+	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(r.Header.Get("Content-Type"), ";", 2)[0]))
+	return ct == "application/json"
 }
 
 // allowedBody — запросы, меняющие данные, принимают тело только в JSON или multipart (файлы).

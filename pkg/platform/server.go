@@ -21,9 +21,22 @@ const (
 	InternalAddr = ":8081" // внутренний API, шлюз его НЕ проксирует (D31)
 )
 
-// Healthz отвечает 200 — для healthcheck в compose.
-func Healthz(w http.ResponseWriter, _ *http.Request) {
+// ReadinessCheck — дополнительная проверка для /healthz: OpenDB подставляет сюда пинг БД.
+// Так healthcheck в compose и внешний мониторинг видят не только «процесс жив», но и «работает с БД».
+var ReadinessCheck func(ctx context.Context) error
+
+// Healthz отвечает 200, если сервис готов, и 503, если не проходит ReadinessCheck.
+func Healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if ReadinessCheck != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := ReadinessCheck(ctx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"status":"unavailable"}`))
+			return
+		}
+	}
 	_, _ = w.Write([]byte(`{"status":"ok"}`))
 }
 
@@ -47,10 +60,13 @@ func Run(service string, public, internal http.Handler) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	servers := []*http.Server{
-		{Addr: PublicAddr, Handler: public, ReadHeaderTimeout: 5 * time.Second},
-		{Addr: InternalAddr, Handler: internal, ReadHeaderTimeout: 5 * time.Second},
+	// Таймауты — защита от медленных клиентов (slowloris), которые держат соединения открытыми.
+	// WriteTimeout с запасом на отдачу файлов до 5 МБ.
+	newServer := func(addr string, h http.Handler) *http.Server {
+		return &http.Server{Addr: addr, Handler: h, ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout: 30 * time.Second, WriteTimeout: 60 * time.Second, IdleTimeout: 120 * time.Second}
 	}
+	servers := []*http.Server{newServer(PublicAddr, public), newServer(InternalAddr, internal)}
 	g, gctx := errgroup.WithContext(ctx)
 	for _, s := range servers {
 		g.Go(func() error {
