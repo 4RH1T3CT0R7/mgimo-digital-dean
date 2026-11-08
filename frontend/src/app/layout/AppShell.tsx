@@ -1,0 +1,206 @@
+import {
+  BellIcon,
+  CalendarClockIcon,
+  CalendarDaysIcon,
+  CalendarRangeIcon,
+  FileTextIcon,
+  GraduationCapIcon,
+  HouseIcon,
+  InboxIcon,
+  LogOutIcon,
+  MegaphoneIcon,
+  type LucideIcon,
+} from 'lucide-react';
+import { Link, Outlet, useLocation } from 'react-router';
+import { useLogout, useMe } from '@/features/auth/queries';
+import { useFeedCounters } from '@/features/notifications/queries';
+import { cn } from '@/shared/lib/utils';
+import { Button } from '@/shared/ui/button';
+import { Footer } from './Footer';
+import { Logo } from './Logo';
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  /** Когда пункт активен; по умолчанию — адрес совпадает или вложен */
+  match?: (pathname: string) => boolean;
+  /** Счётчик на значке (непрочитанные) */
+  badge?: number;
+};
+
+export function StudentShell() {
+  const unread = useFeedCounters().data?.unread;
+  return (
+    <AppShell
+      profileLink="/profile"
+      nav={[
+        { to: '/', label: 'Сегодня', icon: HouseIcon },
+        { to: '/schedule', label: 'Расписание', icon: CalendarDaysIcon },
+        { to: '/grades', label: 'Учёба', icon: GraduationCapIcon },
+        { to: '/requests', label: 'Заявки', icon: FileTextIcon },
+        { to: '/notifications', label: 'Уведомления', icon: BellIcon, badge: unread },
+      ]}
+    />
+  );
+}
+
+export function StaffShell() {
+  return (
+    <AppShell
+      nav={[
+        { to: '/staff', label: 'Заявки', icon: InboxIcon, match: (p) => p === '/staff' || p.startsWith('/staff/requests') },
+        { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
+        { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
+        { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+      ]}
+    />
+  );
+}
+
+function isActive(item: NavItem, pathname: string) {
+  return item.match ? item.match(pathname) : pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
+function badgeText(n: number) {
+  return n > 99 ? '99+' : String(n);
+}
+
+function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }) {
+  const { pathname } = useLocation();
+
+  return (
+    <div className="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-md bg-card px-4 py-2 shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        Перейти к содержимому
+      </a>
+
+      {/* Компьютер: боковое меню */}
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-6 border-r bg-card px-3 py-4 lg:flex">
+        <Logo className="px-2" />
+        <nav aria-label="Разделы">
+          <ul className="flex flex-col gap-1">
+            {nav.map((item) => {
+              const active = isActive(item, pathname);
+              return (
+                <li key={item.to}>
+                  <Link
+                    to={item.to}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                      active && 'bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground',
+                    )}
+                  >
+                    <item.icon className="size-[1.125rem]" aria-hidden />
+                    {item.label}
+                    {!!item.badge && (
+                      <span className="ml-auto rounded-full bg-destructive px-1.5 text-xs leading-5 text-destructive-foreground">
+                        {badgeText(item.badge)}
+                        <span className="sr-only"> непрочитанных</span>
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </aside>
+
+      <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
+        <header className="sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b bg-background/90 px-gutter backdrop-blur">
+          <Logo compact className="lg:hidden" />
+          <UserMenu profileLink={profileLink} />
+        </header>
+        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl flex-1 px-gutter py-5 outline-none md:py-8">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+
+      {/* Телефон: нижняя панель вкладок */}
+      <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        {/* Ширина вкладки — по подписи + поровну свободного места: «Уведомления» не обрезается на 360 px */}
+        <ul className="flex h-tabbar">
+          {nav.map((item) => {
+            const active = isActive(item, pathname);
+            return (
+              <li key={item.to} className="flex-auto">
+                <Link
+                  to={item.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={cn(
+                    'flex h-full flex-col items-center justify-center gap-1 px-0.5 text-[11px] leading-none font-medium text-muted-foreground transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset',
+                    active && 'text-accent-foreground',
+                  )}
+                >
+                  <span className={cn('relative flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-accent')}>
+                    <item.icon className="size-5" aria-hidden />
+                    {!!item.badge && (
+                      <span
+                        aria-hidden
+                        className="absolute -top-1 left-[calc(50%+0.375rem)] min-w-[1.125rem] rounded-full bg-destructive px-1 text-center text-[10px] leading-[1.125rem] text-destructive-foreground"
+                      >
+                        {badgeText(item.badge)}
+                      </span>
+                    )}
+                  </span>
+                  <span className="whitespace-nowrap">{item.label}</span>
+                  {!!item.badge && <span className="sr-only">, непрочитанных: {item.badge}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+  );
+}
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase();
+}
+
+function UserMenu({ profileLink }: { profileLink?: string }) {
+  const me = useMe().data;
+  const logout = useLogout();
+  if (!me) return null;
+
+  const chip = (
+    <>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-secondary-foreground" aria-hidden>
+        {initials(me.display_name)}
+      </span>
+      <span className="max-w-[10rem] truncate text-sm font-medium">{me.display_name}</span>
+    </>
+  );
+
+  return (
+    <div className="ml-auto flex min-w-0 items-center gap-1">
+      {profileLink ? (
+        <Link
+          to={profileLink}
+          className="flex min-w-0 items-center gap-2 rounded-md py-1 pr-2 pl-1 hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        >
+          <span className="sr-only">Профиль: </span>
+          {chip}
+        </Link>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2 py-1 pr-2 pl-1">{chip}</span>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => logout.mutate()} disabled={logout.isPending} aria-label="Выйти" title="Выйти">
+        <LogOutIcon aria-hidden />
+        <span className="hidden sm:inline">Выйти</span>
+      </Button>
+    </div>
+  );
+}
