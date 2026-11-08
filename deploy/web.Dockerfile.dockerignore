@@ -1,0 +1,6 @@
+# Только то, что нужно образу web (корневой .dockerignore — для Go-сервисов)
+*
+!frontend
+!deploy/Caddyfile
+frontend/node_modules
+frontend/dist
