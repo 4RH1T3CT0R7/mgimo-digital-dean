@@ -59,6 +59,11 @@ paths:
       responses:
         '204':
           description: Выход выполнен
+          headers:
+            Set-Cookie:
+              description: Очистка cookie `sid` (Max-Age=0)
+              schema:
+                type: string
   /me:
     get:
       operationId: getMe
