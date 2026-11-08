@@ -2,6 +2,7 @@ package platform_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -231,5 +232,58 @@ func TestNewMux(t *testing.T) {
 	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if w.Code != 200 {
 		t.Errorf("healthz: %d", w.Code)
+	}
+}
+
+func TestResponsesAreNotCachedAndJSONIsLimited(t *testing.T) {
+	h := platform.Middleware(slog.New(slog.NewTextHandler(io.Discard, nil)), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := io.ReadAll(r.Body); err != nil {
+			platform.WriteError(w, platform.Validation(nil))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/x", nil))
+	if w.Header().Get("Cache-Control") != "no-store" {
+		t.Errorf("ответы API должны быть no-store: %q", w.Header().Get("Cache-Control"))
+	}
+
+	big := strings.Repeat("я", platform.MaxJSONBody) // > 1 МБ в байтах
+	r := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"text":"`+big+`"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusRequestEntityTooLarge || !strings.Contains(w.Body.String(), "payload_too_large") {
+		t.Errorf("JSON больше 1 МБ: %d %s", w.Code, w.Body)
+	}
+
+	r = httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"text":"обычный"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Errorf("обычный JSON: %d", w.Code)
+	}
+}
+
+func TestHealthzReportsDependencies(t *testing.T) {
+	defer func() { platform.ReadinessCheck = nil }()
+	check := func() int {
+		w := httptest.NewRecorder()
+		platform.NewMux().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+		return w.Code
+	}
+	platform.ReadinessCheck = nil
+	if c := check(); c != 200 {
+		t.Errorf("без проверок: %d", c)
+	}
+	platform.ReadinessCheck = func(context.Context) error { return errors.New("БД недоступна") }
+	if c := check(); c != 503 {
+		t.Errorf("БД недоступна → 503, получили %d", c)
+	}
+	platform.ReadinessCheck = func(context.Context) error { return nil }
+	if c := check(); c != 200 {
+		t.Errorf("БД доступна → 200, получили %d", c)
 	}
 }
