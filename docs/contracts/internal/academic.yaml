@@ -1,0 +1,221 @@
+openapi: 3.0.3
+info:
+  title: academic — внутренний API
+  version: 1.0.0
+  description: |
+    Порт 8081, только внутренняя сеть Docker; через шлюз недоступен.
+    Клиенты: `requests` (слепок студента при подаче заявки), `notifications` (принадлежность студента, адресаты объявлений).
+servers:
+  - url: http://academic:8081
+paths:
+  /internal/students/{student_id}:
+    get:
+      operationId: getStudentCard
+      summary: Данные студента для слепка в заявке и для справки
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: Карточка студента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCard'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/students/{student_id}/membership:
+    get:
+      operationId: getStudentMembership
+      summary: Факультет, курс и все группы студента (для сборки ленты)
+      parameters:
+        - $ref: '#/components/parameters/StudentId'
+      responses:
+        '200':
+          description: Принадлежность
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Membership'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/groups/{group_id}:
+    get:
+      operationId: getGroup
+      summary: Группа (для проверки, что адресат объявления — с факультета сотрудника)
+      parameters:
+        - in: path
+          name: group_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Группа
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/audience/students:
+    post:
+      operationId: resolveAudience
+      summary: Студенты, попадающие под адресата (для статистики прочтения объявлений)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Audience'
+      responses:
+        '200':
+          description: Студенты
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [students]
+                properties:
+                  students:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StudentRef'
+        '400':
+          description: Неверный адресат (`validation_failed`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  parameters:
+    StudentId:
+      in: path
+      name: student_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    NotFound:
+      description: Студент не найден (`not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    StudentCard:
+      type: object
+      required: [id, full_name, short_name, faculty_id, faculty_short, faculty_name, program_code, program_name, course, group_name, student_card_no, study_form, funding, study_level]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        short_name:
+          type: string
+        faculty_id:
+          type: string
+          format: uuid
+        faculty_short:
+          type: string
+        faculty_name:
+          type: string
+        program_code:
+          type: string
+        program_name:
+          type: string
+        study_level:
+          type: string
+          enum: [bachelor, specialist, master]
+        course:
+          type: integer
+        group_name:
+          type: string
+        student_card_no:
+          type: string
+        study_form:
+          type: string
+          enum: [full_time, part_time, extramural]
+        funding:
+          type: string
+          enum: [budget, contract]
+    Membership:
+      type: object
+      required: [student_id, faculty_id, course, group_ids]
+      properties:
+        student_id:
+          type: string
+          format: uuid
+        faculty_id:
+          type: string
+          format: uuid
+        course:
+          type: integer
+        group_ids:
+          type: array
+          description: Академическая и все языковые группы
+          items:
+            type: string
+            format: uuid
+    Audience:
+      type: object
+      required: [kind]
+      description: |
+        all — все студенты; faculty — факультет (faculty_id); course — курс факультета (faculty_id + course);
+        group — группа (group_id); user — один студент (user_id).
+      properties:
+        kind:
+          type: string
+          enum: [all, faculty, course, group, user]
+        faculty_id:
+          type: string
+          format: uuid
+        course:
+          type: integer
+        group_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+    Group:
+      type: object
+      required: [id, name, kind, course, faculty_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [academic, language]
+        course:
+          type: integer
+        faculty_id:
+          type: string
+          format: uuid
+    StudentRef:
+      type: object
+      required: [id, short_name, group_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_name:
+          type: string
+        group_name:
+          type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

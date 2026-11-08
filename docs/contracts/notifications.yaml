@@ -1,0 +1,614 @@
+openapi: 3.0.3
+info:
+  title: notifications — лента, объявления, дедлайны
+  version: 1.0.0
+  description: |
+    Публичный API сервиса `notifications`. Соглашения — docs/contracts/README.md.
+    Лента собирается при чтении по адресату (D33): личные уведомления + объявления для группы, курса, факультета или всех.
+    Принадлежность студента берётся из internal/academic.yaml (getStudentMembership).
+    Правило совпадения адресата — docs/contracts/data-model.md.
+servers:
+  - url: /api/notifications
+security:
+  - sessionCookie: []
+tags:
+  - name: student
+  - name: staff
+paths:
+  /me/feed:
+    get:
+      tags: [student]
+      operationId: getMyFeed
+      summary: Лента уведомлений (F5)
+      description: Роли — student. Сначала важные непрочитанные, затем остальные по created_at (новые сверху).
+      parameters:
+        - in: query
+          name: type
+          description: Можно несколько через запятую
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/FeedItemType'
+        - in: query
+          name: unread_only
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Лента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/feed/counters:
+    get:
+      tags: [student]
+      operationId: getMyFeedCounters
+      summary: Счётчики для значка в шапке и главной «Сегодня»
+      description: Роли — student.
+      responses:
+        '200':
+          description: Счётчики
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedCounters'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/feed/{item_id}/read:
+    post:
+      tags: [student]
+      operationId: markFeedItemRead
+      summary: Отметить прочитанным
+      description: Роли — student. Повторный вызов — тоже 204. Чужой или несуществующий элемент — 404.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '204':
+          description: Отмечено
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /me/feed/read-all:
+    post:
+      tags: [student]
+      operationId: markAllFeedRead
+      summary: Отметить всё прочитанным
+      description: Роли — student. Подтверждение прочтения (ack) не ставит.
+      responses:
+        '204':
+          description: Отмечено
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/feed/{item_id}/ack:
+    post:
+      tags: [student]
+      operationId: ackFeedItem
+      summary: Подтвердить ознакомление с важным объявлением (I3)
+      description: |
+        Роли — student. Только для requires_ack=true, иначе 409. Заодно отмечает прочитанным. Повторный вызов — 204.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '204':
+          description: Ознакомление подтверждено
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/deadlines:
+    get:
+      tags: [student]
+      operationId: getMyDeadlines
+      summary: Ближайшие дедлайны (F5, напоминания)
+      description: Роли — student. Дедлайны с due_at от текущего момента до now + days, по возрастанию due_at.
+      parameters:
+        - in: query
+          name: days
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 14
+      responses:
+        '200':
+          description: Дедлайны
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deadline'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /staff/announcements:
+    get:
+      tags: [staff]
+      operationId: listStaffAnnouncements
+      summary: Объявления и новости, созданные деканатом
+      description: Роли — staff (своего факультета), admin (все). Новые сверху.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Объявления
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffAnnouncementList'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [staff]
+      operationId: createAnnouncement
+      summary: Опубликовать новость или объявление
+      description: |
+        Роли — staff, admin. Адресат у staff — только внутри своего факультета
+        (kind faculty/course/group, faculty_id подставляется сервером), иначе 400.
+        admin может выбрать любой адресат, включая all.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAnnouncementRequest'
+      responses:
+        '201':
+          description: Опубликовано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffAnnouncement'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /staff/announcements/{announcement_id}/acks:
+    get:
+      tags: [staff]
+      operationId: getAnnouncementAcks
+      summary: Кто ознакомился с объявлением (I3)
+      description: |
+        Роли — staff (своего факультета, иначе 404), admin. Список адресатов — через internal/academic.yaml (resolveAudience).
+      parameters:
+        - in: path
+          name: announcement_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Статистика
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AckReport'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /staff/deadlines:
+    get:
+      tags: [staff]
+      operationId: listStaffDeadlines
+      summary: Дедлайны, созданные деканатом
+      description: Роли — staff (своего факультета), admin (все). По возрастанию due_at.
+      responses:
+        '200':
+          description: Дедлайны
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffDeadline'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [staff]
+      operationId: createDeadline
+      summary: Создать дедлайн
+      description: Роли — staff (адресат внутри своего факультета), admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeadlineRequest'
+      responses:
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffDeadline'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /staff/deadlines/{deadline_id}:
+    delete:
+      tags: [staff]
+      operationId: deleteDeadline
+      summary: Удалить дедлайн
+      description: Роли — staff (своего факультета, иначе 404), admin.
+      parameters:
+        - in: path
+          name: deadline_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалён
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sid
+  parameters:
+    ItemId:
+      in: path
+      name: item_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      in: query
+      name: offset
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    ValidationFailed:
+      description: Неверные данные (`validation_failed`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthenticated:
+      description: Нет сессии (`unauthenticated`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Роль не подходит (`forbidden`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Не найдено или чужое (`not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Действие невозможно (`conflict`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    FeedItemType:
+      type: string
+      description: |
+        news — новость; announcement — объявление деканата; schedule_change — изменение расписания;
+        application_status — сменился статус заявки; application_message — деканат ответил по заявке.
+      enum: [news, announcement, schedule_change, application_status, application_message]
+    Audience:
+      type: object
+      required: [kind]
+      description: |
+        all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
+        user используется только для системных уведомлений, вручную не создаётся.
+      properties:
+        kind:
+          type: string
+          enum: [all, faculty, course, group, user]
+        faculty_id:
+          type: string
+          format: uuid
+        course:
+          type: integer
+          minimum: 1
+          maximum: 6
+        group_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+    Link:
+      type: object
+      required: [kind]
+      description: Куда ведёт элемент; фронтенд строит маршрут сам
+      properties:
+        kind:
+          type: string
+          enum: [application, lesson, none]
+        id:
+          type: string
+          format: uuid
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+          description: Для lesson — дата, на которую открыть расписание
+    FeedItem:
+      type: object
+      required: [id, type, title, body, created_at, important, requires_ack, link]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/FeedItemType'
+        title:
+          type: string
+          maxLength: 120
+        body:
+          type: string
+          maxLength: 4000
+          description: Обычный текст, без HTML
+        author_label:
+          type: string
+          nullable: true
+          example: Деканат ФМО
+        created_at:
+          type: string
+          format: date-time
+        important:
+          type: boolean
+        requires_ack:
+          type: boolean
+        read_at:
+          type: string
+          format: date-time
+          nullable: true
+        acked_at:
+          type: string
+          format: date-time
+          nullable: true
+        link:
+          $ref: '#/components/schemas/Link'
+    FeedList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeedItem'
+        total:
+          type: integer
+    FeedCounters:
+      type: object
+      required: [unread, important_unacked, deadlines_soon]
+      properties:
+        unread:
+          type: integer
+        important_unacked:
+          type: integer
+          description: Объявления requires_ack без подтверждения
+        deadlines_soon:
+          type: integer
+          description: Дедлайны в ближайшие 3 дня
+    DeadlineKind:
+      type: string
+      enum: [application, exam, credit, coursework, other]
+    Deadline:
+      type: object
+      required: [id, title, kind, due_at, days_left]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 120
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+        kind:
+          $ref: '#/components/schemas/DeadlineKind'
+        due_at:
+          type: string
+          format: date-time
+        days_left:
+          type: integer
+          description: Целых суток до due_at по московскому времени; 0 — сегодня
+        service_type_id:
+          type: string
+          nullable: true
+          description: Для kind=application — какую услугу подать (кнопка «Подать заявку»)
+    StaffDeadline:
+      allOf:
+        - $ref: '#/components/schemas/Deadline'
+        - type: object
+          required: [audience, created_at]
+          properties:
+            audience:
+              $ref: '#/components/schemas/Audience'
+            created_at:
+              type: string
+              format: date-time
+    CreateDeadlineRequest:
+      type: object
+      required: [title, kind, due_at, audience]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        kind:
+          $ref: '#/components/schemas/DeadlineKind'
+        due_at:
+          type: string
+          format: date-time
+          description: Должен быть в будущем
+        service_type_id:
+          type: string
+          nullable: true
+        audience:
+          $ref: '#/components/schemas/Audience'
+    CreateAnnouncementRequest:
+      type: object
+      required: [type, title, body, important, requires_ack, audience]
+      properties:
+        type:
+          type: string
+          enum: [news, announcement]
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        important:
+          type: boolean
+        requires_ack:
+          type: boolean
+          description: Требует подтверждения ознакомления; только для type=announcement
+        audience:
+          $ref: '#/components/schemas/Audience'
+    StaffAnnouncement:
+      type: object
+      required: [id, type, title, body, important, requires_ack, audience, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [news, announcement]
+        title:
+          type: string
+        body:
+          type: string
+        important:
+          type: boolean
+        requires_ack:
+          type: boolean
+        audience:
+          $ref: '#/components/schemas/Audience'
+        created_at:
+          type: string
+          format: date-time
+        acked_count:
+          type: integer
+          nullable: true
+          description: Только при requires_ack
+        read_count:
+          type: integer
+    StaffAnnouncementList:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffAnnouncement'
+        total:
+          type: integer
+    AckReport:
+      type: object
+      required: [total, acked, not_acked]
+      properties:
+        total:
+          type: integer
+        acked:
+          type: array
+          items:
+            $ref: '#/components/schemas/AckStudent'
+        not_acked:
+          type: array
+          items:
+            $ref: '#/components/schemas/AckStudent'
+    AckStudent:
+      type: object
+      required: [id, short_name, group_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_name:
+          type: string
+        group_name:
+          type: string
+        acked_at:
+          type: string
+          format: date-time
+          nullable: true
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

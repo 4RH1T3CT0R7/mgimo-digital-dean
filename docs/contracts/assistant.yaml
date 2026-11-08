@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: assistant — ИИ-помощник «Спроси деканат» (P2)
+  version: 1.0.0
+  description: |
+    Второй приоритет (D16). Ключ LLM (GigaChat или YandexGPT) — только в переменных окружения этого сервиса.
+    В LLM уходит только текст вопроса и выдержки из справочника, без данных профиля (security.md).
+    Если LLM недоступен или не настроен — ответ из поиска по справочнику (provider = faq).
+servers:
+  - url: /api/assistant
+security:
+  - sessionCookie: []
+paths:
+  /ask:
+    post:
+      operationId: ask
+      summary: Задать вопрос о порядках в вузе
+      description: |
+        Роли — student. Ограничение: 20 вопросов в час на пользователя, иначе 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+      responses:
+        '200':
+          description: Ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Answer'
+        '400':
+          description: Неверные данные (`validation_failed`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Нет сессии (`unauthenticated`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Роль не подходит (`forbidden`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Слишком много вопросов (`too_many_attempts`)
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sid
+  schemas:
+    Answer:
+      type: object
+      required: [answer, provider, sources]
+      properties:
+        answer:
+          type: string
+          description: Обычный текст. Фронтенд подписывает «Ответ сгенерирован ИИ и может содержать ошибки» при provider = llm
+        provider:
+          type: string
+          enum: [llm, faq]
+        sources:
+          type: array
+          items:
+            type: object
+            required: [faq_id, title]
+            properties:
+              faq_id:
+                type: string
+              title:
+                type: string
+        suggested_action:
+          type: object
+          nullable: true
+          description: Предложение открыть форму заявки с заполненными полями
+          required: [service_type_id, prefill]
+          properties:
+            service_type_id:
+              type: string
+            prefill:
+              type: object
+              additionalProperties:
+                type: string
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

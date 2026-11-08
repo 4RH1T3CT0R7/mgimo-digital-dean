@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: auth — внутренний API
+  version: 1.0.0
+  description: |
+    Порт 8081, только внутренняя сеть Docker. Вызывает Caddy (forward_auth) перед каждым защищённым запросом.
+servers:
+  - url: http://auth:8081
+paths:
+  /internal/verify:
+    get:
+      operationId: verifySession
+      summary: Проверка сессии для шлюза
+      description: |
+        Caddy передаёт заголовки исходного запроса, включая `Cookie`.
+        При валидной сессии — 204 и заголовки личности, которые Caddy копирует в запрос к сервису.
+        Перед вызовом Caddy удаляет из исходного запроса любые `X-User-*` и `X-Faculty-Id`.
+        Обновляет `last_seen_at` сессии.
+      parameters:
+        - in: cookie
+          name: sid
+          required: false
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Сессия валидна
+          headers:
+            X-User-Id:
+              required: true
+              schema:
+                type: string
+                format: uuid
+            X-User-Role:
+              required: true
+              schema:
+                type: string
+                enum: [student, staff, admin]
+            X-Faculty-Id:
+              description: Только у роли staff; иначе заголовок отсутствует
+              schema:
+                type: string
+                format: uuid
+        '401':
+          description: Сессии нет или она истекла; Caddy вернёт клиенту 401
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true

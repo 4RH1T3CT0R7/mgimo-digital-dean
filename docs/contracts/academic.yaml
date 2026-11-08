@@ -1,0 +1,840 @@
+openapi: 3.0.3
+info:
+  title: academic — профиль, расписание, оценки
+  version: 1.0.0
+  description: |
+    Публичный API сервиса `academic`. Соглашения — docs/contracts/README.md.
+    Бизнес-правила (шкала оценок, светофор, номер и чётность недели) — docs/contracts/data-model.md.
+servers:
+  - url: /api/academic
+security:
+  - sessionCookie: []
+tags:
+  - name: student
+  - name: staff
+  - name: common
+paths:
+  /faculties:
+    get:
+      tags: [common]
+      operationId: listFaculties
+      summary: Список факультетов
+      description: Роли — student, staff, admin. Нужен для фильтров у администратора.
+      responses:
+        '200':
+          description: Факультеты
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Faculty'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /me/profile:
+    get:
+      tags: [student]
+      operationId: getMyProfile
+      summary: Профиль студента (F1)
+      description: Роли — student.
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/schedule:
+    get:
+      tags: [student]
+      operationId: getMySchedule
+      summary: Расписание студента за период (F2)
+      description: |
+        Роли — student. Объединяет занятия академической и языковых групп студента.
+        Без параметров — текущая неделя (пн–вс). Период не длиннее 31 дня, иначе 400.
+        Перенесённое занятие приходит дважды: на новом месте со статусом `moved`
+        и на старом месте со статусом `moved_away` и полем `moved_to` (если старая дата попадает в период).
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Расписание
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/schedule.ics:
+    get:
+      tags: [student]
+      operationId: getMyScheduleIcs
+      summary: Выгрузка расписания в календарь (I4)
+      description: |
+        Роли — student. Файл iCalendar для импорта в календарь телефона.
+        Без параметров — с сегодняшнего дня до конца семестра. Отменённые и `moved_away` занятия не включаются.
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Файл .ics
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="schedule.ics"
+          content:
+            text/calendar:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/grades/summary:
+    get:
+      tags: [student]
+      operationId: getMyGradesSummary
+      summary: Сводка «как у меня дела» (F3, I2)
+      description: Роли — student.
+      responses:
+        '200':
+          description: Сводка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradesSummary'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/grades/current:
+    get:
+      tags: [student]
+      operationId: getMyCurrentGrades
+      summary: Текущая успеваемость по дисциплинам семестра со светофором (F3, I2)
+      description: Роли — student.
+      responses:
+        '200':
+          description: Текущая успеваемость
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentGrades'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/grades/sessions:
+    get:
+      tags: [student]
+      operationId: getMySessionResults
+      summary: Результаты сессий по семестрам (F3)
+      description: Роли — student. Семестры от последнего к первому.
+      responses:
+        '200':
+          description: Результаты сессий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResults'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /staff/groups:
+    get:
+      tags: [staff]
+      operationId: listStaffGroups
+      summary: Группы факультета
+      description: |
+        Роли — staff (только свой факультет), admin (все; можно фильтровать по `faculty_id`).
+        Нужен для выбора группы при изменении занятия и при выборе адресата объявления.
+      parameters:
+        - in: query
+          name: faculty_id
+          description: Только для admin; у staff игнорируется
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Группы
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroupInfo'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /staff/lessons:
+    get:
+      tags: [staff]
+      operationId: listStaffLessons
+      summary: Занятия группы за период
+      description: |
+        Роли — staff (группа своего факультета, иначе 404), admin.
+        Без `from`/`to` — текущая неделя. Период не длиннее 31 дня.
+      parameters:
+        - in: query
+          name: group_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Занятия
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Lesson'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /staff/lessons/{lesson_id}/change:
+    post:
+      tags: [staff]
+      operationId: changeLesson
+      summary: Перенести, отменить занятие или сменить аудиторию (D36)
+      description: |
+        Роли — staff (занятие хотя бы одной группы своего факультета, иначе 404), admin.
+        Сохраняет прежние значения в `change.previous` (если занятие уже менялось — сохраняются самые первые значения),
+        публикует событие `academic.lesson.changed`. Отменённое занятие изменить нельзя (409).
+      parameters:
+        - $ref: '#/components/parameters/LessonId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LessonChangeRequest'
+      responses:
+        '200':
+          description: Занятие после изменения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lesson'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sid
+  parameters:
+    From:
+      in: query
+      name: from
+      description: Начало периода включительно, YYYY-MM-DD
+      schema:
+        type: string
+        format: date
+    To:
+      in: query
+      name: to
+      description: Конец периода включительно, YYYY-MM-DD
+      schema:
+        type: string
+        format: date
+    LessonId:
+      in: path
+      name: lesson_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    ValidationFailed:
+      description: Неверные данные (`validation_failed`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthenticated:
+      description: Нет сессии (`unauthenticated`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Роль не подходит (`forbidden`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Не найдено или чужое (`not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Действие невозможно в текущем состоянии (`conflict`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Faculty:
+      type: object
+      required: [id, short_name, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_name:
+          type: string
+          example: ФМО
+        name:
+          type: string
+          example: Факультет международных отношений
+    GroupRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: МО-24-03
+    LanguageGroupRef:
+      type: object
+      required: [id, name, language]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Англ-12
+        language:
+          type: string
+          example: Английский язык
+    GroupInfo:
+      type: object
+      required: [id, name, kind, course, faculty_short]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [academic, language]
+        course:
+          type: integer
+          minimum: 1
+          maximum: 6
+        faculty_short:
+          type: string
+    Profile:
+      type: object
+      required: [id, full_name, short_name, faculty, program, study_level, course, group, language_groups, student_card_no, study_form, funding, enrollment_year, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+          example: Лебедева Анна Викторовна
+        short_name:
+          type: string
+          example: Лебедева А. В.
+        faculty:
+          $ref: '#/components/schemas/Faculty'
+        program:
+          type: object
+          required: [code, name]
+          properties:
+            code:
+              type: string
+              example: 41.03.05
+            name:
+              type: string
+              example: Международные отношения
+        study_level:
+          type: string
+          enum: [bachelor, specialist, master]
+        course:
+          type: integer
+          minimum: 1
+          maximum: 6
+        group:
+          $ref: '#/components/schemas/GroupRef'
+        language_groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/LanguageGroupRef'
+        student_card_no:
+          type: string
+          description: Номер студенческого билета (вымышленный)
+          example: 24-01873
+        study_form:
+          type: string
+          enum: [full_time, part_time, extramural]
+        funding:
+          type: string
+          enum: [budget, contract]
+        enrollment_year:
+          type: integer
+          example: 2024
+        status:
+          type: string
+          enum: [studying, academic_leave]
+    WeekInfo:
+      type: object
+      required: [start_date, number, parity]
+      properties:
+        start_date:
+          type: string
+          format: date
+          description: Понедельник недели
+        number:
+          type: integer
+          minimum: 1
+          description: Номер недели семестра
+        parity:
+          type: string
+          enum: [odd, even]
+    Schedule:
+      type: object
+      required: [as_of, from, to, weeks, lessons]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+          description: Когда данные последний раз менялись («Данные актуальны на …»)
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        weeks:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeekInfo'
+        lessons:
+          type: array
+          description: Отсортированы по дате и времени начала
+          items:
+            $ref: '#/components/schemas/Lesson'
+    Room:
+      type: object
+      required: [building, number]
+      properties:
+        building:
+          type: string
+          example: Главный корпус
+        number:
+          type: string
+          example: '3047'
+    TeacherRef:
+      type: object
+      required: [id, short_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_name:
+          type: string
+          description: Вымышленный преподаватель
+          example: Орлов П. С.
+    LessonKind:
+      type: string
+      enum: [lecture, seminar, language, consultation, credit, exam]
+    LessonStatus:
+      type: string
+      description: |
+        scheduled — по плану; moved — перенесено сюда; moved_away — перенесено отсюда (виртуальная запись на старом месте);
+        cancelled — отменено; changed — изменены аудитория или преподаватель.
+      enum: [scheduled, moved, moved_away, cancelled, changed]
+    LessonChangeType:
+      type: string
+      enum: [moved, cancelled, room_changed]
+    Lesson:
+      type: object
+      required: [id, date, start_time, end_time, pair_number, discipline, kind, format, groups, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: '10:30'
+        end_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: '11:50'
+        pair_number:
+          type: integer
+          minimum: 1
+          maximum: 8
+        discipline:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        kind:
+          $ref: '#/components/schemas/LessonKind'
+        format:
+          type: string
+          enum: [offline, online]
+        room:
+          allOf:
+            - $ref: '#/components/schemas/Room'
+          nullable: true
+        teacher:
+          allOf:
+            - $ref: '#/components/schemas/TeacherRef'
+          nullable: true
+        groups:
+          type: array
+          description: Группы, у которых это занятие (академическая и/или языковая)
+          items:
+            $ref: '#/components/schemas/GroupRef'
+        status:
+          $ref: '#/components/schemas/LessonStatus'
+        change:
+          allOf:
+            - $ref: '#/components/schemas/LessonChange'
+          nullable: true
+          description: Есть у статусов moved, moved_away, cancelled, changed
+        moved_to:
+          type: object
+          nullable: true
+          description: Только у moved_away — куда перенесено
+          required: [date, start_time]
+          properties:
+            date:
+              type: string
+              format: date
+            start_time:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+    LessonChange:
+      type: object
+      required: [type, previous, changed_at]
+      properties:
+        type:
+          $ref: '#/components/schemas/LessonChangeType'
+        previous:
+          type: object
+          description: Значения до первого изменения
+          required: [date, start_time, end_time]
+          properties:
+            date:
+              type: string
+              format: date
+            start_time:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+            end_time:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+            room:
+              allOf:
+                - $ref: '#/components/schemas/Room'
+              nullable: true
+        reason:
+          type: string
+          nullable: true
+          maxLength: 300
+          example: Болезнь преподавателя
+        changed_at:
+          type: string
+          format: date-time
+    LessonChangeRequest:
+      type: object
+      required: [type]
+      description: |
+        moved — обязательны new_date, new_start_time, new_end_time (new_room — по желанию);
+        room_changed — обязателен new_room; cancelled — только reason.
+      properties:
+        type:
+          $ref: '#/components/schemas/LessonChangeType'
+        new_date:
+          type: string
+          format: date
+        new_start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        new_end_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        new_room:
+          $ref: '#/components/schemas/Room'
+        reason:
+          type: string
+          maxLength: 300
+    Traffic:
+      type: string
+      description: Светофор I2, правила — data-model.md
+      enum: [green, yellow, red]
+    ControlForm:
+      type: string
+      description: exam — экзамен; credit — зачёт; graded_credit — зачёт с оценкой
+      enum: [exam, credit, graded_credit]
+    Grade5:
+      type: string
+      description: По шкале МГИМО (D20)
+      enum: [excellent, good, satisfactory, unsatisfactory]
+    Ects:
+      type: string
+      enum: [A, B, C, D, E, F]
+    GradesSummary:
+      type: object
+      required: [as_of, current_semester, debts_count, traffic]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        current_semester:
+          type: integer
+          minimum: 1
+          description: Номер текущего семестра студента (1..12)
+        average_percent:
+          type: number
+          nullable: true
+          description: Средний рейтинговый процент по завершённым дисциплинам с оценкой
+        average_grade5:
+          type: number
+          nullable: true
+          description: Средний балл по 5-балльной шкале (отлично=5 … неуд=2), 2 знака после запятой
+        debts_count:
+          type: integer
+          minimum: 0
+          description: Несданные дисциплины прошлых семестров
+        rating:
+          type: object
+          nullable: true
+          description: Академический рейтинг за последний завершённый семестр
+          required: [semester, percent]
+          properties:
+            semester:
+              type: integer
+            percent:
+              type: number
+            percentile:
+              type: integer
+              nullable: true
+              description: «Выше, чем у N% курса»
+        traffic:
+          type: object
+          description: Сколько дисциплин текущего семестра в каждой зоне
+          required: [green, yellow, red]
+          properties:
+            green:
+              type: integer
+            yellow:
+              type: integer
+            red:
+              type: integer
+    CurrentGrades:
+      type: object
+      required: [as_of, semester, disciplines]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        semester:
+          type: integer
+        disciplines:
+          type: array
+          description: Сначала red, потом yellow, потом green
+          items:
+            $ref: '#/components/schemas/CurrentDiscipline'
+    CurrentDiscipline:
+      type: object
+      required: [discipline, control_form, score, max_to_date, attendance_percent, traffic, to_excellent, control_points]
+      properties:
+        discipline:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        control_form:
+          $ref: '#/components/schemas/ControlForm'
+        teacher:
+          allOf:
+            - $ref: '#/components/schemas/TeacherRef'
+          nullable: true
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Набрано баллов из 100 за семестр
+        max_to_date:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Сколько баллов можно было набрать к сегодняшнему дню
+        attendance_percent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        traffic:
+          $ref: '#/components/schemas/Traffic'
+        traffic_reason:
+          type: string
+          nullable: true
+          description: Почему не зелёный, по-русски
+          example: Посещаемость ниже 70%
+        to_excellent:
+          type: object
+          required: [needed, achievable]
+          properties:
+            needed:
+              type: integer
+              minimum: 0
+              description: Сколько баллов не хватает до 90 (порог «отлично»)
+            achievable:
+              type: boolean
+              description: Можно ли ещё набрать needed за оставшиеся баллы
+        control_points:
+          type: array
+          items:
+            type: object
+            required: [date, title, score, max]
+            properties:
+              date:
+                type: string
+                format: date
+              title:
+                type: string
+                example: Контрольная работа 1
+              score:
+                type: integer
+                nullable: true
+                description: null — ещё не оценено
+              max:
+                type: integer
+    SessionResults:
+      type: object
+      required: [as_of, semesters]
+      properties:
+        as_of:
+          type: string
+          format: date-time
+        semesters:
+          type: array
+          items:
+            type: object
+            required: [semester, academic_year, term, results]
+            properties:
+              semester:
+                type: integer
+              academic_year:
+                type: string
+                example: 2025/2026
+              term:
+                type: string
+                enum: [autumn, spring]
+              results:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionResult'
+    SessionResult:
+      type: object
+      required: [discipline, control_form, hours, credits, status]
+      properties:
+        discipline:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        control_form:
+          $ref: '#/components/schemas/ControlForm'
+        hours:
+          type: integer
+        credits:
+          type: integer
+          description: Зачётные единицы
+        percent:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Рейтинговый процент; null для зачёта без оценки или если ещё не сдано
+        grade5:
+          allOf:
+            - $ref: '#/components/schemas/Grade5'
+          nullable: true
+          description: Вычисляется из percent по шкале D20; null для зачёта
+        ects:
+          allOf:
+            - $ref: '#/components/schemas/Ects'
+          nullable: true
+        passed:
+          type: boolean
+          nullable: true
+          description: Для зачёта — зачтено или нет; null если ещё не сдано
+        status:
+          type: string
+          enum: [passed, failed, pending]
+        date:
+          type: string
+          format: date
+          nullable: true
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
