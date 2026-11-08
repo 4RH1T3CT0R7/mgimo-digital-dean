@@ -11,7 +11,9 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Label } from '@/shared/ui/label';
 import { PageHeader } from '@/shared/ui/page-header';
 import { QueryView } from '@/shared/ui/query-view';
+import { applicationSteps } from '@/features/requests/labels';
 import { StatusBadge } from '@/shared/ui/status-badge';
+import { StatusSteps } from '@/shared/ui/status-steps';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
 import { AUTHOR_ROLE, REPLY_TEMPLATES, statusLabel, statusTone, type Status } from '../labels';
@@ -48,22 +50,32 @@ function ApplicationDetails({ a }: { a: Application }) {
         <StatusBadge tone={statusTone(a.status)}>{statusLabel(a.status, a.service_type.kind)}</StatusBadge>
         {a.overdue && <StatusBadge tone="danger">Просрочено</StatusBadge>}
         <span>Подана {formatDateTime(a.created_at)}</span>
-        {a.due_at && <span>Срок — {formatDate(a.due_at)}</span>}
+        {a.due_at && <span className={a.overdue ? 'font-medium text-danger-strong' : undefined}>Срок — {formatDate(a.due_at)}</span>}
       </div>
+      {a.service_type.kind !== 'instant_certificate' && (
+        <section aria-label="Ход заявки" className="mb-5 rounded-xl border bg-card px-4 pt-5 pb-4 md:px-6">
+          <StatusSteps label="Ход заявки" steps={applicationSteps(a)} />
+        </section>
+      )}
 
-      <div className="flex flex-col gap-4">
-        <StatusActions a={a} />
-        {a.feedback && (
-          <Section title="Оценка студента">
-            <p className="flex items-center gap-2 font-medium">
-              {a.feedback.helpful ? <ThumbsUpIcon className="size-5 text-success-strong" aria-hidden /> : <ThumbsDownIcon className="size-5 text-danger-strong" aria-hidden />}
-              {a.feedback.helpful ? 'Ответ помог' : 'Ответ не помог'}
-            </p>
-            {a.feedback.comment && <p className="mt-2 text-sm break-words whitespace-pre-wrap">«{a.feedback.comment}»</p>}
-            <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(a.feedback.at)}</p>
-          </Section>
-        )}
-        <div className="grid gap-4 md:grid-cols-2">
+      {/* Компьютер: слева работа с заявкой, справа сведения; телефон — одной колонкой в том же порядке */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="flex min-w-0 flex-col gap-5">
+          <StatusActions a={a} />
+          <Messages a={a} open={open} />
+          <Attachments a={a} open={open} />
+        </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          {a.feedback && (
+            <Section title="Оценка студента">
+              <p className="flex items-center gap-2 font-medium">
+                {a.feedback.helpful ? <ThumbsUpIcon className="size-5 text-success-strong" aria-hidden /> : <ThumbsDownIcon className="size-5 text-danger-strong" aria-hidden />}
+                {a.feedback.helpful ? 'Ответ помог' : 'Ответ не помог'}
+              </p>
+              {a.feedback.comment && <p className="mt-2 text-sm break-words whitespace-pre-wrap">«{a.feedback.comment}»</p>}
+              <p className="mt-1 text-sm text-muted-foreground">{formatDateTime(a.feedback.at)}</p>
+            </Section>
+          )}
           <Section title="Студент">
             <InfoList
               items={[
@@ -81,22 +93,20 @@ function ApplicationDetails({ a }: { a: Application }) {
               <InfoList items={[...a.fields.map((f): [string, string] => [f.label, f.value]), ...(a.comment ? [['Комментарий студента', a.comment] as [string, string]] : [])]} />
             )}
           </Section>
+          <Section title="История статусов">
+            <ol className="flex flex-col gap-3">
+              {a.status_history.map((h, i) => (
+                <li key={i} className="border-l-2 border-border pl-3">
+                  <p className="font-medium">{statusLabel(h.status, a.service_type.kind)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {AUTHOR_ROLE[h.by_role]}, {formatDateTime(h.at)}
+                  </p>
+                  {h.comment && <p className="mt-1 text-sm break-words whitespace-pre-wrap">{h.comment}</p>}
+                </li>
+              ))}
+            </ol>
+          </Section>
         </div>
-        <Messages a={a} open={open} />
-        <Attachments a={a} open={open} />
-        <Section title="История статусов">
-          <ol className="flex flex-col gap-3">
-            {a.status_history.map((h, i) => (
-              <li key={i} className="border-l-2 border-border pl-3">
-                <p className="font-medium">{statusLabel(h.status, a.service_type.kind)}</p>
-                <p className="text-sm text-muted-foreground">
-                  {formatDateTime(h.at)} · {AUTHOR_ROLE[h.by_role]}
-                </p>
-                {h.comment && <p className="mt-1 text-sm break-words whitespace-pre-wrap">{h.comment}</p>}
-              </li>
-            ))}
-          </ol>
-        </Section>
       </div>
     </>
   );
@@ -305,7 +315,7 @@ function Messages({ a, open }: { a: Application; open: boolean }) {
               )}
             >
               <p className="text-xs text-muted-foreground">
-                {m.author_label} · {formatDateTime(m.created_at)}
+                {m.author_label}, {formatDateTime(m.created_at)}
               </p>
               <p className="text-sm break-words whitespace-pre-wrap">{m.text}</p>
             </li>
@@ -414,7 +424,7 @@ function Attachments({ a, open }: { a: Application; open: boolean }) {
                   {f.file_name}
                 </a>
                 <span className="text-xs text-muted-foreground">
-                  {fileSize(f.size)} · {f.uploaded_by_role === 'staff' ? 'от деканата' : 'от студента'} · {formatDateTime(f.created_at)}
+                  {fileSize(f.size)}, {f.uploaded_by_role === 'staff' ? 'от деканата' : 'от студента'}, {formatDateTime(f.created_at)}
                 </span>
               </div>
               {f.is_result && <StatusBadge tone="success">Результат</StatusBadge>}

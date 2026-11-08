@@ -1,6 +1,7 @@
 import type { components } from '@/api/requests';
-import { plural } from '@/shared/lib/format';
+import { formatDate, plural } from '@/shared/lib/format';
 import type { Tone } from '@/shared/ui/status-badge';
+import type { Step } from '@/shared/ui/status-steps';
 
 type S = components['schemas'];
 export type ApplicationStatus = S['ApplicationStatus'];
@@ -50,4 +51,40 @@ export const roleLabels: Record<S['StatusHistoryEntry']['by_role'], string> = {
 export function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
   return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} МБ`;
+}
+
+type StepsSource = Pick<S['Application'], 'status' | 'status_history' | 'service_type' | 'due_at'>;
+
+/**
+ * Шаги заявки для шкалы статуса: Подана → В работе → Готово (data-model.md, Б5).
+ * Уточнение, отказ и отзыв показываются на том шаге, где процесс остановился.
+ */
+export function applicationSteps(a: StepsSource): Step[] {
+  const at = (status: ApplicationStatus) => {
+    const h = a.status_history.findLast((e) => e.status === status);
+    return h ? formatDate(h.at) : undefined;
+  };
+  const ready = statusLabel('ready', a.service_type.kind);
+  const wasInWork = a.status_history.some((h) => h.status === 'in_progress');
+  const submitted: Step = { label: 'Подана', state: 'done', hint: at('submitted') };
+  const due = a.due_at ? `ожидается до ${formatDate(a.due_at)}` : undefined;
+
+  switch (a.status) {
+    case 'submitted':
+      return [{ ...submitted, state: 'current' }, { label: 'В работе', state: 'upcoming' }, { label: ready, state: 'upcoming', hint: due }];
+    case 'in_progress':
+      return [submitted, { label: 'В работе', state: 'current', hint: at('in_progress') }, { label: ready, state: 'upcoming', hint: due }];
+    case 'needs_info':
+      return [submitted, { label: 'Нужны уточнения', state: 'attention', hint: at('needs_info') }, { label: ready, state: 'upcoming', hint: due }];
+    case 'ready':
+      return [submitted, { label: 'В работе', state: 'done', hint: at('in_progress') }, { label: ready, state: 'done', hint: at('ready') }];
+    case 'rejected':
+      return [
+        submitted,
+        { label: 'В работе', state: wasInWork ? 'done' : 'upcoming', hint: at('in_progress') },
+        { label: 'Отклонена', state: 'failed', hint: at('rejected') },
+      ];
+    case 'cancelled':
+      return [submitted, { label: 'Отозвана', state: 'stopped', hint: at('cancelled') }];
+  }
 }

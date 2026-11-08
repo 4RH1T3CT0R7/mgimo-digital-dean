@@ -36,7 +36,7 @@ export function SessionsPage() {
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Вход {formatDateTime(s.created_at)}
-                          {!s.current && <> · активность {formatDateTime(s.last_seen_at)}</>}
+                          {!s.current && <span className="block">Последняя активность {formatDateTime(s.last_seen_at)}</span>}
                         </p>
                       </div>
                     </li>

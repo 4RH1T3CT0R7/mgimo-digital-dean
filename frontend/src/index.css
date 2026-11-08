@@ -1,39 +1,44 @@
 @import 'tailwindcss';
 
+/* Тёмная тема — класс .dark на <html>; его ставит public/theme.js до отрисовки (app/theme.ts — переключатель) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
- * Базовая светлая тема. Все цвета, радиусы и отступы — CSS-переменные:
- * окончательный стиль меняется здесь, без правок компонентов.
+ * Палитра по мотивам цветов МГИМО (docs/design.md): тёмно-синий надписи #183880, голубой глобуса #0090E0,
+ * красный триколора #D82820. Контраст пар — WCAG AA, проверяет src/theme.test.ts.
+ * Все цвета, радиусы и отступы — CSS-переменные: стиль меняется здесь, без правок компонентов.
  */
 :root {
-  --background: oklch(0.985 0.003 95);
-  --foreground: oklch(0.23 0.02 262);
-  --card: oklch(1 0 0);
+  color-scheme: light;
+  --background: #f4f6fa;
+  --foreground: #131a2c;
+  --card: #ffffff;
   --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
+  --popover: #ffffff;
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.44 0.13 260);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.008 262);
+  --primary: #1e3f8c;
+  --primary-foreground: #ffffff;
+  --secondary: #eaeff7;
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.96 0.005 262);
-  --muted-foreground: oklch(0.49 0.02 262);
-  --accent: oklch(0.95 0.02 260);
-  --accent-foreground: oklch(0.32 0.1 260);
-  --border: oklch(0.91 0.007 262);
-  --input: oklch(0.86 0.01 262);
-  --ring: oklch(0.55 0.15 260);
-  --destructive: oklch(0.54 0.2 27);
-  --destructive-foreground: oklch(0.99 0 0);
+  --muted: #eef1f6;
+  --muted-foreground: #566174;
+  --accent: #e6edfa;
+  --accent-foreground: #17347a;
+  --border: #dde3ec;
+  --input: #8a95a8;
+  --ring: #0090e0;
+  --destructive: #c0261f;
+  --destructive-foreground: #ffffff;
 
-  /* Тона статусов: мягкий фон + тёмный текст (контраст AA) */
-  --info-soft: oklch(0.95 0.03 250);
-  --info-strong: oklch(0.42 0.13 255);
-  --success-soft: oklch(0.95 0.045 155);
-  --success-strong: oklch(0.42 0.11 155);
-  --warning-soft: oklch(0.96 0.06 85);
-  --warning-strong: oklch(0.47 0.11 65);
-  --danger-soft: oklch(0.95 0.03 25);
-  --danger-strong: oklch(0.48 0.18 27);
+  /* Тона статусов: мягкий фон + насыщенный текст */
+  --info-soft: #e6effc;
+  --info-strong: #1d4f9c;
+  --success-soft: #e2f3e9;
+  --success-strong: #1b6a3e;
+  --warning-soft: #fbf0da;
+  --warning-strong: #865000;
+  --danger-soft: #fbe6e4;
+  --danger-strong: #b0241d;
 
   --radius: 0.75rem;
   --gutter: 1rem;
@@ -41,9 +46,44 @@
   --tabbar-h: 4rem;
 }
 
+.dark {
+  color-scheme: dark;
+  --background: #0d1526;
+  --foreground: #e7ecf5;
+  --card: #142039;
+  --popover: #18264a;
+  --primary: #4aaef2;
+  --primary-foreground: #08182e;
+  --secondary: #1c2a48;
+  --muted: #1a2742;
+  --muted-foreground: #9daac3;
+  --accent: #1d3157;
+  --accent-foreground: #cfe6ff;
+  --border: #26365a;
+  --input: #5b6f98;
+  --ring: #4aaef2;
+  --destructive: #c9372e;
+  --destructive-foreground: #ffffff;
+
+  --info-soft: #17305a;
+  --info-strong: #9ccbff;
+  --success-soft: #123527;
+  --success-strong: #86ddae;
+  --warning-soft: #3a2c10;
+  --warning-strong: #f3c66f;
+  --danger-soft: #3e1a1e;
+  --danger-strong: #ffa29a;
+}
+
 @media (min-width: 768px) {
   :root {
     --gutter: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --gutter: 2.5rem;
   }
 }
 
@@ -96,11 +136,20 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    @apply bg-background font-sans text-foreground antialiased;
+    @apply bg-background font-sans text-base leading-normal text-foreground antialiased;
   }
   h1,
   h2,
   h3 {
     @apply tracking-tight text-balance;
+  }
+  /* Переключение темы — без анимации переходов по всей странице */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
   }
 }

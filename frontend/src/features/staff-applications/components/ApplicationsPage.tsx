@@ -73,7 +73,7 @@ export function ApplicationsPage() {
         <QueryView query={stats} loading={<LoadingState rows={1} />}>
           {(s) => (
             <>
-              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                 {COUNTERS.map((c) => {
                   const active = filter === c.filter;
                   return (
@@ -84,7 +84,7 @@ export function ApplicationsPage() {
                         aria-label={`${c.label}: ${s[c.key]}`}
                         onClick={() => setParam('status', active ? undefined : c.filter)}
                         className={cn(
-                          'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-3 py-2.5 text-left shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-0.5 sm:py-3',
+                          'flex h-full w-full items-baseline gap-2 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none sm:flex-col sm:gap-1 sm:py-4',
                           active && 'border-primary bg-accent',
                         )}
                       >
@@ -108,7 +108,7 @@ export function ApplicationsPage() {
         </QueryView>
       </section>
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="status-filter">Статус</Label>
           <Select value={filter ?? ALL} onValueChange={(v) => setParam('status', v === ALL ? undefined : v)}>
@@ -197,35 +197,35 @@ function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
   const linkProps = (a: Summary) => ({ to: `/staff/requests/${a.id}`, state: { back } });
   return (
     <>
-      <div className="hidden rounded-xl border bg-card px-4 shadow-xs md:block">
-        <table className="w-full text-sm">
+      <div className="hidden overflow-x-auto rounded-xl border bg-card px-5 md:block">
+        <table className="w-full text-[0.9375rem]">
           <caption className="sr-only">Заявки</caption>
           <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th scope="col" className="py-3 pr-3 font-medium">Номер</th>
-              <th scope="col" className="py-3 pr-3 font-medium">Услуга</th>
-              <th scope="col" className="py-3 pr-3 font-medium">Студент</th>
-              <th scope="col" className="py-3 pr-3 font-medium">Статус</th>
-              <th scope="col" className="py-3 font-medium">Срок</th>
+            <tr className="border-b text-left text-sm text-muted-foreground">
+              <th scope="col" className="py-3.5 pr-4 font-medium">Номер</th>
+              <th scope="col" className="py-3.5 pr-4 font-medium">Услуга</th>
+              <th scope="col" className="py-3.5 pr-4 font-medium">Студент</th>
+              <th scope="col" className="py-3.5 pr-4 font-medium">Статус</th>
+              <th scope="col" className="py-3.5 font-medium">Срок</th>
             </tr>
           </thead>
           <tbody>
             {items.map((a) => (
               <tr key={a.id} className="border-b align-top last:border-0">
-                <td className="py-3 pr-3 whitespace-nowrap">
+                <td className="py-3.5 pr-4 whitespace-nowrap">
                   <Link {...linkProps(a)} className="font-medium text-primary underline-offset-4 hover:underline focus-visible:underline">
                     № {a.number}
                   </Link>
                 </td>
-                <td className="py-3 pr-3">{a.service_type.title}</td>
-                <td className="py-3 pr-3">
+                <td className="py-3.5 pr-4">{a.service_type.title}</td>
+                <td className="py-3.5 pr-4">
                   {a.student.full_name}
                   <span className="block text-muted-foreground">{a.student.group_name}</span>
                 </td>
-                <td className="py-3 pr-3">
+                <td className="py-3.5 pr-4">
                   <Status a={a} />
                 </td>
-                <td className="py-3">
+                <td className="py-3.5">
                   <Due a={a} />
                 </td>
               </tr>
@@ -234,12 +234,12 @@ function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
         </table>
       </div>
 
-      <ul className="flex flex-col gap-2 md:hidden">
+      <ul className="divide-y overflow-hidden rounded-xl border bg-card md:hidden">
         {items.map((a) => (
           <li key={a.id}>
             <Link
               {...linkProps(a)}
-              className="flex flex-col gap-1.5 rounded-xl border bg-card p-4 shadow-xs transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              className="flex flex-col gap-1.5 px-4 py-4 transition-colors hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-inset"
             >
               <span className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">№ {a.number}</span>

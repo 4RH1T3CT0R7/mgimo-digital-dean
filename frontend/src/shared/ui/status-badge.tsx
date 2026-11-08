@@ -14,7 +14,7 @@ const tones: Record<Tone, string> = {
 /** Метка статуса. Цвет — не единственный признак: в children всегда текст. */
 export function StatusBadge({ tone, children, className }: { tone: Tone; children: ReactNode; className?: string }) {
   return (
-    <span className={cn('inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap', tones[tone], className)}>
+    <span className={cn('inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.8125rem] leading-none font-medium whitespace-nowrap', tones[tone], className)}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden />
       {children}
     </span>

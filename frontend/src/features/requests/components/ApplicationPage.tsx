@@ -11,9 +11,10 @@ import { Label } from '@/shared/ui/label';
 import { PageHeader } from '@/shared/ui/page-header';
 import { QueryView } from '@/shared/ui/query-view';
 import { StatusBadge } from '@/shared/ui/status-badge';
+import { StatusSteps } from '@/shared/ui/status-steps';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
-import { formatSize, roleLabels, statusLabel, statusTones } from '../labels';
+import { applicationSteps, formatSize, roleLabels, statusLabel, statusTones } from '../labels';
 import {
   useCancelApplication,
   useDownloadAttachment,
@@ -77,8 +78,16 @@ function ApplicationDetails({ application: a }: { application: Application }) {
         </StatusBadge>
         {a.overdue && <StatusBadge tone="danger">Просрочено</StatusBadge>}
         <span className="text-muted-foreground">Подана {formatDateTime(a.created_at)}</span>
-        {a.due_at && <span className={cn(a.overdue ? 'font-medium text-danger-strong' : 'text-muted-foreground')}>Срок готовности: до {formatDate(a.due_at)}</span>}
       </div>
+      {/* Мгновенной справке шкала не нужна: она готова в момент подачи */}
+      {a.service_type.kind !== 'instant_certificate' && (
+        <section aria-label="Ход заявки" className="mb-6 rounded-xl border bg-card px-4 pt-5 pb-4 md:px-6">
+          <StatusSteps label="Ход заявки" steps={applicationSteps(a)} />
+          {a.overdue && a.due_at && (
+            <p className="mt-4 border-t pt-3 text-sm font-medium text-danger-strong">Срок готовности ({formatDate(a.due_at)}) прошёл — деканат видит заявку первой в списке.</p>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
@@ -151,7 +160,7 @@ function ApplicationDetails({ application: a }: { application: Application }) {
                   />
                   <p className="text-sm font-medium">{statusLabel(h.status, a.service_type.kind)}</p>
                   <p className="text-xs text-muted-foreground">
-                    <time dateTime={h.at}>{formatDateTime(h.at)}</time> · {roleLabels[h.by_role]}
+                    {roleLabels[h.by_role]}, <time dateTime={h.at}>{formatDateTime(h.at)}</time>
                   </p>
                   {h.comment && <p className="mt-1 text-sm break-words">{h.comment}</p>}
                 </li>
@@ -200,7 +209,7 @@ function AttachmentList({ applicationId, items }: { applicationId: string; items
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate">{file.file_name}</span>
             <span className="text-xs text-muted-foreground">
-              {formatSize(file.size)} · {file.uploaded_by_role === 'student' ? 'вы' : 'деканат'}
+              {formatSize(file.size)}, {file.uploaded_by_role === 'student' ? 'ваш файл' : 'от деканата'}
             </span>
           </span>
           <Button

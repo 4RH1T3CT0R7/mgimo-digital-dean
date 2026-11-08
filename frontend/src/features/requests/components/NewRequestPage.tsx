@@ -230,7 +230,7 @@ function ApplicationForm({ service }: { service: ServiceType }) {
 }
 
 function Optional() {
-  return <span className="font-normal text-muted-foreground">· необязательно</span>;
+  return <span className="font-normal text-muted-foreground">(необязательно)</span>;
 }
 
 function FieldError({ id, error }: { id: string; error?: string }) {

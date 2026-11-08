@@ -131,7 +131,7 @@ describe('Заявка /staff/requests/:id', () => {
     await user.type(await screen.findByLabelText('Ответ студенту'), 'Стипендию начислят до 25 числа.');
     await user.click(screen.getByRole('button', { name: 'Отправить' }));
     expect(await screen.findByText('Стипендию начислят до 25 числа.')).toBeInTheDocument();
-    expect(screen.getByText(/^Деканат ФМО ·/)).toBeInTheDocument();
+    expect(screen.getByText(/^Деканат ФМО, /)).toBeInTheDocument();
     expect(screen.getByLabelText('Ответ студенту')).toHaveValue('');
   });
 });

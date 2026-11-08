@@ -24,14 +24,14 @@ export function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col gap-5 py-6 md:py-12">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-6 py-6 md:py-16">
       <div>
-        <h1 className="text-2xl font-semibold">Вход в личный кабинет</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Для студентов и сотрудников деканата</p>
+        <h1 className="text-[1.75rem] leading-tight font-bold">Вход в личный кабинет</h1>
+        <p className="mt-1.5 text-muted-foreground">Для студентов и сотрудников деканата</p>
       </div>
       <Card>
         <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={onSubmit} aria-describedby={login.isError ? 'login-error' : undefined}>
+          <form className="flex flex-col gap-5" onSubmit={onSubmit} aria-describedby={login.isError ? 'login-error' : undefined}>
             <div className="flex flex-col gap-2">
               <Label htmlFor="login">Логин</Label>
               <Input id="login" name="login" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={64} />
