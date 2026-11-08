@@ -39,8 +39,8 @@ down:
 logs:
 	$(COMPOSE) logs -f --tail=100
 
-seed: ## Тестовые данные — появятся в T07
-	@echo "seed: появится в T07"
+seed: ## Тестовые данные всех сервисов (нужен запущенный стек)
+	bash deploy/seed.sh
 
 e2e: ## e2e-сценарий жюри — появится в T20
 	@if [ -f e2e/package.json ]; then cd e2e && npm run e2e; else echo "e2e: появится в T20"; fi

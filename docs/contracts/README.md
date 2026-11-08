@@ -61,6 +61,7 @@ cd docs/contracts && npx @redocly/cli@1.34.5 lint auth.yaml academic.yaml reques
 | 409 | `invalid_transition` / `conflict` | Недопустимая смена статуса или повторное действие |
 | 413 | `file_too_large` | Вложение больше 5 МБ |
 | 415 | `unsupported_file_type` | Тип файла не из белого списка |
+| 415 | `unsupported_media_type` | Тело запроса не JSON и не multipart (защита от CSRF, security.md §3) |
 | 429 | `too_many_attempts` | Превышен лимит; заголовок `Retry-After` |
 | 500 | `internal` | Ошибка сервера (без подробностей наружу) |
 
