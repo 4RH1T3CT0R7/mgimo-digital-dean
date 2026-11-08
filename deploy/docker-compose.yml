@@ -81,6 +81,20 @@ services:
       DATABASE_URL: postgres://notifications:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications?sslmode=disable
       ACADEMIC_INTERNAL_URL: http://academic:8081
 
+  # ИИ-помощник (T25, P2): без своей БД; справочник — content/faq.md (T19); LLM — необязательно (.env)
+  assistant:
+    <<: *service
+    build: { context: .., args: { SERVICE: assistant } }
+    environment:
+      <<: *service-env
+      FAQ_PATH: /content/faq.md
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_AUTH_SCHEME: ${LLM_AUTH_SCHEME:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    volumes:
+      - ../content:/content:ro
+
   # Шлюз + собранный SPA в одном образе (deploy/web.Dockerfile): на сервере не нужен Node
   caddy:
     build: { context: .., dockerfile: deploy/web.Dockerfile }
@@ -97,6 +111,7 @@ services:
       academic: { condition: service_healthy }
       requests: { condition: service_healthy }
       notifications: { condition: service_healthy }
+      assistant: { condition: service_healthy }
 
 volumes:
   pgdata:

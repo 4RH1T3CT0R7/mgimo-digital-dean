@@ -20,7 +20,7 @@ check "наружу опубликованы только порты caddy" "" "
 
 # 2–3. Без сессии и с поддельными заголовками — 401
 forged=(-H "X-User-Id: 30000000-0000-4000-8000-000000000001" -H "X-User-Role: admin" -H "X-Faculty-Id: 10000000-0000-4000-8000-000000000001")
-for svc in auth academic requests notifications; do
+for svc in auth academic requests notifications assistant; do
   check "$svc: без сессии → 401" 401 "$(code "$BASE/api/$svc/me")"
   check "$svc: поддельные X-User-* без сессии → 401" 401 "$(code "${forged[@]}" "$BASE/api/$svc/me")"
   # 4. Внутренний API снаружи недоступен

@@ -68,6 +68,9 @@
 	handle_path /api/notifications/* {
 		import protected notifications
 	}
+	handle_path /api/assistant/* {
+		import protected assistant
+	}
 	handle /api/* {
 		respond 404
 	}

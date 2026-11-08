@@ -2,14 +2,13 @@ import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppRoutes } from '@/app/routes';
-import { FACULTY_ID, staffFixtures } from '@/mocks/fixtures/requests-staff';
-import { resetStaffApplications } from '@/mocks/handlers/requests-staff';
+import { FACULTY_ID, applications, resetApplications } from '@/mocks/fixtures/requests';
 import { renderWithProviders, server } from '@/test/render';
 
 const LIST = '/api/requests/staff/applications';
 const STATUS = '/api/requests/staff/applications/:id/status';
 const appUrl = (n: number) => `/staff/requests/50000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const SUBMITTED_QUESTION = appUrl(8); // «Вопрос в деканат» student.mo, статус submitted
+const SUBMITTED_QUESTION = appUrl(12); // «Вопрос в деканат» студентки ФМО, статус submitted
 
 /** Номера заявок в таблице (на компьютере; карточки телефона — та же выборка) */
 async function tableNumbers() {
@@ -30,14 +29,14 @@ function captureListRequests() {
   return urls;
 }
 
-beforeEach(resetStaffApplications);
+beforeEach(resetApplications);
 
 describe('Список заявок /staff', () => {
   it('staff видит только свой факультет, просроченные — первыми, фильтра факультета нет', async () => {
     renderWithProviders(<AppRoutes />, { route: '/staff', login: 'dekanat.mo' });
     const numbers = await tableNumbers();
-    expect(numbers.slice(0, 2).sort()).toEqual(['№ 000006', '№ 000007']);
-    expect(numbers).not.toContain('№ 000004'); // заявка МЭО
+    expect(numbers.slice(0, 2).sort()).toEqual(['№ 000010', '№ 000011']);
+    expect(numbers).not.toContain('№ 000002'); // заявка МЭО
     expect(within(screen.getByRole('table')).getAllByText('Просрочено')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Просрочены: 2' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Факультет')).not.toBeInTheDocument();
@@ -49,14 +48,14 @@ describe('Список заявок /staff', () => {
     await user.click(await screen.findByRole('button', { name: /^Просрочены/ }));
     expect(screen.getByRole('button', { name: /^Просрочены/ })).toHaveAttribute('aria-pressed', 'true');
     await vi.waitFor(() => expect(urls.at(-1)?.searchParams.get('status')).toBe('submitted,in_progress'));
-    await vi.waitFor(async () => expect((await tableNumbers()).sort()).toEqual(['№ 000006', '№ 000007']));
+    await vi.waitFor(async () => expect((await tableNumbers()).sort()).toEqual(['№ 000010', '№ 000011']));
   });
 
   it('admin видит фильтр факультета, и он передаёт faculty_id', async () => {
     const urls = captureListRequests();
     renderWithProviders(<AppRoutes />, { route: `/staff?faculty_id=${FACULTY_ID['МЭО']}`, login: 'admin' });
     expect(await screen.findByLabelText('Факультет')).toBeInTheDocument();
-    expect((await tableNumbers()).sort()).toEqual(['№ 000004', '№ 000005']);
+    expect((await tableNumbers()).sort()).toEqual(['№ 000002', '№ 000005', '№ 000008', '№ 000009']);
     expect(urls.at(-1)?.searchParams.get('faculty_id')).toBe(FACULTY_ID['МЭО']);
   });
 
@@ -76,7 +75,7 @@ describe('Заявка /staff/requests/:id', () => {
 
   it('кнопки берутся из ответа сервера, а не вычисляются на клиенте', async () => {
     // Заявка в submitted, но сервер разрешил только «Запросить уточнения»
-    const submitted = staffFixtures().find((a) => a.number === '000008')!;
+    const submitted = applications.find((a) => a.number === '000012')!;
     server.use(
       http.get('/api/requests/staff/applications/:id', () =>
         HttpResponse.json({ ...submitted, overdue: false, allowed_transitions: ['needs_info'] }),
@@ -89,7 +88,7 @@ describe('Заявка /staff/requests/:id', () => {
   });
 
   it('у завершённой заявки кнопок нет', async () => {
-    renderWithProviders(<AppRoutes />, { route: appUrl(3), login: 'dekanat.mo' });
+    renderWithProviders(<AppRoutes />, { route: appUrl(1), login: 'dekanat.mo' });
     expect(await screen.findByText('Заявка завершена — статус больше не меняется.')).toBeInTheDocument();
   });
 
@@ -148,5 +147,18 @@ describe('Шаблоны ответов', () => {
     expect((field as HTMLTextAreaElement).value.split('\n')).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'Отправить' }));
     expect(await screen.findByText(/Заявку приняли в работу/)).toBeInTheDocument();
+  });
+});
+
+describe('Общее хранилище моков (T10 + T12)', () => {
+  it('ответ деканата попадает в ту же заявку, которую видит студент', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: appUrl(3), login: 'dekanat.mo' });
+    await user.type(await screen.findByLabelText('Ответ студенту'), 'Справка будет готова завтра.');
+    await user.click(screen.getByRole('button', { name: 'Отправить' }));
+    await screen.findByText('Справка будет готова завтра.');
+    // Моки студента (handlers/requests.ts) читают этот же массив
+    const shared = applications.find((a) => a.number === '000003')!;
+    expect(shared.messages.map((m) => m.text)).toContain('Справка будет готова завтра.');
+    expect(shared.student.short_name).toBe('Лебедева А. В.'); // заявка student.mo
   });
 });

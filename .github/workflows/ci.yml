@@ -48,7 +48,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [auth, academic, requests, notifications]
+        service: [auth, academic, requests, notifications, assistant]
     steps:
       - uses: actions/checkout@v4
       - run: docker build --build-arg SERVICE=${{ matrix.service }} -t mgimo-${{ matrix.service }} .
