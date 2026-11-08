@@ -1,0 +1,54 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: make lint-contracts
+
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      # Тесты с БД обязательны в CI: без базы они падают, а не пропускаются (tasks/README.md §7)
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+      REQUIRE_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          check-latest: true
+      - name: Сгенерированный код совпадает с контрактами
+        run: |
+          make gen-sqlc gen-go
+          git diff --exit-code || (echo "Запустите make gen и закоммитьте результат" && exit 1)
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth, academic, requests, notifications]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --build-arg SERVICE=${{ matrix.service }} -t mgimo-${{ matrix.service }} .

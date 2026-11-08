@@ -12,7 +12,7 @@
 - `docs/security.md` §3–4 — заголовки безопасности, изоляция сети.
 
 ## Что сделать
-1. `go.mod` (модуль `github.com/4RH1T3CT0R7/mgimo-digital-dean`, Go 1.25). Инструменты — через `tool`-директивы (`go get -tool …`): oapi-codegen v2, goose.
+1. `go.mod` (модуль `github.com/4RH1T3CT0R7/mgimo-digital-dean`, Go 1.26). Инструменты — через `tool`-директивы (`go get -tool …`): oapi-codegen v2, goose.
 2. Каталоги по `architecture.md` §6. У каждого из 4 сервисов `cmd/main.go` с `/healthz` на 8080 и 8081 — заглушки до своих задач.
 3. Кодогенерация:
    - oapi-codegen: для каждого `docs/contracts/<svc>.yaml` — strict-server на `net/http` + модели → `services/<svc>/internal/api`; для `internal/<svc>.yaml` — сервер в `services/<svc>/internal/internalapi` и клиент в `pkg/clients/<svc>`;
