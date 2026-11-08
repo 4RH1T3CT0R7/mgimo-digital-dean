@@ -1,9 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import type { components } from '@/api/academic';
+import { mockCalendar } from '@/features/calendar-export/mock-calendar';
 import { addDays, monday, validDate } from '@/features/schedule/calendar';
 import { pairs } from '@/features/staff-lessons/pairs';
 import { toApiDate } from '@/shared/lib/format';
-import { academicState, currentGrades, faculties, gradesSummary, profile, sessionResults, staffGroups, weekSchedule } from '../fixtures/academic';
+import { academicState, currentGrades, faculties, gradesSummary, mockTermEnd, profile, sessionResults, staffGroups, weekSchedule } from '../fixtures/academic';
 import { list, scenario } from '../scenario';
 import { mockUser } from './auth';
 
@@ -36,6 +37,31 @@ function staffError()
 export const academicHandlers = [
   http.get('/api/academic/faculties', () => HttpResponse.json(list(faculties))),
   http.get('/api/academic/me/profile', () => HttpResponse.json(scenario() === 'empty' ? { ...profile, full_name: '' } : profile)),
+  http.get('/api/academic/me/schedule.ics', ({ request }) =>
+  {
+    const user = mockUser();
+
+    if (!user || user.role !== 'student')
+    {
+      return HttpResponse.json({ code: user ? 'forbidden' : 'unauthenticated', message: 'Выгрузка доступна студенту после входа' }, { status: user ? 403 : 401 });
+    }
+    const params = new URL(request.url).searchParams;
+    const from = params.get('from') ?? toApiDate();
+    const to = params.get('to') ?? mockTermEnd;
+
+    if (!validDate(from) || !validDate(to) || from > to)
+    {
+      return HttpResponse.json({ code: 'validation_failed', message: 'Укажите корректный период' }, { status: 400 });
+    }
+    const lessons = list(academicState.lessons.filter((lesson) => lesson.date >= from && lesson.date <= to))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
+
+    return new HttpResponse(mockCalendar(lessons, new Date()), { headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      'Content-Disposition': 'attachment; filename="mgimo-schedule.ics"',
+      'Cache-Control': 'no-store',
+    } });
+  }),
   http.get('/api/academic/me/schedule', ({ request }) => {
     const params = new URL(request.url).searchParams;
     const rawFrom = params.get('from');

@@ -1,6 +1,7 @@
 import { screen, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { endSession, onLogout } from '@/app/session';
+import { resetAcademicState } from '@/mocks/fixtures/academic';
 import { toApiDate } from '@/shared/lib/format';
 import { toast } from '@/shared/ui/toast';
 import { renderWithProviders } from '@/test/render';
@@ -39,6 +40,8 @@ beforeEach(() =>
 
 afterEach(() =>
 {
+    resetAcademicState();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 
@@ -62,6 +65,25 @@ afterEach(() =>
 
 describe('T16: выгрузка календаря', () =>
 {
+    it('dev:mock: кнопка скачивает настоящий ICS через общий обработчик MSW', async () =>
+    {
+        resetAcademicState();
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-18T10:00:00+03:00'));
+        const fetch = vi.spyOn(globalThis, 'fetch');
+        const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        const { user } = renderWithProviders(<ExportCalendarButton />, { login: 'student.mo' });
+        await user.click(screen.getByRole('button', { name: 'В календарь' }));
+
+        await waitFor(() => expect(click).toHaveBeenCalledOnce());
+        expect(fetch).toHaveBeenCalledWith('/api/academic/me/schedule.ics?from=2026-11-18', expect.objectContaining({ credentials: 'include' }));
+        expect(createObjectURL).toHaveBeenCalledOnce();
+        const downloaded = createObjectURL.mock.calls[0][0];
+        expect(downloaded.type).toContain('text/calendar');
+        expect(await blobText(downloaded)).toContain('BEGIN:VEVENT\r\n');
+        expect(click.mock.instances[0]).toHaveAttribute('download', 'mgimo-schedule.ics');
+    });
+
     it('P2: скачивает с credentials: include, создаёт mgimo-schedule.ics', async () =>
     {
         const fetch = vi.fn().mockResolvedValue(new Response(calendar, { headers: { 'Content-Type': 'text/calendar; charset=utf-8' } }));
