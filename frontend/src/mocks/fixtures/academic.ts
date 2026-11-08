@@ -190,3 +190,18 @@ export const gradesSummary: S['GradesSummary'] = {
     rating: { semester: 2, percent: 82.5, percentile: 78 },
     traffic: { green: 3, yellow: 2, red: 1 },
 };
+
+export const staffGroups: S['GroupInfo'][] = [
+    { ...groupMO, kind: 'academic', course: 2, faculty_short: 'ФМО' },
+    { ...groupEn, kind: 'language', course: 2, faculty_short: 'ФМО' },
+    { ...groupFr, kind: 'language', course: 2, faculty_short: 'ФМО' },
+    { id: '20000000-0000-4000-8000-000000000004', name: 'МЭО-24-02', kind: 'academic', course: 2, faculty_short: 'МЭО' },
+];
+
+export const academicState = { lessons: structuredClone(weekSchedule.lessons), asOf: weekSchedule.as_of };
+
+export function resetAcademicState()
+{
+    academicState.lessons = structuredClone(weekSchedule.lessons);
+    academicState.asOf = weekSchedule.as_of;
+}
