@@ -81,8 +81,9 @@ services:
       DATABASE_URL: postgres://notifications:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications?sslmode=disable
       ACADEMIC_INTERNAL_URL: http://academic:8081
 
+  # Шлюз + собранный SPA в одном образе (deploy/web.Dockerfile): на сервере не нужен Node
   caddy:
-    image: caddy:2-alpine
+    build: { context: .., dockerfile: deploy/web.Dockerfile }
     restart: unless-stopped
     ports:
       - "80:80"
@@ -90,8 +91,6 @@ services:
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../frontend/dist:/srv:ro
       - caddydata:/data
     depends_on:
       auth: { condition: service_healthy }
