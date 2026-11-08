@@ -27,8 +27,8 @@ INSERT INTO login_attempts (login, ip, success, created_at)
 VALUES (sqlc.arg(login), sqlc.narg(ip), sqlc.arg(success), sqlc.arg(created_at));
 
 -- name: CreateSession :exec
-INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at)
-VALUES (sqlc.arg(token_hash), sqlc.arg(user_id), sqlc.arg(now), sqlc.arg(expires_at), sqlc.arg(now));
+INSERT INTO sessions (token_hash, user_id, device, created_at, expires_at, last_seen_at)
+VALUES (sqlc.arg(token_hash), sqlc.arg(user_id), sqlc.arg(device), sqlc.arg(now), sqlc.arg(expires_at), sqlc.arg(now));
 
 -- name: GetActiveSession :one
 SELECT u.id, u.role, u.faculty_id
@@ -43,3 +43,12 @@ DELETE FROM sessions WHERE token_hash = sqlc.arg(token_hash);
 
 -- name: DeleteExpiredSessions :exec
 DELETE FROM sessions WHERE expires_at <= sqlc.arg(now);
+
+-- Действующие сеансы пользователя: сначала недавно активные.
+-- name: ListUserSessions :many
+SELECT token_hash, device, created_at, last_seen_at FROM sessions
+WHERE user_id = sqlc.arg(user_id) AND expires_at > sqlc.arg(now)
+ORDER BY last_seen_at DESC, created_at DESC;
+
+-- name: DeleteOtherSessions :execrows
+DELETE FROM sessions WHERE user_id = sqlc.arg(user_id) AND token_hash <> sqlc.arg(keep);

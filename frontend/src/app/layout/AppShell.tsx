@@ -9,6 +9,7 @@ import {
   InboxIcon,
   LogOutIcon,
   MegaphoneIcon,
+  ShieldCheckIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { Link, Outlet, useLocation } from 'react-router';
@@ -199,6 +200,11 @@ function UserMenu({ profileLink }: { profileLink?: string }) {
       ) : (
         <span className="flex min-w-0 items-center gap-2 py-1 pr-2 pl-1">{chip}</span>
       )}
+      <Button asChild variant="ghost" size="icon" className="shrink-0">
+        <Link to={me.role === 'student' ? '/security' : '/staff/security'} aria-label="Безопасность: где выполнен вход" title="Безопасность">
+          <ShieldCheckIcon aria-hidden />
+        </Link>
+      </Button>
       <Button variant="ghost" size="sm" onClick={() => logout.mutate()} disabled={logout.isPending} aria-label="Выйти" title="Выйти">
         <LogOutIcon aria-hidden />
         <span className="hidden sm:inline">Выйти</span>

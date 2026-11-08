@@ -283,3 +283,72 @@ func TestLogsContainNeitherPasswordNorLogin(t *testing.T) {
 		t.Errorf("события безопасности должны попадать в журнал: %s", logs)
 	}
 }
+
+// Список сеансов и «выйти на всех других устройствах»: только свои сеансы, текущий остаётся.
+func TestSessionsListAndEndOthers(t *testing.T) {
+	e := setup(t)
+	loginFrom := func(ua string) string {
+		body, _ := json.Marshal(map[string]string{"login": "student.mo", "password": studentPass})
+		r := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("User-Agent", ua)
+		w := httptest.NewRecorder()
+		e.pub.ServeHTTP(w, r)
+		return sessionToken(t, w)
+	}
+	desktop := loginFrom("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	phone := loginFrom("Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1")
+	staff := sessionToken(t, e.login("dekanat.mo", staffPass, "10.0.0.2"))
+	e.clock = e.clock.Add(time.Minute)
+	if v := e.verify(phone); v.Code != http.StatusNoContent { // телефон — самый недавно активный
+		t.Fatalf("verify: %d", v.Code)
+	}
+
+	as := func(method, path, token string) *httptest.ResponseRecorder {
+		r := platformtest.As(httptest.NewRequest(method, path, nil), platformtest.Student(studentID))
+		if token != "" {
+			r.AddCookie(&http.Cookie{Name: app.CookieName, Value: token})
+		}
+		w := httptest.NewRecorder()
+		e.pub.ServeHTTP(w, r)
+		return w
+	}
+	w := as(http.MethodGet, "/me/sessions", desktop)
+	var list struct {
+		Items []struct {
+			Device  string `json:"device"`
+			Current bool   `json:"current"`
+		} `json:"items"`
+	}
+	must(t, json.Unmarshal(w.Body.Bytes(), &list))
+	want := []string{"Safari · iPhone", "Chrome · Windows (текущий)"}
+	got := make([]string, 0, len(list.Items))
+	for _, s := range list.Items {
+		if s.Current {
+			s.Device += " (текущий)"
+		}
+		got = append(got, s.Device)
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("сеансы: %v, ожидалось %v (сеанс сотрудника в списке студента быть не должен)", got, want)
+	}
+
+	if w := as(http.MethodDelete, "/me/sessions/others", ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("без cookie текущий сеанс не определить — нельзя завершать: %d", w.Code)
+	}
+	w = as(http.MethodDelete, "/me/sessions/others", desktop)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"ended":1`) {
+		t.Fatalf("завершение других сеансов: %d %s", w.Code, w.Body)
+	}
+	for token, code := range map[string]int{phone: http.StatusUnauthorized, desktop: http.StatusNoContent, staff: http.StatusNoContent} {
+		if v := e.verify(token); v.Code != code {
+			t.Fatalf("после завершения: verify %d, ожидалось %d", v.Code, code)
+		}
+	}
+
+	anon := httptest.NewRecorder()
+	e.pub.ServeHTTP(anon, httptest.NewRequest(http.MethodGet, "/me/sessions", nil))
+	if anon.Code != http.StatusUnauthorized {
+		t.Fatalf("без личности: %d", anon.Code)
+	}
+}

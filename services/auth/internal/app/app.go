@@ -3,6 +3,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -135,6 +136,7 @@ func (s *Server) Login(ctx context.Context, req api.LoginRequestObject) (api.Log
 	}
 	if err := s.q.CreateSession(ctx, db.CreateSessionParams{
 		TokenHash: hashToken(token), UserID: user.ID, Now: now, ExpiresAt: now.Add(SessionTTL),
+		Device: deviceLabel(platform.RequestFrom(ctx).UserAgent()),
 	}); err != nil {
 		return nil, err
 	}
@@ -168,6 +170,50 @@ func (s *Server) GetMe(ctx context.Context, _ api.GetMeRequestObject) (api.GetMe
 		return nil, err
 	}
 	return api.GetMe200JSONResponse(toMe(user)), nil
+}
+
+// currentSession — хеш токена из cookie запроса (nil, если cookie нет).
+func currentSession(ctx context.Context) []byte {
+	if c, err := platform.RequestFrom(ctx).Cookie(CookieName); err == nil && c.Value != "" {
+		return hashToken(c.Value)
+	}
+	return nil
+}
+
+func (s *Server) ListMySessions(ctx context.Context, _ api.ListMySessionsRequestObject) (api.ListMySessionsResponseObject, error) {
+	id, err := platform.RequireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.q.ListUserSessions(ctx, db.ListUserSessionsParams{UserID: id.UserID, Now: s.now()})
+	if err != nil {
+		return nil, err
+	}
+	cur := currentSession(ctx)
+	out := api.ListMySessions200JSONResponse{Items: make([]api.Session, 0, len(rows))}
+	for _, r := range rows {
+		out.Items = append(out.Items, api.Session{Device: r.Device, CreatedAt: r.CreatedAt, LastSeenAt: r.LastSeenAt,
+			Current: cur != nil && bytes.Equal(r.TokenHash, cur)})
+	}
+	return out, nil
+}
+
+// EndOtherSessions — «выйти на всех других устройствах»: текущий сеанс (по cookie) остаётся.
+func (s *Server) EndOtherSessions(ctx context.Context, _ api.EndOtherSessionsRequestObject) (api.EndOtherSessionsResponseObject, error) {
+	id, err := platform.RequireAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keep := currentSession(ctx)
+	if keep == nil { // без cookie не понять, какой сеанс текущий, — ничего не трогаем
+		return nil, platform.Unauthenticated()
+	}
+	n, err := s.q.DeleteOtherSessions(ctx, db.DeleteOtherSessionsParams{UserID: id.UserID, Keep: keep})
+	if err != nil {
+		return nil, err
+	}
+	platform.Log(ctx).Info("security", "event", "logout_others", "ended", n)
+	return api.EndOtherSessions200JSONResponse{Ended: int(n)}, nil
 }
 
 // ---------- Внутренний API: проверка сессии для шлюза (Caddy forward_auth) ----------

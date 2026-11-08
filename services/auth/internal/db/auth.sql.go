@@ -54,13 +54,14 @@ func (q *Queries) CountRecentFailuresByLogin(ctx context.Context, arg CountRecen
 }
 
 const createSession = `-- name: CreateSession :exec
-INSERT INTO sessions (token_hash, user_id, created_at, expires_at, last_seen_at)
-VALUES ($1, $2, $3, $4, $3)
+INSERT INTO sessions (token_hash, user_id, device, created_at, expires_at, last_seen_at)
+VALUES ($1, $2, $3, $4, $5, $4)
 `
 
 type CreateSessionParams struct {
 	TokenHash []byte
 	UserID    uuid.UUID
+	Device    string
 	Now       time.Time
 	ExpiresAt time.Time
 }
@@ -69,6 +70,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) er
 	_, err := q.db.Exec(ctx, createSession,
 		arg.TokenHash,
 		arg.UserID,
+		arg.Device,
 		arg.Now,
 		arg.ExpiresAt,
 	)
@@ -108,6 +110,23 @@ DELETE FROM sessions WHERE expires_at <= $1
 func (q *Queries) DeleteExpiredSessions(ctx context.Context, now time.Time) error {
 	_, err := q.db.Exec(ctx, deleteExpiredSessions, now)
 	return err
+}
+
+const deleteOtherSessions = `-- name: DeleteOtherSessions :execrows
+DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2
+`
+
+type DeleteOtherSessionsParams struct {
+	UserID uuid.UUID
+	Keep   []byte
+}
+
+func (q *Queries) DeleteOtherSessions(ctx context.Context, arg DeleteOtherSessionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOtherSessions, arg.UserID, arg.Keep)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteSession = `-- name: DeleteSession :exec
@@ -201,6 +220,50 @@ func (q *Queries) InsertLoginAttempt(ctx context.Context, arg InsertLoginAttempt
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const listUserSessions = `-- name: ListUserSessions :many
+SELECT token_hash, device, created_at, last_seen_at FROM sessions
+WHERE user_id = $1 AND expires_at > $2
+ORDER BY last_seen_at DESC, created_at DESC
+`
+
+type ListUserSessionsParams struct {
+	UserID uuid.UUID
+	Now    time.Time
+}
+
+type ListUserSessionsRow struct {
+	TokenHash  []byte
+	Device     string
+	CreatedAt  time.Time
+	LastSeenAt time.Time
+}
+
+// Действующие сеансы пользователя: сначала недавно активные.
+func (q *Queries) ListUserSessions(ctx context.Context, arg ListUserSessionsParams) ([]ListUserSessionsRow, error) {
+	rows, err := q.db.Query(ctx, listUserSessions, arg.UserID, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserSessionsRow
+	for rows.Next() {
+		var i ListUserSessionsRow
+		if err := rows.Scan(
+			&i.TokenHash,
+			&i.Device,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchSession = `-- name: TouchSession :exec

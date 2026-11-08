@@ -521,7 +521,9 @@ func TestFeedback(t *testing.T) {
 	e := setup(t, nil)
 	a := e.create(asA, "transcript", nil)
 	path := "/me/applications/" + a.Id.String() + "/feedback"
-	helpful := func(v bool, comment *string) api.FeedbackRequest { return api.FeedbackRequest{Helpful: v, Comment: comment} }
+	helpful := func(v bool, comment *string) api.FeedbackRequest {
+		return api.FeedbackRequest{Helpful: v, Comment: comment}
+	}
 
 	expectError(t, e.do(http.MethodPut, path, &asA, helpful(true, nil)), http.StatusConflict, "invalid_transition") // ещё не готова
 	e.forceStatus(a.Id, string(api.Ready))

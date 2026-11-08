@@ -41,3 +41,19 @@ export function useLogout() {
     },
   });
 }
+
+const sessionsKey = ['auth', 'sessions'] as const;
+
+/** Где выполнен вход: действующие сеансы, текущий помечен `current`. */
+export function useSessions() {
+  return useQuery({ queryKey: sessionsKey, queryFn: () => unwrap(authApi.GET('/me/sessions')) });
+}
+
+/** «Выйти на всех других устройствах» — текущий сеанс остаётся. */
+export function useEndOtherSessions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => unwrap(authApi.DELETE('/me/sessions/others')),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: sessionsKey }),
+  });
+}
