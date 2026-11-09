@@ -55,34 +55,83 @@ export function VerifyFormPage()
     );
 }
 
+function CertificateResult({ code }: { code: string })
+{
+    const certificate = useCertificate(code);
+    const error = certificate.error;
+
+    if (!validCode(code))
+    {
+        return <EmptyState title="Неверный формат кода" description={codeHint} action={<AnotherCode />} />;
+    }
+    if (error instanceof ApiError && error.status === 404)
+    {
+        return <EmptyState title="Справка с таким кодом не найдена" description="Проверьте код" action={<AnotherCode />} />;
+    }
+    if (error instanceof ApiError && error.status === 429)
+    {
+        const retryAfter = error.retryAfter;
+        const message = retryAfter
+            ? `Попробуйте через ${retryAfter} ${plural(retryAfter, ['секунду', 'секунды', 'секунд'])}`
+            : 'Попробуйте позже';
+
+        return (
+            <Section title="Слишком много проверок">
+                <p role="alert">{message}</p>
+                <AnotherCode />
+            </Section>
+        );
+    }
+
+    return (
+        <QueryView query={certificate}>
+            {(data) =>
+            {
+                const Icon = data.valid ? CircleCheckIcon : ClockIcon;
+                const title = data.valid ? 'Справка действительна' : 'Срок действия справки истёк';
+                const fields = [
+                    ['Владелец', data.holder],
+                    ['Факультет', data.faculty_short],
+                    ['Название', data.title],
+                    ['Дата выдачи', formatDate(data.issued_at, { withYear: true })],
+                    ['Действительна до', formatDate(data.valid_until, { withYear: true })],
+                ];
+
+                return (
+                    <div className="flex flex-col gap-5">
+                        <Section
+                            title={(
+                                <span className="flex items-start gap-3">
+                                    <Icon className="mt-0.5 size-5 shrink-0" aria-hidden />
+                                    {title}
+                                </span>
+                            )}
+                            className={data.valid ? 'bg-success-soft text-success-strong' : 'bg-warning-soft text-warning-strong'}>
+                            <dl className="grid min-w-0 gap-5 sm:grid-cols-2">
+                                {fields.map(([label, value]) => (
+                                    <div key={label} className="min-w-0">
+                                        <dt className="text-sm">{label}</dt>
+                                        <dd className="mt-1 font-medium break-words">{value}</dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </Section>
+                        <AnotherCode />
+                    </div>
+                );
+            }}
+        </QueryView>
+    );
+}
+
 export function VerifyResultPage()
 {
     const { code = '' } = useParams();
-    const certificate = useCertificate(code);
-    const error = certificate.error;
-    const retryAfter = error instanceof ApiError ? error.retryAfter : null;
 
     return (
         <div className="max-w-2xl">
             <PageHeader title="Проверка справки" subtitle={validCode(code) ? `Код ${code}` : 'Проверьте формат кода'} />
-            {!validCode(code) ? <EmptyState title="Неверный формат кода" description={codeHint} action={<AnotherCode />} />
-                : error instanceof ApiError && error.status === 404 ? <EmptyState title="Справка с таким кодом не найдена" description="Проверьте код" action={<AnotherCode />} />
-                    : error instanceof ApiError && error.status === 429 ? <Section title="Слишком много проверок"><p role="alert">{retryAfter ? `Попробуйте через ${retryAfter} ${plural(retryAfter, ['секунду', 'секунды', 'секунд'])}` : 'Попробуйте позже'}</p><AnotherCode /></Section>
-                        : <QueryView query={certificate}>
-                            {(data) => <div className="flex flex-col gap-5">
-                                <Section title={<span className="flex items-start gap-3">{data.valid ? <CircleCheckIcon className="mt-0.5 size-5 shrink-0" aria-hidden /> : <ClockIcon className="mt-0.5 size-5 shrink-0" aria-hidden />}{data.valid ? 'Справка действительна' : 'Срок действия справки истёк'}</span>}
-                                    className={data.valid ? 'bg-success-soft text-success-strong' : 'bg-warning-soft text-warning-strong'}>
-                                    <dl className="grid min-w-0 gap-5 sm:grid-cols-2">
-                                        {[
-                                            ['Владелец', data.holder], ['Факультет', data.faculty_short],
-                                            ['Название', data.title], ['Дата выдачи', formatDate(data.issued_at, { withYear: true })],
-                                            ['Действительна до', formatDate(data.valid_until, { withYear: true })],
-                                        ].map(([label, value]) => <div key={label} className="min-w-0"><dt className="text-sm">{label}</dt><dd className="mt-1 font-medium break-words">{value}</dd></div>)}
-                                    </dl>
-                                </Section>
-                                <AnotherCode />
-                            </div>}
-                        </QueryView>}
+            <CertificateResult code={code} />
             <DemoNote />
         </div>
     );
