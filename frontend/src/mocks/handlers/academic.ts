@@ -76,8 +76,9 @@ export const academicHandlers = [
     }
     const query = new URL(request.url).searchParams;
     const groupId = query.get('group_id');
-    const from = query.get('from');
-    const to = query.get('to');
+    const currentMonday = monday(toApiDate());
+    const from = query.get('from') ?? currentMonday;
+    const to = query.get('to') ?? addDays(currentMonday, 6);
 
     if (!accessibleGroups().some((group) => group.id === groupId))
     {

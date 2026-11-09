@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { toast } from 'sonner';
 import type { components } from '@/api/academic';
 import { shortDate, validDate } from '@/features/schedule/calendar';
 import type { Lesson } from '@/features/schedule/queries';
 import { ApiError, apiErrorMessage, fieldErrors } from '@/shared/lib/errors';
+import { toApiDate } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/button';
-import { Input, fieldClass } from '@/shared/ui/input';
+import { Input } from '@/shared/ui/input';
 import { Label } from '@/shared/ui/label';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/shared/ui/sheet';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Textarea } from '@/shared/ui/textarea';
-import { changeLabels } from './labels';
+import { toast } from '@/shared/ui/toast';
+import { changeActions, changeLabels } from './labels';
 import { pairs } from './pairs';
 import { useChangeLesson } from './queries';
 
@@ -65,6 +67,10 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
             {
                 nextErrors.new_date = 'Укажите новую дату';
             }
+            else if (date < toApiDate())
+            {
+                nextErrors.new_date = 'Нельзя перенести занятие в прошлое';
+            }
             if (!timePattern.test(start))
             {
                 nextErrors.new_start_time = 'Укажите время начала';
@@ -73,12 +79,24 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
             {
                 nextErrors.new_end_time = 'Время окончания должно быть позже начала';
             }
+            if (date === lesson.date && start === lesson.start_time && end === lesson.end_time)
+            {
+                nextErrors.new_date = 'Выберите другую дату или время: занятие не изменилось';
+            }
         }
         if (type === 'room_changed' || (type === 'moved' && hasRoom))
         {
             if (!building.trim() || !room.trim())
             {
                 nextErrors.new_room = 'Укажите корпус и номер аудитории';
+            }
+            else if (building.trim().length > 100 || room.trim().length > 100)
+            {
+                nextErrors.new_room = 'Корпус и аудитория — не более 100 символов';
+            }
+            else if (type === 'room_changed' && building.trim() === lesson.room?.building && room.trim() === lesson.room?.number)
+            {
+                nextErrors.new_room = 'Укажите другую аудиторию: занятие не изменилось';
             }
         }
         if (reason.trim().length > 300)
@@ -105,7 +123,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
         change.mutate(body, {
             onSuccess: () =>
             {
-                toast.success('Изменение сохранено');
+                toast.success(changeActions[body.type].success);
                 onClose();
             },
             onError: (error) =>
@@ -164,12 +182,33 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                     {body.new_room && <p>Аудитория: {body.new_room.building}, {body.new_room.number}</p>}
                     {body.reason && <p className="break-words">Причина: {body.reason}</p>}
                     <p className="text-sm text-muted-foreground">Студенты групп {lesson.groups.map((group) => group.name).join(', ')} получат уведомление.</p>
-                    <div className="flex flex-wrap gap-3"><Button disabled={change.isPending || (change.error instanceof ApiError && change.error.status === 409)} onClick={submit}>{change.isPending ? 'Сохраняем…' : 'Сохранить изменение'}</Button><Button variant="outline" disabled={change.isPending} onClick={back}>Назад</Button></div>
+                    <div className="flex flex-wrap gap-3">
+                        <Button variant={body.type === 'cancelled' ? 'destructive' : 'default'}
+                            disabled={change.isPending || (change.error instanceof ApiError && change.error.status === 409)} onClick={submit}>
+                            {change.isPending ? changeActions[body.type].pending : changeActions[body.type].action}
+                        </Button>
+                        <Button variant="outline" disabled={change.isPending} onClick={back}>Назад</Button>
+                    </div>
                 </div> : <form ref={formRef} onSubmit={prepare} noValidate className="flex flex-col gap-5">
-                    <Field id="change-type" label="Что изменить"><select id="change-type" className={`${fieldClass} h-11`} value={type} onChange={(event) => chooseType(event.target.value)}>{Object.entries(changeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>
+                    <Field id="change-type" label="Что изменить">
+                        <Select value={type} onValueChange={chooseType}>
+                            <SelectTrigger id="change-type"><SelectValue /></SelectTrigger>
+                            <SelectContent>{Object.entries(changeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </Field>
                     {type === 'moved' && <>
-                        <Field id="new_date" label="Новая дата" error={errors.new_date}><Input id="new_date" type="date" value={date} onChange={(event) => setDate(event.target.value)} {...fieldProps('new_date')} /></Field>
-                        <Field id="pair" label="Пара"><select id="pair" className={`${fieldClass} h-11`} value={pair} onChange={(event) => choosePair(event.target.value)}>{pairs.map((item) => <option key={item.number} value={item.number}>{item.number} пара — {item.start}–{item.end}</option>)}<option value="custom">Своё время</option></select></Field>
+                        <Field id="new_date" label="Новая дата" error={errors.new_date}>
+                            <Input id="new_date" type="date" min={toApiDate()} value={date} onChange={(event) => setDate(event.target.value)} {...fieldProps('new_date')} />
+                        </Field>
+                        <Field id="pair" label="Пара">
+                            <Select value={pair} onValueChange={choosePair}>
+                                <SelectTrigger id="pair"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {pairs.map((item) => <SelectItem key={item.number} value={String(item.number)}>{item.number} пара — {item.start}–{item.end}</SelectItem>)}
+                                    <SelectItem value="custom">Своё время</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </Field>
                         {pair === 'custom' && <div className="grid grid-cols-2 gap-4">
                             <Field id="new_start_time" label="Начало" error={errors.new_start_time}><Input id="new_start_time" type="time" value={start} onChange={(event) => setStart(event.target.value)} {...fieldProps('new_start_time')} /></Field>
                             <Field id="new_end_time" label="Окончание" error={errors.new_end_time}><Input id="new_end_time" type="time" value={end} onChange={(event) => setEnd(event.target.value)} {...fieldProps('new_end_time')} /></Field>
@@ -177,7 +216,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                     </>}
                     {type !== 'cancelled' && <>
                         <Field id="building" label={type === 'moved' ? 'Корпус (необязательно)' : 'Корпус'}><Input id="building" value={building} maxLength={100} onChange={(event) => setBuilding(event.target.value)} aria-describedby={errors.new_room ? 'new_room-error' : undefined} aria-invalid={!!errors.new_room} /></Field>
-                        <Field id="new_room" label={type === 'moved' ? 'Аудитория (необязательно)' : 'Аудитория'} error={errors.new_room}><Input id="new_room" value={room} maxLength={30} onChange={(event) => setRoom(event.target.value)} {...fieldProps('new_room')} /></Field>
+                        <Field id="new_room" label={type === 'moved' ? 'Аудитория (необязательно)' : 'Аудитория'} error={errors.new_room}><Input id="new_room" value={room} maxLength={100} onChange={(event) => setRoom(event.target.value)} {...fieldProps('new_room')} /></Field>
                     </>}
                     <Field id="reason" label="Причина" error={errors.reason}><Textarea id="reason" value={reason} maxLength={300} onChange={(event) => setReason(event.target.value)} {...fieldProps('reason')} /></Field>
                     <Button className="self-start" type="submit">Далее</Button>

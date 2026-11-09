@@ -2,12 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { components } from '@/api/academic';
 import { academicApi, unwrap } from '@/api/clients';
 
-export function useFaculties(enabled: boolean)
-{
-    return useQuery({ queryKey: ['academic', 'faculties'], enabled,
-        queryFn: () => unwrap(academicApi.GET('/faculties')) });
-}
-
 export function useStaffGroups(facultyId: string | undefined, enabled: boolean)
 {
     return useQuery({ queryKey: ['academic', 'staff', 'groups', { facultyId }], enabled,
