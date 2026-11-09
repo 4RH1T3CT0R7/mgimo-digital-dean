@@ -77,6 +77,38 @@ const fileResponse = (blob: Blob, name: string) =>
   new HttpResponse(blob, { headers: { 'Content-Type': blob.type || 'application/octet-stream', 'Content-Disposition': `attachment; filename="${encodeURIComponent(name)}"` } });
 
 export const requestsHandlers = [
+  http.get('/api/requests/public/certificates/:code', ({ params }) =>
+  {
+    const mode = new URLSearchParams(globalThis.location?.search).get('scenario');
+    const application = applications.find((item) => item.status === 'ready' && item.certificate?.code === params.code);
+
+    if (mode === 'network')
+    {
+      return HttpResponse.error();
+    }
+    if (mode === 'rate-limit')
+    {
+      return HttpResponse.json({ code: 'rate_limited', message: 'Слишком много проверок' }, { status: 429, headers: { 'Retry-After': '30' } });
+    }
+    if (!application?.certificate || list([application]).length === 0)
+    {
+      return HttpResponse.json({ code: 'not_found', message: 'Справка не найдена' }, { status: 404 });
+    }
+    const certificate = application.certificate;
+    const expired = mode === 'expired';
+    const validUntil = expired ? '2026-10-01' : certificate.valid_until;
+    const data: S['CertificateVerification'] = {
+      valid: Date.now() < Date.parse(`${validUntil}T00:00:00+03:00`) + 86_400_000,
+      title: application.service_type.title,
+      holder: application.student.short_name,
+      faculty_short: application.student.faculty_short,
+      issued_at: expired ? '2026-09-01T09:00:00+03:00' : certificate.issued_at,
+      valid_until: validUntil,
+    };
+
+    return HttpResponse.json(data);
+  }),
+
   http.get('/api/requests/service-types', () => HttpResponse.json(list(serviceTypes))),
 
   http.get('/api/requests/me/applications', ({ request }) => {

@@ -26,8 +26,8 @@ done
 
 # Уведомления о заявках и переносах из тестовых данных создаёт сам notifications по штатным событиям (T07):
 # сервисы публикуют их флагом -seed-events. ID событий детерминированы — повторный запуск не плодит уведомления.
-# Сервисы, у которых есть флаг -seed-events (academic добавится в T04).
-for svc in requests; do
+# Сервисы, у которых есть флаг -seed-events.
+for svc in requests academic; do
   echo "seed-events: $svc"
   "${compose[@]}" exec -T "$svc" /app -seed-events
 done

@@ -89,7 +89,7 @@ func setup(t *testing.T) *env {
 func newEnv(pool *pgxpool.Pool) *env {
 	clock := time.Date(2026, 11, 18, 10, 0, 0, 0, time.FixedZone("MSK", 3*60*60))
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	srv := app.New(pool, logger, func() time.Time { return clock })
+	srv := app.New(pool, logger, func() time.Time { return clock }, nil)
 	pub, in := srv.Handlers()
 
 	return &env{pool: pool, pub: pub, in: in}
@@ -358,7 +358,7 @@ func TestLogsDoNotContainStudentNames(t *testing.T) {
 	e := setup(t)
 	var logs bytes.Buffer
 	clock := time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC)
-	srv := app.New(e.pool, slog.New(slog.NewJSONHandler(&logs, nil)), func() time.Time { return clock })
+	srv := app.New(e.pool, slog.New(slog.NewJSONHandler(&logs, nil)), func() time.Time { return clock }, nil)
 	_, in := srv.Handlers()
 	decode[internalapi.StudentCard](t, request(in, http.MethodGet, "/internal/students/"+s1.String(), ""))
 	decode[internalapi.ResolveAudience200JSONResponse](t, request(in, http.MethodPost, "/internal/audience/students", `{"kind":"all"}`))
