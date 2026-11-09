@@ -242,6 +242,46 @@ func (q *Queries) ListLessonGroups(ctx context.Context, lessonID uuid.UUID) ([]L
 	return items, nil
 }
 
+const listLessonGroupsBatch = `-- name: ListLessonGroupsBatch :many
+SELECT lg.lesson_id, g.id, g.name, g.faculty_id
+FROM lesson_groups lg JOIN groups g ON g.id = lg.group_id
+WHERE lg.lesson_id = ANY($1::uuid[])
+ORDER BY lg.lesson_id, g.id
+`
+
+type ListLessonGroupsBatchRow struct {
+	LessonID  uuid.UUID
+	ID        uuid.UUID
+	Name      string
+	FacultyID uuid.UUID
+}
+
+// Группы всего расписания или replay читаются одним запросом.
+func (q *Queries) ListLessonGroupsBatch(ctx context.Context, lessonIds []uuid.UUID) ([]ListLessonGroupsBatchRow, error) {
+	rows, err := q.db.Query(ctx, listLessonGroupsBatch, lessonIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLessonGroupsBatchRow
+	for rows.Next() {
+		var i ListLessonGroupsBatchRow
+		if err := rows.Scan(
+			&i.LessonID,
+			&i.ID,
+			&i.Name,
+			&i.FacultyID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMyControlPoints = `-- name: ListMyControlPoints :many
 SELECT id, student_id, discipline_id, semester, date, title, score, max FROM control_points
 WHERE student_id = $1 AND semester = $2

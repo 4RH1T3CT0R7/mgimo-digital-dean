@@ -76,6 +76,9 @@ func (s *Server) ChangeLesson(ctx context.Context, req api.ChangeLessonRequestOb
 	}
 	lesson := lessonAPI(changed, row.DisciplineName, row.TeacherShort, groups)
 	event := lessonEvent(lesson, groups)
+	// Событие описывает конкретное изменение; prev_* ответа хранит первый слот.
+	event.Previous = events.LessonSlot{Date: apiDate(old.Date).String(), StartTime: clockText(old.StartTime),
+		EndTime: clockText(old.EndTime), Room: eventRoom(room(old.RoomBuilding, old.RoomNumber))}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -85,7 +88,7 @@ func (s *Server) ChangeLesson(ctx context.Context, req api.ChangeLessonRequestOb
 		publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err := events.Publish(publishCtx, s.bus, event); err != nil {
-			platform.Log(ctx).Error("event_publish_failed", "lesson_id", req.LessonId, "event_type", event.Subject())
+			platform.Log(ctx).Error("event_publish_failed", "lesson_id", req.LessonId, "event_type", event.Subject(), "error", err.Error())
 		}
 	}
 
@@ -122,6 +125,14 @@ func validateChange(change api.LessonChangeRequest) error {
 	}
 	if change.NewRoom != nil && (strings.TrimSpace(change.NewRoom.Building) == "" || strings.TrimSpace(change.NewRoom.Number) == "") {
 		fields["new_room"] = "Укажите корпус и номер аудитории"
+	}
+	if change.NewRoom != nil {
+		if utf8.RuneCountInString(change.NewRoom.Building) > 100 {
+			fields["new_room.building"] = "Корпус должен быть не длиннее 100 символов"
+		}
+		if utf8.RuneCountInString(change.NewRoom.Number) > 100 {
+			fields["new_room.number"] = "Аудитория должна быть не длиннее 100 символов"
+		}
 	}
 	if change.Reason != nil && utf8.RuneCountInString(*change.Reason) > 300 {
 		fields["reason"] = "Причина должна быть не длиннее 300 символов"

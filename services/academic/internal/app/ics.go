@@ -19,9 +19,12 @@ func (s *Server) GetMyScheduleIcs(ctx context.Context, req api.GetMyScheduleIcsR
 	if err != nil {
 		return nil, err
 	}
-	from, to, err := period(req.Params.From, req.Params.To, calendar.Date(s.now()), calendar.Date(term.EndDate.Time), 0)
-	if err != nil {
-		return nil, err
+	from, to := calendar.Date(s.now()), calendar.Date(term.EndDate.Time)
+	if req.Params.From != nil {
+		from = calendar.Date(req.Params.From.Time)
+	}
+	if req.Params.To != nil {
+		to = calendar.Date(req.Params.To.Time)
 	}
 	schedule, err := s.mySchedule(ctx, me.UserID, from, to, term)
 	if err != nil {

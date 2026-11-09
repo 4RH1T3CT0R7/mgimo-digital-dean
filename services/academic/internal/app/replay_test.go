@@ -91,6 +91,21 @@ func TestFullSeedScheduleAndGrades(t *testing.T) {
 		execSQL(t, pool, string(sql))
 	}
 	e := newEnv(pool)
+	for _, entry := range []struct {
+		identity platform.Identity
+		year     int
+	}{{asS1, 2025}, {asS2, 2024}} {
+		profile := decode[api.Profile](t, e.do("GET", "/me/profile", &entry.identity, nil))
+		if profile.EnrollmentYear != entry.year {
+			t.Fatalf("год поступления %s: %d вместо %d", entry.identity.UserID, profile.EnrollmentYear, entry.year)
+		}
+	}
+	var stale int
+	if err := pool.QueryRow(context.Background(), `SELECT count(*) FROM (
+		SELECT updated_at FROM lessons UNION ALL SELECT updated_at FROM student_disciplines
+	) dates WHERE updated_at < now() - interval '2 hours' OR updated_at > now()`).Scan(&stale); err != nil || stale != 0 {
+		t.Fatalf("seed содержит несвежие даты актуальности: %d, %v", stale, err)
+	}
 	for _, identity := range []platform.Identity{asS1, asS2} {
 		for _, from := range []string{"2026-11-16", "2026-11-23", "2026-11-30"} {
 			start, _ := time.Parse(time.DateOnly, from)

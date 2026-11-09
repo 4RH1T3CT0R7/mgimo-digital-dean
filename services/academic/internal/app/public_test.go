@@ -199,18 +199,20 @@ func TestA8MovedAway(t *testing.T) {
 	}{{"2026-11-16", 2}, {"2026-11-18", 1}} {
 		schedule := decode[api.Schedule](t, e.do(http.MethodGet, "/me/schedule?from="+tc.from+"&to=2026-11-22", &asS1, nil))
 		count := 0
+		statuses := map[api.LessonStatus]int{}
 		for _, lesson := range schedule.Lessons {
 			if lesson.Id != movedID {
 				continue
 			}
 			count++
+			statuses[lesson.Status]++
 			switch lesson.Status {
 			case api.LessonStatusMoved:
 				if lesson.Date.String() != "2026-11-19" {
 					t.Fatal("неверная новая дата")
 				}
 			case api.LessonStatusMovedAway:
-				if lesson.Date.String() != "2026-11-17" || lesson.MovedTo == nil || lesson.MovedTo.Date.String() != "2026-11-19" {
+				if lesson.Date.String() != "2026-11-17" || lesson.MovedTo == nil || lesson.MovedTo.Date.String() != "2026-11-19" || lesson.MovedTo.StartTime != "12:00" {
 					t.Fatalf("неверная старая запись: %+v", lesson)
 				}
 			default:
@@ -219,6 +221,9 @@ func TestA8MovedAway(t *testing.T) {
 		}
 		if count != tc.count {
 			t.Fatalf("для %s ожидалось %d записей, получено %d", tc.from, tc.count, count)
+		}
+		if statuses[api.LessonStatusMoved] != 1 || statuses[api.LessonStatusMovedAway] != tc.count-1 {
+			t.Fatalf("для %s неверный набор статусов: %+v", tc.from, statuses)
 		}
 	}
 }
@@ -385,13 +390,21 @@ func TestA17MoveAndPublishAfterCommit(t *testing.T) {
 	}
 	defer stop()
 	lesson := decode[api.Lesson](t, e.do(http.MethodPost, "/staff/lessons/"+lessonID.String()+"/change", &asStaff1, moveRequest()))
-	if lesson.Status != api.LessonStatusMoved || lesson.Change == nil || lesson.Change.Previous.Date.String() != "2026-11-17" ||
-		lesson.Change.Previous.StartTime != "10:30" || !lesson.Change.ChangedAt.Equal(clock) {
+	wantPrevious := api.LessonChange{}.Previous
+	wantPrevious.Date.Time = time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
+	wantPrevious.StartTime, wantPrevious.EndTime = "10:30", "11:50"
+	wantPrevious.Room = &api.Room{Building: "Главный корпус", Number: "2105"}
+	if lesson.Status != api.LessonStatusMoved || lesson.Change == nil || !reflect.DeepEqual(lesson.Change.Previous, wantPrevious) ||
+		!lesson.Change.ChangedAt.Equal(clock) {
 		t.Fatalf("неверный перенос: %+v", lesson)
 	}
 	select {
 	case ev := <-received:
-		if ev.Data.LessonID != lessonID || ev.Data.FacultyID != f1 || ev.Data.Current.Date != "2026-11-19" {
+		room := "Главный корпус, 2105"
+		previous := events.LessonSlot{Date: "2026-11-17", StartTime: "10:30", EndTime: "11:50", Room: &room}
+		current := events.LessonSlot{Date: "2026-11-19", StartTime: "12:00", EndTime: "13:20", Room: &room}
+		if ev.Data.LessonID != lessonID || ev.Data.FacultyID != f1 || ev.Data.ChangeType != "moved" ||
+			!reflect.DeepEqual(ev.Data.Previous, previous) || !reflect.DeepEqual(ev.Data.Current, current) {
 			t.Fatalf("неверное событие: %+v", ev)
 		}
 		assertIDs(t, ev.Data.GroupIDs, []uuid.UUID{g1})

@@ -31,7 +31,7 @@ SELECT md5('academic:lesson:' || group_id::text || ':' || date::text || ':' || p
        (ARRAY['10:20', '11:50', '13:20', '15:40'])[pair]::time,
        pair, 'Главный корпус', (2100 + subject * 10 + pair)::text,
        ('52000000-0000-4000-8000-' || lpad(subject::text, 12, '0'))::uuid,
-       'scheduled', '2026-11-09 00:00:00+03'::timestamptz
+       'scheduled', now() - interval '1 hour'
 FROM slots;
 
 -- ID вычисляется из той же пары (группа, дата, номер пары), без отдельной таблицы шаблонов.
@@ -64,6 +64,6 @@ UPDATE lessons l SET
     change_type = CASE c.weekday WHEN 2 THEN 'moved' WHEN 3 THEN 'cancelled' ELSE 'room_changed' END,
     change_reason = CASE c.weekday WHEN 2 THEN 'Изменение графика преподавателя'
                                  WHEN 3 THEN 'Болезнь преподавателя' ELSE 'Технические работы в аудитории' END,
-    changed_at = '2026-11-09 00:00:00+03'::timestamptz,
-    updated_at = '2026-11-09 00:00:00+03'::timestamptz
+    changed_at = now() - interval '30 minutes',
+    updated_at = now() - interval '30 minutes'
 FROM changes c WHERE l.id = c.lesson_id;

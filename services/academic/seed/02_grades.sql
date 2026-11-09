@@ -21,7 +21,7 @@ SELECT md5('academic:grade:' || student_id::text || ':' || semester::text || ':'
             ELSE (ARRAY[95, 85, 78, 70, 63])[n] END,
        CASE WHEN n = 6 THEN true ELSE NULL END,
        make_date(2026 - (course-1) + (semester+1)/2, CASE WHEN semester % 2 = 1 THEN 1 ELSE 6 END, 20),
-       '2026-11-09 00:00:00+03'::timestamptz
+       now() - interval '1 hour'
 FROM subjects;
 
 -- Текущие шесть дисциплин. У student.mo строго 3 зелёных / 2 жёлтых / 1 красная.
@@ -41,7 +41,7 @@ SELECT md5('academic:grade:' || student_id::text || ':' || (course*2-1)::text ||
        ('52000000-0000-4000-8000-' || lpad(subject::text, 12, '0'))::uuid,
        (ARRAY[55, 50, 48, 40, 55, 30])[n], 60,
        (ARRAY[95, 90, 85, 90, 65, 90])[n],
-       '2026-11-09 00:00:00+03'::timestamptz
+       now() - interval '30 minutes'
 FROM subjects;
 
 -- Три контрольные точки на дисциплину; третья ещё не оценена.

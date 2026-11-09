@@ -72,6 +72,13 @@ FROM lesson_groups lg JOIN groups g ON g.id = lg.group_id
 WHERE lg.lesson_id = sqlc.arg(lesson_id)
 ORDER BY g.id;
 
+-- Группы всего расписания или replay читаются одним запросом.
+-- name: ListLessonGroupsBatch :many
+SELECT lg.lesson_id, g.id, g.name, g.faculty_id
+FROM lesson_groups lg JOIN groups g ON g.id = lg.group_id
+WHERE lg.lesson_id = ANY(sqlc.arg(lesson_ids)::uuid[])
+ORDER BY lg.lesson_id, g.id;
+
 -- name: LockScopedLesson :one
 SELECT sqlc.embed(l), d.name AS discipline_name, t.short_name AS teacher_short
 FROM lessons l

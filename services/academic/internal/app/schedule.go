@@ -48,16 +48,20 @@ func (s *Server) mySchedule(ctx context.Context, studentID uuid.UUID, from, to t
 	}
 	result := api.Schedule{From: openapi_types.Date{Time: from}, To: openapi_types.Date{Time: to},
 		Lessons: make([]api.Lesson, 0), Weeks: make([]api.WeekInfo, 0)}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.Lesson.ID)
+	}
+	groups, err := s.lessonGroups(ctx, ids)
+	if err != nil {
+		return api.Schedule{}, err
+	}
 	for day := calendar.Monday(from); !day.After(to); day = day.AddDate(0, 0, 7) {
 		number, parity := calendar.WeekOf(term.StartDate.Time, day)
 		result.Weeks = append(result.Weeks, api.WeekInfo{StartDate: openapi_types.Date{Time: day}, Number: number, Parity: parity})
 	}
 	for _, row := range rows {
-		groups, err := s.q.ListLessonGroups(ctx, row.Lesson.ID)
-		if err != nil {
-			return api.Schedule{}, err
-		}
-		lesson := lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups)
+		lesson := lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups[row.Lesson.ID])
 		result.Lessons = append(result.Lessons, visibleSlots(lesson, from, to)...)
 		if row.Lesson.UpdatedAt.After(result.AsOf) {
 			result.AsOf = row.Lesson.UpdatedAt
@@ -92,12 +96,16 @@ func (s *Server) ListStaffLessons(ctx context.Context, req api.ListStaffLessonsR
 		return nil, err
 	}
 	result := make(api.ListStaffLessons200JSONResponse, 0)
+	ids := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
-		groups, err := s.q.ListLessonGroups(ctx, row.Lesson.ID)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, visibleSlots(lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups), from, to)...)
+		ids = append(ids, row.Lesson.ID)
+	}
+	groups, err := s.lessonGroups(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result = append(result, visibleSlots(lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups[row.Lesson.ID]), from, to)...)
 	}
 	sortLessons(result)
 
@@ -120,6 +128,22 @@ func period(fromParam, toParam *openapi_types.Date, defaultFrom, defaultTo time.
 	}
 
 	return from, to, nil
+}
+
+func (s *Server) lessonGroups(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]db.ListLessonGroupsRow, error) {
+	result := make(map[uuid.UUID][]db.ListLessonGroupsRow, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	rows, err := s.q.ListLessonGroupsBatch(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.LessonID] = append(result[row.LessonID], db.ListLessonGroupsRow{ID: row.ID, Name: row.Name, FacultyID: row.FacultyID})
+	}
+
+	return result, nil
 }
 
 func lessonAPI(row db.Lesson, disciplineName string, teacherShort *string, groups []db.ListLessonGroupsRow) api.Lesson {

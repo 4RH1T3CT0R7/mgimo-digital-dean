@@ -20,13 +20,17 @@ func (s *Server) ReplaySeedEvents(ctx context.Context) (published int, err error
 	if err != nil {
 		return 0, err
 	}
+	ids := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
-		groups, err := s.q.ListLessonGroups(ctx, row.Lesson.ID)
-		if err != nil {
-			return published, err
-		}
-		lesson := lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups)
-		event := lessonEvent(lesson, groups)
+		ids = append(ids, row.Lesson.ID)
+	}
+	groups, err := s.lessonGroups(ctx, ids)
+	if err != nil {
+		return 0, err
+	}
+	for _, row := range rows {
+		lesson := lessonAPI(row.Lesson, row.DisciplineName, row.TeacherShort, groups[row.Lesson.ID])
+		event := lessonEvent(lesson, groups[row.Lesson.ID])
 		id := uuid.NewSHA1(replayNamespace, row.Lesson.ID[:])
 		if err := events.PublishWithID(ctx, s.bus, id, event); err != nil {
 			return published, err
