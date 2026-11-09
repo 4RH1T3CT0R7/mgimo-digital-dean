@@ -1,10 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
-import { academicApi, unwrap } from '@/api/clients';
+import { notificationsApi, requestsApi, unwrap } from '@/api/clients';
 
-/** Расписание текущей недели (без параметров API отдаёт текущую неделю). */
-export function useWeekSchedule() {
-  return useQuery({
-    queryKey: ['academic', 'schedule', 'current-week'],
-    queryFn: () => unwrap(academicApi.GET('/me/schedule')),
-  });
+export function useRecentApplications()
+{
+    return useQuery({
+        queryKey: ['requests', 'applications', { limit: 3 }],
+        queryFn: () => unwrap(requestsApi.GET('/me/applications', { params: { query: { limit: 3 } } })),
+    });
+}
+
+export function useUpcomingDeadlines()
+{
+    return useQuery({
+        queryKey: ['notifications', 'deadlines', { days: 7 }],
+        queryFn: () => unwrap(notificationsApi.GET('/me/deadlines', { params: { query: { days: 7 } } })),
+    });
 }
