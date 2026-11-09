@@ -60,9 +60,19 @@ describe('T16: файл календаря в MSW', () =>
         expect((await download('?from=2026-09-01&to=2026-12-27')).status).toBe(200);
     });
 
-    it.each(['?from=2026-02-30', '?to=invalid', '?from=2026-11-19&to=2026-11-18'])('не выгружает неверный период %s', async (query) =>
+    it.each(['?from=2026-02-30', '?to=invalid'])('не выгружает неверный период %s', async (query) =>
     {
         expect((await download(query)).status).toBe(400);
+    });
+
+    it('обратный период возвращает пустой календарь, как Academic после ревью', async () =>
+    {
+        const response = await download('?from=2026-11-19&to=2026-11-18');
+        const text = await response.text();
+
+        expect(response.status).toBe(200);
+        expect(text).toContain('BEGIN:VCALENDAR\r\n');
+        expect(text).not.toContain('BEGIN:VEVENT');
     });
 
     it.each([[null, 401], ['dekanat.mo', 403]] as const)('проверяет роль: %s → %s', async (login, status) =>

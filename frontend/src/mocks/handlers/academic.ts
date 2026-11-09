@@ -49,7 +49,7 @@ export const academicHandlers = [
     const from = params.get('from') ?? toApiDate();
     const to = params.get('to') ?? mockTermEnd;
 
-    if (!validDate(from) || !validDate(to) || from > to)
+    if (!validDate(from) || !validDate(to))
     {
       return HttpResponse.json({ code: 'validation_failed', message: 'Укажите корректный период' }, { status: 400 });
     }
