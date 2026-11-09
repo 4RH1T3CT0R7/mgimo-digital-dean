@@ -1,13 +1,13 @@
 import { useSearchParams } from 'react-router';
 import { ExportCalendarButton } from '@/features/calendar-export/ExportCalendarButton';
 import { useProfile } from '@/features/profile/queries';
-import { formatDate, toApiDate } from '@/shared/lib/format';
+import { toApiDate } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { AsOf } from '@/shared/ui/as-of';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { PageHeader } from '@/shared/ui/page-header';
 import { QueryView } from '@/shared/ui/query-view';
-import { addDays, monday, validDate, weekdayLabel } from './calendar';
+import { addDays, dayHeading, monday, validDate } from './calendar';
 import { LessonRow } from './components/LessonRow';
 import { WeekSwitcher } from './components/WeekSwitcher';
 import { useSchedule } from './queries';
@@ -21,7 +21,8 @@ export function SchedulePage()
     const to = addDays(from, 6);
     const schedule = useSchedule(from, to);
     const profile = useProfile();
-    const chooseDate = (date: string) => setParams((current) => {
+    const chooseDate = (date: string) => setParams((current) =>
+    {
         current.set('date', date);
 
         return current;
@@ -38,8 +39,11 @@ export function SchedulePage()
                     <div className="flex flex-col gap-6">
                         {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((date) => (
                             <section key={date} aria-labelledby={`day-${date}`} className="min-w-0">
-                                <h2 id={`day-${date}`} className={cn('sticky top-header z-10 mb-3 flex flex-wrap items-baseline justify-between gap-2 bg-background py-3 text-lg font-semibold', date === today && 'border-b-2 border-primary')}>
-                                    <span className="capitalize">{weekdayLabel(date)}, {formatDate(date)}</span>
+                                <h2 id={`day-${date}`} className={cn(
+                                    'sticky top-header z-10 mb-3 flex flex-wrap items-baseline justify-between gap-2 bg-background py-3 text-lg font-semibold',
+                                    date === today && 'border-b-2 border-primary',
+                                )}>
+                                    <span>{dayHeading(date)}</span>
                                     {date === today && <span className="text-sm font-medium">Сегодня</span>}
                                 </h2>
                                 {data.lessons.some((lesson) => lesson.date === date) ? (
