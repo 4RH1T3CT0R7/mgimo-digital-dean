@@ -34,12 +34,29 @@ export const pwaOptions: Partial<VitePWAOptions> = {
         theme_color: color('background'),
         icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        screenshots: [
+            {
+                src: '/icons/install-schedule-wide.jpg',
+                sizes: '1265x791',
+                type: 'image/jpeg',
+                form_factor: 'wide',
+                label: 'Расписание на компьютере',
+            },
+            {
+                src: '/icons/install-schedule-narrow.jpg',
+                sizes: '345x767',
+                type: 'image/jpeg',
+                form_factor: 'narrow',
+                label: 'Расписание на телефоне',
+            },
         ],
     },
     workbox: {
         cacheId: 'mgimo-static',
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff2}'],
         globIgnores: ['**/api/**', '**/mockServiceWorker.js'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api(?:[/?]|$)/],
