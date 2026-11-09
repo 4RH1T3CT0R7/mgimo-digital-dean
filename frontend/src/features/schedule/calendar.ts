@@ -34,6 +34,13 @@ export function weekdayLabel(date: string): string
         .format(new Date(`${date}T12:00:00+03:00`));
 }
 
+export function dayHeading(date: string): string
+{
+    const label = `${weekdayLabel(date)}, ${formatDate(date)}`;
+
+    return label[0].toUpperCase() + label.slice(1);
+}
+
 export function shortDate(date: string): string
 {
     return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Moscow' })

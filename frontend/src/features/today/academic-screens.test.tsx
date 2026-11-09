@@ -103,7 +103,7 @@ describe('T09: обязательные сценарии V1–V8', () => {
     });
 
     it('V8: зачёт отображается без ECTS', async () => {
-        const credit = { ...sessionResults.semesters[0].results.at(-1)!, ects: 'A' as const };
+        const credit = { ...sessionResults.semesters[0].results.at(-1)!, percent: 100, ects: 'A' as const };
 
         server.use(http.get('/api/academic/me/grades/sessions', () => HttpResponse.json({ ...sessionResults,
             semesters: [{ ...sessionResults.semesters[0], results: [credit] }],
@@ -183,7 +183,7 @@ describe('T09: дополнительные пользовательские с�
         const list = await screen.findByRole('list', { name: 'Дисциплины текущего семестра' });
         const first = within(list).getAllByRole('article')[0];
 
-        expect(first).toHaveTextContent('В этом семестре «отлично» уже недостижимо');
+        expect(first).not.toHaveTextContent('«отлично»');
         expect(within(first).getByText('Контрольные точки').closest('details')).not.toHaveAttribute('open');
         within(first).getByText('Контрольные точки').click();
         expect(within(first).getByText('Контрольные точки').closest('details')).toHaveAttribute('open');

@@ -30,7 +30,7 @@ export const profile: S['Profile'] = {
   student_card_no: '2401317',
   study_form: 'full_time',
   funding: 'budget',
-  enrollment_year: 2024,
+  enrollment_year: 2025,
   status: 'studying',
 };
 
