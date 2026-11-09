@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useLogout } from '@/features/auth/queries';
+import { InstallAppButton } from '@/features/pwa/InstallAppButton';
 import { Button } from '@/shared/ui/button';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { PageHeader } from '@/shared/ui/page-header';
@@ -51,6 +52,12 @@ export function ProfilePage()
                     </div>
                 )}
             </QueryView>
+            <div className="mt-6 max-w-xl">
+                <Section title="Приложение">
+                    <p className="text-sm text-muted-foreground">Открывайте кабинет с главного экрана телефона. Для учебных данных нужен интернет.</p>
+                    <InstallAppButton />
+                </Section>
+            </div>
         </>
     );
 }

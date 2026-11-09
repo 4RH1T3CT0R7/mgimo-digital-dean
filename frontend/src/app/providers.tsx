@@ -1,6 +1,7 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
 import { useEffect, type ReactNode } from 'react';
 import { Toaster } from '@/shared/ui/toast';
+import { OfflineBanner } from '@/features/pwa/OfflineBanner';
 import { meQueryKey, onLogout } from './session';
 
 export function Providers({ client, children }: { client: QueryClient; children: ReactNode }) {
@@ -17,6 +18,7 @@ export function Providers({ client, children }: { client: QueryClient; children:
 
   return (
     <QueryClientProvider client={client}>
+      <OfflineBanner />
       {children}
       <Toaster />
     </QueryClientProvider>

@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router';
+import { ExportCalendarButton } from '@/features/calendar-export/ExportCalendarButton';
 import { useProfile } from '@/features/profile/queries';
 import { toApiDate } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
@@ -29,7 +30,7 @@ export function SchedulePage()
 
     return (
         <>
-            <PageHeader title="Расписание" />
+            <PageHeader title="Расписание" actions={<ExportCalendarButton />} />
             <WeekSwitcher from={from} to={to} week={schedule.data?.weeks.find((week) => week.start_date === from)}
                 onPrevious={() => chooseDate(addDays(from, -7))} onNext={() => chooseDate(addDays(from, 7))} onToday={() => chooseDate(today)} />
             <QueryView query={schedule} isEmpty={(data) => data.lessons.length === 0}

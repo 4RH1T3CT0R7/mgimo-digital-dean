@@ -1,0 +1,13 @@
+.pwa-offline-banner
+{
+    bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* На публичных экранах вкладок нет; над ними не оставляем пустые 64 px. */
+@media (width < 64rem)
+{
+    body:has(nav.fixed[aria-label="Разделы"]) .pwa-offline-banner
+    {
+        bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    }
+}

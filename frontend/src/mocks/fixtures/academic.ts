@@ -3,6 +3,9 @@ import type { components } from '@/api/academic';
 // Данные — docs/contracts/seed.md (student.mo). Владелец дальнейших правок — T09.
 type S = components['schemas'];
 
+// Текущий семестр из services/academic/seed/00_reference.sql.
+export const mockTermEnd = '2026-12-27';
+
 export const faculties: S['Faculty'][] = [
   { id: '10000000-0000-4000-8000-000000000001', short_name: 'ФМО', name: 'Факультет международных отношений' },
   { id: '10000000-0000-4000-8000-000000000002', short_name: 'МЭО', name: 'Факультет международных экономических отношений' },
