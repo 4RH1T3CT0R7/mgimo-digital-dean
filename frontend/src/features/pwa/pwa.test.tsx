@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { endSession } from '@/app/session';
-import { renderWithProviders } from '@/test/render';
+import { setTheme } from '@/app/theme';
+import { ProfilePage } from '@/features/profile/ProfilePage';
+import { http, HttpResponse } from 'msw';
+import { renderWithProviders, server } from '@/test/render';
 import { pwaOptions } from './config';
 import { InstallAppButton } from './InstallAppButton';
 import { clearInstallPrompt, type InstallPromptEvent } from './installation';
@@ -42,13 +45,19 @@ describe('T16: PWA', () =>
         vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online);
         renderWithProviders(<p>Страница</p>);
 
-        expect(screen.queryByText('Нет соединения. Данные могут быть неактуальны')).not.toBeInTheDocument();
+        const status = screen.getByRole('status', { hidden: true });
+        expect(status).toBeEmptyDOMElement();
+        expect(status).not.toBeVisible();
         online = false;
         fireEvent(window, new Event('offline'));
-        expect(screen.getByRole('status')).toHaveTextContent('Нет соединения. Данные могут быть неактуальны');
+        expect(screen.getByRole('status')).toBe(status);
+        expect(status).toHaveTextContent('Нет соединения. Данные могут быть неактуальны');
+        expect(status).toBeVisible();
         online = true;
         fireEvent(window, new Event('online'));
-        expect(screen.queryByText('Нет соединения. Данные могут быть неактуальны')).not.toBeInTheDocument();
+        expect(screen.getByRole('status', { hidden: true })).toBe(status);
+        expect(status).toBeEmptyDOMElement();
+        expect(status).not.toBeVisible();
     });
 
     it('событие установки перехватывается глобально и вызывается только по кнопке', async () =>
@@ -93,41 +102,60 @@ describe('T16: PWA', () =>
         expect(screen.queryByRole('button', { name: 'Установить приложение' })).not.toBeInTheDocument();
     });
 
-    it('выход удаляет все кэши и localStorage приложения', async () =>
+    it('установка доступна и при ошибке загрузки профиля', async () =>
+    {
+        server.use(http.get('/api/academic/me/profile', () => new HttpResponse(null, { status: 503 })));
+        const prompt = vi.fn().mockResolvedValue(undefined);
+        const event = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), {
+            prompt, userChoice: Promise.resolve({ outcome: 'dismissed', platform: 'web' }),
+        }) as InstallPromptEvent;
+        const { user } = renderWithProviders(<ProfilePage />, { route: '/profile', login: 'student.mo' });
+        act(() =>
+        {
+            window.dispatchEvent(event);
+        });
+
+        await screen.findByText('Сервис временно недоступен. Попробуйте чуть позже.');
+        await user.click(screen.getByRole('button', { name: 'Установить приложение' }));
+        expect(prompt).toHaveBeenCalledOnce();
+        expect(screen.getByRole('heading', { name: 'Приложение' })).toBeInTheDocument();
+    });
+
+    it('выход удаляет все кэши и сохраняет выбранную тему', async () =>
     {
         const deleteCache = vi.fn().mockResolvedValue(true);
         vi.stubGlobal('caches', {
             keys: vi.fn().mockResolvedValue(['mgimo-static-precache-v2', 'old-personal-data']),
             delete: deleteCache,
         });
-        localStorage.setItem('theme', 'dark');
-        localStorage.setItem('mgimo:profile', 'тестовые данные');
+        setTheme('dark');
         localStorage.setItem('unrelated-app', 'оставить');
         renderWithProviders(<p>Страница</p>);
         act(() => endSession());
 
-        await waitFor(() => expect(localStorage.getItem('mgimo:profile')).toBeNull());
-        expect(localStorage.getItem('theme')).toBeNull();
+        await waitFor(() => expect(deleteCache).toHaveBeenCalledTimes(2));
+        expect(localStorage.getItem('theme')).toBe('dark');
+        expect(document.documentElement).toHaveClass('dark');
         expect(localStorage.getItem('unrelated-app')).toBe('оставить');
         expect(deleteCache).toHaveBeenCalledWith('old-personal-data');
         expect(deleteCache).toHaveBeenCalledWith('mgimo-static-precache-v2');
         expect(deleteCache).toHaveBeenCalledTimes(2);
     });
 
-    it('без Cache Storage выход всё равно очищает приложение', async () =>
+    it('без Cache Storage тема также сохраняется', async () =>
     {
-        localStorage.setItem('mgimo:profile', 'данные');
+        localStorage.setItem('theme', 'dark');
         await clearAppStorage();
 
-        expect(localStorage.getItem('mgimo:profile')).toBeNull();
+        expect(localStorage.getItem('theme')).toBe('dark');
     });
 
-    it('ошибка Cache Storage не мешает удалить localStorage приложения', async () =>
+    it('ошибка Cache Storage не сбрасывает тему', async () =>
     {
         vi.stubGlobal('caches', { keys: vi.fn().mockRejectedValue(new Error('Cache Storage недоступен')) });
-        localStorage.setItem('mgimo:profile', 'данные');
+        localStorage.setItem('theme', 'dark');
 
         await expect(clearAppStorage()).rejects.toThrow('Cache Storage недоступен');
-        expect(localStorage.getItem('mgimo:profile')).toBeNull();
+        expect(localStorage.getItem('theme')).toBe('dark');
     });
 });

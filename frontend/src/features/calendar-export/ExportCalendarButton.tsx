@@ -53,7 +53,9 @@ export function ExportCalendarButton()
             }
             if (blob.size === 0 || (blob.type && !blob.type.startsWith('text/calendar')))
             {
-                throw new Error('Неверный формат файла календаря');
+                toast.error('Неверный формат файла календаря. Попробуйте скачать ещё раз.');
+
+                return;
             }
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -63,7 +65,8 @@ export function ExportCalendarButton()
             link.click();
             link.remove();
             const revoke = URL.revokeObjectURL.bind(URL);
-            window.setTimeout(() => revoke(url), 1000);
+            // Safari может читать Blob уже после начала скачивания и ухода с экрана.
+            window.setTimeout(() => revoke(url), 40_000);
         }
         catch (error)
         {
@@ -80,10 +83,13 @@ export function ExportCalendarButton()
     };
 
     return <div className="flex max-w-sm flex-col items-start gap-2">
-        <Button variant="outline" disabled={busy} onClick={() => void download()}><DownloadIcon aria-hidden />{busy ? 'Скачиваем…' : 'В календарь'}</Button>
+        <Button variant="outline" disabled={busy} onClick={() => void download()}>
+            <DownloadIcon aria-hidden />
+            {busy ? 'Скачиваем…' : 'Скачать для календаря'}
+        </Button>
         <details className="text-sm text-muted-foreground"><summary className="flex min-h-11 cursor-pointer items-center text-primary">Как импортировать на телефон</summary><div className="flex flex-col gap-3 pt-2">
             <p>Файл содержит занятия с сегодняшнего дня до конца семестра.</p>
-            <p>iPhone: откройте файл .ics как вложение в «Почте» и добавьте события в «Календарь».</p>
+            <p>iPhone: откройте скачанный .ics в «Файлах». Если доступна кнопка «Добавить все», нажмите её и выберите календарь. Если импорт не предлагается, отправьте файл себе и откройте вложение в приложении «Почта».</p>
             <p>Android с Google Календарём: на компьютере откройте настройки календаря, раздел «Импорт и экспорт», и загрузите файл. События появятся на телефоне при синхронизации.</p>
             <p>Это снимок расписания. После изменений скачайте файл заново.</p>
         </div></details>

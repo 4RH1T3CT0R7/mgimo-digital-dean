@@ -21,7 +21,6 @@ function color(name: string): string
 export const pwaOptions: Partial<VitePWAOptions> = {
     registerType: 'autoUpdate',
     injectRegister: 'script-defer',
-    includeAssets: ['favicon.svg', 'theme.js', 'icons/*.png'],
     manifest: {
         id: '/',
         name: 'Цифровой деканат — концепт',
@@ -32,11 +31,10 @@ export const pwaOptions: Partial<VitePWAOptions> = {
         scope: '/',
         display: 'standalone',
         background_color: color('background'),
-        theme_color: color('primary'),
+        theme_color: color('background'),
         icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
     },
     workbox: {
