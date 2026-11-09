@@ -6,7 +6,7 @@ import { shortDate } from '../calendar';
 import { lessonKindLabels } from '../labels';
 import type { Lesson } from '../queries';
 
-export function LessonChangeLabel({ lesson }: { lesson: Lesson })
+export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { lesson: Lesson; schedulePath?: string })
 {
     const previous = lesson.change?.previous;
 
@@ -17,7 +17,7 @@ export function LessonChangeLabel({ lesson }: { lesson: Lesson })
     if (lesson.status === 'moved_away' && lesson.moved_to)
     {
         return (
-            <Link className="flex min-h-11 items-center text-sm text-primary underline underline-offset-4" to={`/schedule?date=${lesson.moved_to.date}`}>
+            <Link className="flex min-h-11 items-center text-sm text-primary underline underline-offset-4" to={`${schedulePath}?date=${lesson.moved_to.date}`}>
                 Перенесено на {shortDate(lesson.moved_to.date)}, {lesson.moved_to.start_time}
             </Link>
         );
@@ -34,9 +34,10 @@ export function LessonChangeLabel({ lesson }: { lesson: Lesson })
     return null;
 }
 
-export function LessonRow({ lesson, languageGroups = [] }: {
+export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
     lesson: Lesson;
     languageGroups?: components['schemas']['LanguageGroupRef'][];
+    schedulePath?: string;
 })
 {
     const inactive = lesson.status === 'cancelled' || lesson.status === 'moved_away';
@@ -50,7 +51,7 @@ export function LessonRow({ lesson, languageGroups = [] }: {
             <div className="flex min-w-0 flex-col items-start gap-2">
                 <p className={cn('font-semibold break-words', inactive && 'text-muted-foreground', lesson.status === 'cancelled' && 'line-through')}>{lesson.discipline.name}</p>
                 <p className="text-sm text-muted-foreground">{lessonKindLabels[lesson.kind]}{lesson.format === 'online' ? ', онлайн' : ''}</p>
-                <LessonChangeLabel lesson={lesson} />
+                <LessonChangeLabel lesson={lesson} schedulePath={schedulePath} />
                 {lesson.change?.reason && <p className="text-sm break-words text-muted-foreground">{lesson.change.reason}</p>}
                 {lesson.room && <p className="text-sm">{lesson.room.building}, {lesson.room.number}</p>}
                 {lesson.teacher && <p className="text-sm text-muted-foreground">{lesson.teacher.short_name}</p>}
