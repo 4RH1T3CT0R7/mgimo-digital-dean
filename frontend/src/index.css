@@ -46,32 +46,33 @@
   --tabbar-h: 4rem;
 }
 
+/* Тёмная тема: нейтральный графит без синевы; цвета МГИМО — только акценты (кнопки, ссылки, активное) */
 .dark {
   color-scheme: dark;
-  --background: #0d1526;
-  --foreground: #e7ecf5;
-  --card: #142039;
-  --popover: #18264a;
+  --background: #111214;
+  --foreground: #e8eaed;
+  --card: #1a1c1f;
+  --popover: #222427;
   --primary: #4aaef2;
   --primary-foreground: #08182e;
-  --secondary: #1c2a48;
-  --muted: #1a2742;
-  --muted-foreground: #9daac3;
-  --accent: #1d3157;
+  --secondary: #26282c;
+  --muted: #212327;
+  --muted-foreground: #a2a7af;
+  --accent: #1c2b40;
   --accent-foreground: #cfe6ff;
-  --border: #26365a;
-  --input: #5b6f98;
+  --border: #2e3135;
+  --input: #6e737b;
   --ring: #4aaef2;
   --destructive: #c9372e;
   --destructive-foreground: #ffffff;
 
-  --info-soft: #17305a;
+  --info-soft: #182a40;
   --info-strong: #9ccbff;
-  --success-soft: #123527;
+  --success-soft: #15291f;
   --success-strong: #86ddae;
-  --warning-soft: #3a2c10;
+  --warning-soft: #342a14;
   --warning-strong: #f3c66f;
-  --danger-soft: #3e1a1e;
+  --danger-soft: #3a1c1e;
   --danger-strong: #ffa29a;
 }
 
