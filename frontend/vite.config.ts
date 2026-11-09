@@ -4,11 +4,14 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { pwaOptions } from './src/features/pwa/config.ts';
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    VitePWA(pwaOptions),
     {
       // Воркер MSW нужен только в режиме моков — в сборку для прода не кладём
       name: 'drop-mock-worker',

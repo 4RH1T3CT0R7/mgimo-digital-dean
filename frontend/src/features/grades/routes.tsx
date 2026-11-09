@@ -1,6 +1,6 @@
 import type { RouteObject } from 'react-router';
-import { StubPage } from '@/shared/ui/stub-page';
+import { GradesPage } from './GradesPage';
 
 export const publicRoutes: RouteObject[] = [];
-export const studentRoutes: RouteObject[] = [{ path: '/grades', element: <StubPage title="Успеваемость" task="T09" /> }];
+export const studentRoutes: RouteObject[] = [{ path: '/grades', element: <GradesPage /> }];
 export const staffRoutes: RouteObject[] = [];
