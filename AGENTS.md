@@ -67,7 +67,8 @@
 | `services/auth/`, `services/requests/`, `services/assistant/`, `pkg/`, `cmd/`, `deploy/`, `Dockerfile`, `Makefile`, `.github/`, `go.mod`, `go.sum` | Капитан |
 | `docs/contracts/`, `docs/decisions.md`, `docs/progress.md`, `docs/plan.md`, `docs/tasks/`, `AGENTS.md`, `CLAUDE.md` | Капитан |
 | `frontend/` — каркас: `src/app/`, `src/shared/`, `src/api/`, `src/test/`, конфиги; `src/features/{auth,requests,staff-applications}/`; `src/mocks/` кроме чужих файлов ниже | Капитан |
-| `services/academic/`; `frontend/src/features/{today,schedule,grades,profile,staff-lessons,verify,pwa,calendar-export}/`; `frontend/src/mocks/{handlers,fixtures}/academic.ts`; `frontend/public/{brand,icons,illustrations}/` | Всеволод Омельченко |
+| `frontend/public/{brand,icons,illustrations}/` — дизайн и финальные ассеты T17 (передана 09.11); временные иконки и подключение PWA разрешены исполнителю T16 по его ТЗ | Капитан |
+| `services/academic/`; `frontend/src/features/{today,schedule,grades,profile,staff-lessons,verify,pwa,calendar-export}/`; `frontend/src/mocks/{handlers,fixtures}/academic.ts` | Всеволод Омельченко |
 | `services/notifications/`; `frontend/src/features/{notifications,staff-announcements,assistant}/`; `frontend/src/mocks/{handlers,fixtures}/{notifications,assistant}.ts`; `e2e/`; `content/` | Владислав Пилипенко |
 | `docs/process/` | Все: каждый дописывает свои записи **в конец** файла |
 
