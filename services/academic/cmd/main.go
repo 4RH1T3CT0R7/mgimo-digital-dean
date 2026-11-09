@@ -4,8 +4,10 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/events"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/academic/internal/app"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/academic/migrations"
@@ -25,7 +27,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	srv := app.New(pool, logger, time.Now)
+	bus, err := events.Connect(ctx, platform.MustEnv("NATS_URL"), logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer bus.Close()
+
+	srv := app.New(pool, logger, time.Now, bus)
+	if len(os.Args) > 1 && os.Args[1] == "-seed-events" {
+		n, err := srv.ReplaySeedEvents(ctx)
+		if err != nil {
+			log.Fatal(err)
+		}
+		logger.Info("seed_events", "published", n)
+
+		return
+	}
 	public, internal := srv.Handlers()
 	if err := platform.Run("academic", public, internal); err != nil {
 		log.Fatal(err)

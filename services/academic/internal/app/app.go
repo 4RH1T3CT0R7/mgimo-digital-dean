@@ -11,26 +11,38 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/events"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform"
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/academic/internal/api"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/academic/internal/db"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/academic/internal/internalapi"
 )
 
-// Server реализует внутренний API academic; публичный API добавляется в PR2.
+// Server реализует публичный и внутренний strict-интерфейсы academic.
 type Server struct {
-	q   *db.Queries
-	log *slog.Logger
-	now func() time.Time
+	q    *db.Queries
+	log  *slog.Logger
+	now  func() time.Time
+	pool *pgxpool.Pool
+	bus  *events.Bus
 }
 
 var _ internalapi.StrictServerInterface = (*Server)(nil)
+var _ api.StrictServerInterface = (*Server)(nil)
 
-func New(pool *pgxpool.Pool, log *slog.Logger, now func() time.Time) *Server {
-	return &Server{q: db.New(pool), log: log, now: now}
+func New(pool *pgxpool.Pool, log *slog.Logger, now func() time.Time, bus *events.Bus) *Server {
+	return &Server{q: db.New(pool), pool: pool, log: log, now: now, bus: bus}
 }
 
 // Handlers разделяет публичный (8080) и внутренний (8081) API.
 func (s *Server) Handlers() (public, internal http.Handler) {
+	pub := api.HandlerWithOptions(api.NewStrictHandlerWithOptions(s, nil, api.StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  platform.RequestErrorHandler,
+		ResponseErrorHandlerFunc: platform.ResponseErrorHandler,
+	}), api.StdHTTPServerOptions{
+		BaseRouter:       platform.NewMux(),
+		ErrorHandlerFunc: platform.RequestErrorHandler,
+	})
 	in := internalapi.HandlerWithOptions(internalapi.NewStrictHandlerWithOptions(s, nil, internalapi.StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  platform.RequestErrorHandler,
 		ResponseErrorHandlerFunc: platform.ResponseErrorHandler,
@@ -39,7 +51,7 @@ func (s *Server) Handlers() (public, internal http.Handler) {
 		ErrorHandlerFunc: platform.RequestErrorHandler,
 	})
 
-	return platform.Middleware(s.log, platform.NewMux()), platform.Middleware(s.log, in)
+	return platform.Middleware(s.log, pub), platform.Middleware(s.log, in)
 }
 
 func (s *Server) GetStudentCard(ctx context.Context, req internalapi.GetStudentCardRequestObject) (internalapi.GetStudentCardResponseObject, error) {

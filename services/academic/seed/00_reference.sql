@@ -33,10 +33,10 @@ INSERT INTO students (id, full_name, short_name, faculty_id, program_id, course,
                       student_card_no, study_form, funding, study_level, enrollment_year, status) VALUES
 ('30000000-0000-4000-8000-000000000001', 'Лебедева Анна Викторовна', 'Лебедева А. В.',
  '10000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', 2,
- '20000000-0000-4000-8000-000000000001', '2401317', 'full_time', 'budget', 'bachelor', 2024, 'studying'),
+ '20000000-0000-4000-8000-000000000001', '2401317', 'full_time', 'budget', 'bachelor', 2025, 'studying'),
 ('30000000-0000-4000-8000-000000000002', 'Соколов Максим Олегович', 'Соколов М. О.',
  '10000000-0000-4000-8000-000000000002', '11000000-0000-4000-8000-000000000002', 3,
- '20000000-0000-4000-8000-000000000004', '2302214', 'full_time', 'contract', 'bachelor', 2023, 'studying');
+ '20000000-0000-4000-8000-000000000004', '2302214', 'full_time', 'contract', 'bachelor', 2024, 'studying');
 
 -- По девять одногруппников без аккаунтов auth, для статистики ознакомления.
 INSERT INTO students (id, full_name, short_name, faculty_id, program_id, course, academic_group_id,
@@ -44,7 +44,7 @@ INSERT INTO students (id, full_name, short_name, faculty_id, program_id, course,
 SELECT ('31000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
        full_name, short_name, '10000000-0000-4000-8000-000000000001',
        '11000000-0000-4000-8000-000000000001', 2, '20000000-0000-4000-8000-000000000001',
-       '24-DEMO-' || lpad(n::text, 3, '0'), 'full_time', 'budget', 'bachelor', 2024, 'studying'
+       '24-DEMO-' || lpad(n::text, 3, '0'), 'full_time', 'budget', 'bachelor', 2025, 'studying'
 FROM (VALUES
     (1, 'Астахова Дарья Игоревна', 'Астахова Д. И.'),
     (2, 'Бережной Илья Сергеевич', 'Бережной И. С.'),
@@ -62,7 +62,7 @@ INSERT INTO students (id, full_name, short_name, faculty_id, program_id, course,
 SELECT ('32000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
        full_name, short_name, '10000000-0000-4000-8000-000000000002',
        '11000000-0000-4000-8000-000000000002', 3, '20000000-0000-4000-8000-000000000004',
-       '23-DEMO-' || lpad(n::text, 3, '0'), 'full_time', 'contract', 'bachelor', 2023, 'studying'
+       '23-DEMO-' || lpad(n::text, 3, '0'), 'full_time', 'contract', 'bachelor', 2024, 'studying'
 FROM (VALUES
     (1, 'Калинина Елизавета Артёмовна', 'Калинина Е. А.'),
     (2, 'Луговой Матвей Никитич', 'Луговой М. Н.'),
