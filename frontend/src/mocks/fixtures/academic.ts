@@ -3,6 +3,9 @@ import type { components } from '@/api/academic';
 // Данные — docs/contracts/seed.md (student.mo). Владелец дальнейших правок — T09.
 type S = components['schemas'];
 
+// Текущий семестр из services/academic/seed/00_reference.sql.
+export const mockTermEnd = '2026-12-27';
+
 export const faculties: S['Faculty'][] = [
   { id: '10000000-0000-4000-8000-000000000001', short_name: 'ФМО', name: 'Факультет международных отношений' },
   { id: '10000000-0000-4000-8000-000000000002', short_name: 'МЭО', name: 'Факультет международных экономических отношений' },
@@ -27,10 +30,10 @@ export const profile: S['Profile'] = {
     { ...groupEn, language: 'Английский язык' },
     { ...groupFr, language: 'Французский язык' },
   ],
-  student_card_no: '24-01873',
+  student_card_no: '2401317',
   study_form: 'full_time',
   funding: 'budget',
-  enrollment_year: 2024,
+  enrollment_year: 2025,
   status: 'studying',
 };
 
@@ -130,3 +133,78 @@ export const weekSchedule: S['Schedule'] = {
     lesson('2026-11-20', 3, DISC.fr, 'language', '3204', TEACH.belova, [groupFr]),
   ],
 };
+
+const scores = [55, 50, 48, 40, 55, 30];
+const attendance = [95, 90, 85, 90, 65, 90];
+
+export const currentGrades: S['CurrentGrades'] = {
+    as_of: '2026-11-18T09:00:00+03:00',
+    semester: 3,
+    disciplines: Object.values(DISC).map((discipline, index): S['CurrentDiscipline'] => {
+        const score = scores[index];
+        const traffic = index === 5 ? 'red' : index === 3 || index === 4 ? 'yellow' : 'green';
+
+        return {
+            discipline,
+            control_form: index === 5 ? 'credit' : 'exam',
+            teacher: Object.values(TEACH)[index % 5],
+            score,
+            max_to_date: 60,
+            attendance_percent: attendance[index],
+            traffic,
+            traffic_reason: index === 5 ? 'Набрано меньше 60% возможных баллов' : index === 3 ? 'Набрано меньше 75% возможных баллов' : index === 4 ? 'Посещаемость ниже 70%' : null,
+            to_excellent: { needed: 90 - score, achievable: 90 - score <= 40 },
+            control_points: [
+                { date: '2026-10-01', title: 'Контрольная работа 1', score: Math.floor(score / 2), max: 30 },
+                { date: '2026-10-22', title: 'Семинарская работа', score: score - Math.floor(score / 2), max: 30 },
+                { date: '2026-11-12', title: 'Контрольная работа 2', score: null, max: 30 },
+            ],
+        };
+    }).sort((a, b) => ({ red: 0, yellow: 1, green: 2 }[a.traffic] - { red: 0, yellow: 1, green: 2 }[b.traffic])),
+};
+
+export const sessionResults: S['SessionResults'] = {
+    as_of: currentGrades.as_of,
+    semesters: [2, 1].map((semester): S['SessionResults']['semesters'][number] => ({
+        semester,
+        academic_year: '2025/2026',
+        term: semester === 2 ? 'spring' : 'autumn',
+        results: Object.values(DISC).map((discipline, index): S['SessionResult'] => ({
+            discipline,
+            control_form: index === 5 ? 'credit' : index === 4 ? 'graded_credit' : 'exam',
+            hours: 108,
+            credits: 3,
+            percent: index === 5 ? null : [95, 85, 78, 70, 63][index],
+            grade5: index === 5 ? null : (['excellent', 'good', 'good', 'satisfactory', 'satisfactory'] as const)[index],
+            ects: index === 5 ? null : (['A', 'B', 'C', 'D', 'E'] as const)[index],
+            passed: index === 5 ? true : null,
+            status: 'passed',
+            date: semester === 2 ? '2026-06-20' : '2026-01-20',
+        })),
+    })),
+};
+
+export const gradesSummary: S['GradesSummary'] = {
+    as_of: currentGrades.as_of,
+    current_semester: 3,
+    average_grade5: 3.8,
+    average_percent: 78.2,
+    debts_count: 0,
+    rating: { semester: 2, percent: 82.5, percentile: 78 },
+    traffic: { green: 3, yellow: 2, red: 1 },
+};
+
+export const staffGroups: S['GroupInfo'][] = [
+    { ...groupMO, kind: 'academic', course: 2, faculty_short: 'ФМО' },
+    { ...groupEn, kind: 'language', course: 2, faculty_short: 'ФМО' },
+    { ...groupFr, kind: 'language', course: 2, faculty_short: 'ФМО' },
+    { id: '20000000-0000-4000-8000-000000000004', name: 'МЭО-23-02', kind: 'academic', course: 3, faculty_short: 'МЭО' },
+];
+
+export const academicState = { lessons: structuredClone(weekSchedule.lessons), asOf: weekSchedule.as_of };
+
+export function resetAcademicState()
+{
+    academicState.lessons = structuredClone(weekSchedule.lessons);
+    academicState.asOf = weekSchedule.as_of;
+}
