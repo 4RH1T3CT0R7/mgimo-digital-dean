@@ -1,0 +1,143 @@
+{
+  "checked_at": "2026-11-09T12:33:06.107Z",
+  "source_commit": "17b0af2204991f354380f371283777c5710d59bd",
+  "caddy": "v2.11.9 h1:bhZtcRKQOq0fuLvEgCdPYvUxXyGn9kzjG4lh2332DTE=",
+  "checks": [
+    "academic seed-events дважды: 18 уникальных событий",
+    "HTTPS Caddy: без сессии 401; подделка заголовков 401; internal 404",
+    "четыре настоящих входа, Secure/HttpOnly/SameSite cookie",
+    "student.mo: профиль, неделя с 4 статусами, оценки/сессии и светофор 3/2/1",
+    "подделка личности не меняет профиль; чужой факультет 404; студент не меняет занятие",
+    "dekanat.mo: перенос 17→19→20 и аудитория; студент видит исходный и фактический слоты",
+    "отмена в слоте 20.11; ICS исключает отмену; реальные NATS-события содержат фактический previous",
+    "проверка справки: настоящий requests без сессии, только публичные поля; чужой код 404",
+    "истёкшая справка: настоящий API возвращает 200 и valid=false",
+    "проверка справки: настоящий лимит 429 и положительный Retry-After",
+    "настоящий logout отзывает сессию, прежняя cookie больше не работает"
+  ],
+  "evidence": {
+    "seed_events": {
+      "published_per_run": 18,
+      "repeated_runs": 2,
+      "unique_received": 18
+    },
+    "schedule": {
+      "period": [
+        "2026-11-16",
+        "2026-11-22"
+      ],
+      "records": 21
+    },
+    "traffic": {
+      "green": 3,
+      "red": 1,
+      "yellow": 2
+    },
+    "lesson": {
+      "id": "fcf24435-e9fb-a771-86b1-c5d5a31f0e45",
+      "api_previous": {
+        "date": "2026-11-17",
+        "end_time": "10:20",
+        "room": {
+          "building": "Главный корпус",
+          "number": "2121"
+        },
+        "start_time": "09:00"
+      },
+      "cancelled_date": "2026-11-20",
+      "cancelled_time": "17:20",
+      "live_events": [
+        {
+          "id": "4c04e350-2e80-45b2-b745-7c91d63cc05d",
+          "type": "moved",
+          "previous": {
+            "date": "2026-11-17",
+            "start_time": "09:00",
+            "end_time": "10:20",
+            "room": "Главный корпус, 2121"
+          },
+          "current": {
+            "date": "2026-11-19",
+            "start_time": "18:50",
+            "end_time": "20:10",
+            "room": "Главный корпус, 2121"
+          }
+        },
+        {
+          "id": "0821f619-938e-42ec-8f42-e5a468f24307",
+          "type": "moved",
+          "previous": {
+            "date": "2026-11-19",
+            "start_time": "18:50",
+            "end_time": "20:10",
+            "room": "Главный корпус, 2121"
+          },
+          "current": {
+            "date": "2026-11-20",
+            "start_time": "17:20",
+            "end_time": "18:40",
+            "room": "Главный корпус, 2121"
+          }
+        },
+        {
+          "id": "8d6407ee-3497-4154-980d-f803ae9de34f",
+          "type": "room_changed",
+          "previous": {
+            "date": "2026-11-20",
+            "start_time": "17:20",
+            "end_time": "18:40",
+            "room": "Главный корпус, 2121"
+          },
+          "current": {
+            "date": "2026-11-20",
+            "start_time": "17:20",
+            "end_time": "18:40",
+            "room": "Главный корпус, 3047"
+          }
+        },
+        {
+          "id": "80d15151-5def-4851-a36a-4c4e403a1e5d",
+          "type": "cancelled",
+          "previous": {
+            "date": "2026-11-20",
+            "start_time": "17:20",
+            "end_time": "18:40",
+            "room": "Главный корпус, 3047"
+          },
+          "current": {
+            "date": "2026-11-20",
+            "start_time": "17:20",
+            "end_time": "18:40",
+            "room": "Главный корпус, 3047"
+          }
+        }
+      ],
+      "exported_events_before_cancel": 19,
+      "exported_events_after_cancel": 18
+    },
+    "certificate": {
+      "valid_status": 200,
+      "public_fields": [
+        "faculty_short",
+        "holder",
+        "issued_at",
+        "title",
+        "valid",
+        "valid_until"
+      ],
+      "not_found_status": 404,
+      "expired_status": 200,
+      "expired_valid": false,
+      "rate_limit_status": 429,
+      "retry_after_seconds": 58
+    }
+  },
+  "complete": true,
+  "cleanup": "Started processes stopped; isolated databases dropped; local CA removed; no system trust changes",
+  "limitations": [
+    "Local HTTPS only; startup ports changed by Go build overlay",
+    "Caddyfile route/auth rules preserved; Docker DNS/load-balancing snippet replaced with one loopback upstream",
+    "notifications remains a stub; no delivery-to-student check",
+    "No browser UI or phone check"
+  ]
+}
