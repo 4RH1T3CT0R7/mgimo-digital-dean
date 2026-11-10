@@ -1,0 +1,27 @@
+[
+  {
+    "screen": "schedule-360-light",
+    "background": "rgb(244, 246, 250)",
+    "font": true,
+    "scroll": 345,
+    "width": 345
+  },
+  {
+    "screen": "grades-360-light",
+    "background": "rgb(244, 246, 250)",
+    "scroll": 345,
+    "width": 345
+  },
+  {
+    "screen": "profile-360-light",
+    "background": "rgb(244, 246, 250)",
+    "scroll": 345,
+    "width": 345
+  },
+  {
+    "screen": "today-360-light",
+    "background": "rgb(244, 246, 250)",
+    "scroll": 345,
+    "width": 345
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "source_commit": "17b0af2204991f354380f371283777c5710d59bd",
+  "events": [
+    {
+      "id": "18b1de71-b69c-400a-b114-781f34254147",
+      "type": "academic.lesson.changed",
+      "occurred_at": "2026-11-09T15:54:22.0340292+03:00",
+      "data": {
+        "lesson_id": "fcf24435-e9fb-a771-86b1-c5d5a31f0e45",
+        "faculty_id": "10000000-0000-4000-8000-000000000001",
+        "group_ids": [
+          "20000000-0000-4000-8000-000000000001"
+        ],
+        "discipline_name": "История международных отношений",
+        "change_type": "moved",
+        "previous": {
+          "date": "2026-11-17",
+          "start_time": "09:00",
+          "end_time": "10:20",
+          "room": "Главный корпус, 2121"
+        },
+        "current": {
+          "date": "2026-11-20",
+          "start_time": "18:50",
+          "end_time": "20:10",
+          "room": "Главный корпус, 2121"
+        },
+        "reason": "Проверка настоящего переноса"
+      }
+    }
+  ],
+  "cleanup": true
+}
