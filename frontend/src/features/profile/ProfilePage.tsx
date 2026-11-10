@@ -26,7 +26,7 @@ export function ProfilePage()
                                 {[
                                     ['Факультет', `${data.faculty.name} (${data.faculty.short_name})`],
                                     ['Направление', `${data.program.code} ${data.program.name}`],
-                                    ['Уровень образования', studyLevelLabels[data.study_level]],
+                                    ['Степень', studyLevelLabels[data.study_level]],
                                     ['Курс', data.course], ['Академическая группа', data.group.name],
                                     ['Студенческий билет', data.student_card_no], ['Форма обучения', studyFormLabels[data.study_form]],
                                     ['Основа обучения', fundingLabels[data.funding]], ['Год поступления', data.enrollment_year],
