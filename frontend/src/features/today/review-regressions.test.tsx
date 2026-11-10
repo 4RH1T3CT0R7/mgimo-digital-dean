@@ -2,8 +2,9 @@ import { screen, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GradesPage } from '@/features/grades/GradesPage';
+import { LessonRow } from '@/features/schedule/components/LessonRow';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
-import { currentGrades, gradesSummary } from '@/mocks/fixtures/academic';
+import { currentGrades, gradesSummary, weekSchedule } from '@/mocks/fixtures/academic';
 import { renderWithProviders, server } from '@/test/render';
 import { durationLabel } from './clock';
 import { TodayPage } from './TodayPage';
@@ -74,11 +75,24 @@ describe('T09: замечания ревью', () =>
         renderWithProviders(<TodayPage />, { route: '/?scenario=empty' });
         const next = within((await screen.findByRole('heading', { name: 'Сейчас / Далее' })).closest('section')!);
 
-        expect(await next.findByText('На этой неделе занятий нет')).toBeInTheDocument();
+        expect(await next.findByText('В ближайшие 14 дней занятий нет')).toBeInTheDocument();
         expect(next.queryByText('Сегодня занятий нет')).not.toBeInTheDocument();
         const applications = screen.getByRole('heading', { name: 'Мои заявки' }).closest('section')!;
         expect(await within(applications).findByText('Заявок пока нет')).toBeInTheDocument();
         expect(applications.querySelector('.border.bg-card')).toBeNull();
+    });
+
+    it('занятие вне стандартной сетки показывает время, а не восьмую пару', () =>
+    {
+        renderWithProviders(<LessonRow lesson={{ ...weekSchedule.lessons[0],
+            pair_number: 8, start_time: '12:15', end_time: '13:35',
+        }} />);
+
+        const row = within(screen.getByRole('article'));
+        expect(row.getByText('12:15')).toBeInTheDocument();
+        expect(row.getByText('13:35')).toBeInTheDocument();
+        expect(row.getByText('Другое время')).toBeInTheDocument();
+        expect(row.queryByText(/8(?:-я)? пара/)).not.toBeInTheDocument();
     });
 
     it.each([[2, 'баллов'], [5, 'баллов'], [21, 'балла'], [22, 'баллов']])('склоняет недостающие %i балла', async (needed, word) =>

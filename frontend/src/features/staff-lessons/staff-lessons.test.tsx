@@ -34,7 +34,7 @@ function renderSheet()
 async function prepareMove(user: ReturnType<typeof renderSheet>['user'])
 {
     await user.type(screen.getByLabelText('Новая дата'), '2026-11-19');
-    await chooseSelect(user, 'Пара', '3 пара — 12:00–13:20');
+    await chooseSelect(user, 'Пара', '3-я пара — 12:00–13:20');
     await user.click(screen.getByRole('button', { name: 'Далее' }));
 }
 
@@ -69,7 +69,7 @@ describe('T14: обязательные сценарии Y1–Y5', () => {
         await prepareMove(user);
 
         expect(body).toBeUndefined();
-        expect(screen.getByText(/Студенты групп МО-24-03 получат уведомление/)).toBeInTheDocument();
+        expect(screen.getByText(/Уведомление получат студенты группы МО-24-03/)).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Перенести занятие' }));
         await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
         expect(body).toEqual({ type: 'moved', new_date: '2026-11-19', new_start_time: '12:00', new_end_time: '13:20' });
@@ -222,7 +222,7 @@ describe('T14: полное ревью капитана', () =>
         await user.type(date, lesson.date);
         await user.click(screen.getByRole('button', { name: 'Далее' }));
 
-        expect(screen.getByText('Выберите другую дату или время: занятие не изменилось')).toBeInTheDocument();
+        expect(screen.getByText('Выберите другую дату или время')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Перенести занятие' })).not.toBeInTheDocument();
     });
 

@@ -30,7 +30,7 @@ export function ProfilePage()
                                     ['Курс', data.course], ['Академическая группа', data.group.name],
                                     ['Студенческий билет', data.student_card_no], ['Форма обучения', studyFormLabels[data.study_form]],
                                     ['Основа обучения', fundingLabels[data.funding]], ['Год поступления', data.enrollment_year],
-                                    ['Статус', studentStatusLabels[data.status]], ['Краткое имя', data.short_name],
+                                    ['Статус', studentStatusLabels[data.status]], ['Сокращённое имя', data.short_name],
                                 ].map(([label, value]) => (
                                     <div key={label} className="min-w-0"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-1 break-words">{value}</dd></div>
                                 ))}
@@ -45,7 +45,7 @@ export function ProfilePage()
                             </dl>
                         </Section>
                         <Section title="Мои данные">
-                            <p className="text-sm text-muted-foreground">В кабинете отображаются сведения об обучении. Если нашли ошибку, сообщите в деканат.</p>
+                            <p className="text-sm text-muted-foreground">Если в учебных данных есть ошибка, сообщите в деканат.</p>
                             <Link to="/privacy" className="flex min-h-11 items-center text-primary underline underline-offset-4">Как мы обрабатываем ваши данные</Link>
                             <Button variant="outline" disabled={logout.isPending} onClick={() => logout.mutate()}>{logout.isPending ? 'Выходим…' : 'Выйти'}</Button>
                         </Section>
@@ -54,7 +54,7 @@ export function ProfilePage()
             </QueryView>
             <div className="mt-6 max-w-xl">
                 <Section title="Приложение">
-                    <p className="text-sm text-muted-foreground">Открывайте кабинет с главного экрана телефона. Для учебных данных нужен интернет.</p>
+                    <p className="text-sm text-muted-foreground">Кабинет можно открыть с главного экрана. Для загрузки расписания и оценок нужен интернет.</p>
                     <InstallAppButton />
                 </Section>
             </div>

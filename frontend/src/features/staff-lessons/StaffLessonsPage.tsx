@@ -58,7 +58,7 @@ export function StaffLessonsPage()
             <div className="mb-6 grid min-w-0 gap-4 sm:grid-cols-2">
                 <FacultyFilter />
                 <QueryView query={groups} isEmpty={(data) => data.length === 0}
-                    empty={<EmptyState title="Групп пока нет" description="У выбранного факультета пока нет групп." />}>
+                    empty={<EmptyState title="На факультете пока нет групп" />}>
                     {(data) => (
                         <div className="flex min-w-0 flex-col gap-2">
                             <Label htmlFor="group">Группа</Label>
