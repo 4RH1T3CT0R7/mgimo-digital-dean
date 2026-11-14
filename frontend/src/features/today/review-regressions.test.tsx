@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GradesPage } from '@/features/grades/GradesPage';
 import { SchedulePage } from '@/features/schedule/SchedulePage';
 import { currentGrades, gradesSummary } from '@/mocks/fixtures/academic';
+import { setMockUser } from '@/mocks/handlers/auth';
 import { renderWithProviders, server } from '@/test/render';
 import { durationLabel } from './clock';
 import { TodayPage } from './TodayPage';
 
 beforeEach(() =>
 {
+    setMockUser('student.mo');
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-18T10:00:00+03:00'));
 });
