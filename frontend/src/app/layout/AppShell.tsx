@@ -132,8 +132,12 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
           <Logo compact className="lg:hidden" />
           <UserMenu profileLink={profileLink} />
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
-          <Outlet />
+        <main id="main" tabIndex={-1} className="relative isolate mx-auto w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
+          <div aria-hidden className="skyline skyline-page" />
+          {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}
+          <div key={pathname} className="animate-[rise_200ms_ease-out]">
+            <Outlet />
+          </div>
         </main>
         <Footer />
       </div>

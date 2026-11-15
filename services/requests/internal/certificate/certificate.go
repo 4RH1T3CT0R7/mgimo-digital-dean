@@ -84,7 +84,7 @@ func Render(d Data) ([]byte, error) {
 
 		pdf.SetFont(font, "", 9)
 		pdf.SetTextColor(110, 110, 110)
-		pdf.CellFormat(0, 5, "МГИМО · Цифровой деканат · прототип", "", 1, "L", false, 0, "")
+		pdf.CellFormat(0, 5, "Учебный прототип «Мой вуз»", "", 1, "L", false, 0, "")
 		pdf.SetTextColor(0, 0, 0)
 		pdf.Ln(12)
 	})

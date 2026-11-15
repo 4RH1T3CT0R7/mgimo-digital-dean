@@ -41,7 +41,7 @@ export function PrivacyPage() {
     <article className="mx-auto flex max-w-3xl flex-col gap-6 text-[15px] leading-relaxed">
       <PageHeader
         title="Политика обработки персональных данных"
-        subtitle="Как прототип «Цифровой деканат» обращается с данными — простыми словами"
+        subtitle="Как прототип «Мой вуз» обращается с данными — простыми словами"
       />
 
       <p className="rounded-lg bg-warning-soft px-4 py-3 text-warning-strong">

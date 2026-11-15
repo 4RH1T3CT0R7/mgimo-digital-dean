@@ -1,5 +1,5 @@
 import { CheckIcon, CircleAlertIcon, XIcon } from 'lucide-react';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { cn } from '@/shared/lib/utils';
 
 /**
@@ -41,6 +41,8 @@ function Marker({ state }: { state: StepState }) {
 }
 
 export function StatusSteps({ steps, label, className }: { steps: Step[]; label: string; className?: string }) {
+  // Шаги, пройденные к открытию страницы, рисуются сразу; дорастает только линия к шагу, пройденному при живом обновлении
+  const [reachedOnOpen] = useState(() => new Set(steps.filter((s) => REACHED.includes(s.state)).map((s) => s.label)));
   return (
     <ol
       aria-label={label}
@@ -55,7 +57,11 @@ export function StatusSteps({ steps, label, className }: { steps: Step[]; label:
               // Линия к следующему шагу: закрашена, если процесс до него дошёл
               <span
                 aria-hidden
-                className={cn('absolute top-4 left-8 h-0.5 w-[calc(100%-2rem)]', REACHED.includes(next.state) ? 'bg-primary' : 'bg-border')}
+                className={cn(
+                  'absolute top-4 left-8 h-0.5 w-[calc(100%-2rem)]',
+                  REACHED.includes(next.state) ? 'bg-primary' : 'bg-border',
+                  REACHED.includes(next.state) && !reachedOnOpen.has(next.label) && 'origin-left animate-[grow-x_220ms_ease-out]',
+                )}
               />
             )}
             <Marker state={s.state} />
