@@ -81,7 +81,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
             }
             if (date === lesson.date && start === lesson.start_time && end === lesson.end_time)
             {
-                nextErrors.new_date = 'Выберите другую дату или время: занятие не изменилось';
+                nextErrors.new_date = 'Выберите другую дату или время';
             }
         }
         if (type === 'room_changed' || (type === 'moved' && hasRoom))
@@ -96,7 +96,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
             }
             else if (type === 'room_changed' && building.trim() === lesson.room?.building && room.trim() === lesson.room?.number)
             {
-                nextErrors.new_room = 'Укажите другую аудиторию: занятие не изменилось';
+                nextErrors.new_room = 'Укажите другую аудиторию';
             }
         }
         if (reason.trim().length > 300)
@@ -181,7 +181,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                     <p>Занятие «{lesson.discipline.name}» {shortDate(lesson.date)} в {lesson.start_time}{body.type === 'moved' ? ` переносится на ${shortDate(body.new_date!)} в ${body.new_start_time}–${body.new_end_time}.` : body.type === 'cancelled' ? ' отменяется.' : ': меняется аудитория.'}</p>
                     {body.new_room && <p>Аудитория: {body.new_room.building}, {body.new_room.number}</p>}
                     {body.reason && <p className="break-words">Причина: {body.reason}</p>}
-                    <p className="text-sm text-muted-foreground">Студенты групп {lesson.groups.map((group) => group.name).join(', ')} получат уведомление.</p>
+                    <p className="text-sm text-muted-foreground">Уведомление получат студенты {lesson.groups.length === 1 ? 'группы' : 'групп'} {lesson.groups.map((group) => group.name).join(', ')}.</p>
                     <div className="flex flex-wrap gap-3">
                         <Button variant={body.type === 'cancelled' ? 'destructive' : 'default'}
                             disabled={change.isPending || (change.error instanceof ApiError && change.error.status === 409)} onClick={submit}>
@@ -204,7 +204,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                             <Select value={pair} onValueChange={choosePair}>
                                 <SelectTrigger id="pair"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {pairs.map((item) => <SelectItem key={item.number} value={String(item.number)}>{item.number} пара — {item.start}–{item.end}</SelectItem>)}
+                                    {pairs.map((item) => <SelectItem key={item.number} value={String(item.number)}>{item.number}-я пара — {item.start}–{item.end}</SelectItem>)}
                                     <SelectItem value="custom">Своё время</SelectItem>
                                 </SelectContent>
                             </Select>

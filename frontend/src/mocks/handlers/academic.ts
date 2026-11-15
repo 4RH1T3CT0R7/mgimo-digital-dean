@@ -180,13 +180,13 @@ export const academicHandlers = [
       change: { type: body.type, previous, reason: body.reason ?? null, changed_at: new Date().toISOString() },
       moved_to: null,
     };
-    updated.pair_number = pairs.find((pair) => pair.start === updated.start_time && pair.end === updated.end_time)?.number ?? lesson.pair_number;
+    updated.pair_number = pairs.find((pair) => pair.start === updated.start_time && pair.end === updated.end_time)?.number ?? 8;
     academicState.lessons = academicState.lessons.filter((item) => item.id !== lesson.id);
 
     if (updated.status === 'moved')
     {
       academicState.lessons.push({ ...updated, ...previous,
-        pair_number: pairs.find((pair) => pair.start === previous.start_time)?.number ?? 8,
+        pair_number: pairs.find((pair) => pair.start === previous.start_time && pair.end === previous.end_time)?.number ?? 8,
         status: 'moved_away', moved_to: { date: updated.date, start_time: updated.start_time } });
     }
     academicState.lessons.push(updated);
