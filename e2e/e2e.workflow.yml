@@ -1,0 +1,66 @@
+# Кандидат для согласования. После ревью капитан переносит в .github/workflows/e2e.yml.
+name: e2e
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    # Секреты доступны только веткам своего репозитория.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+      - name: Установить Playwright и Chromium
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run typecheck
+      - name: Запустить изолированный стек и загрузить seed
+        run: |
+          r() { openssl rand -hex 24; }
+          printf 'SITE_ADDRESS=localhost\nPOSTGRES_PASSWORD=%s\nAUTH_DB_PASSWORD=%s\nACADEMIC_DB_PASSWORD=%s\nREQUESTS_DB_PASSWORD=%s\nNOTIFICATIONS_DB_PASSWORD=%s\n' "$(r)" "$(r)" "$(r)" "$(r)" "$(r)" > .env
+          docker compose -f deploy/docker-compose.yml --env-file .env up -d --build --wait
+          make seed
+      - name: Прогнать мобильный и компьютерный сценарии
+        env:
+          BASE_URL: https://localhost
+          E2E_LOCAL_HTTPS: '1'
+          E2E_PASSWORD_STUDENT_MO: ${{ secrets.E2E_PASSWORD_STUDENT_MO }}
+          E2E_PASSWORD_STUDENT_MEO: ${{ secrets.E2E_PASSWORD_STUDENT_MEO }}
+          E2E_PASSWORD_DEKANAT_MO: ${{ secrets.E2E_PASSWORD_DEKANAT_MO }}
+          E2E_PASSWORD_DEKANAT_MEO: ${{ secrets.E2E_PASSWORD_DEKANAT_MEO }}
+          E2E_PASSWORD_ADMIN: ${{ secrets.E2E_PASSWORD_ADMIN }}
+        run: |
+          for key in E2E_PASSWORD_STUDENT_MO E2E_PASSWORD_STUDENT_MEO E2E_PASSWORD_DEKANAT_MO E2E_PASSWORD_DEKANAT_MEO E2E_PASSWORD_ADMIN; do
+            if [[ -z "${!key}" ]]; then echo "::error::Не настроен $key"; exit 1; fi
+          done
+          cd e2e
+          npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+      - name: Остановить стек
+        if: always()
+        run: |
+          if [[ -f .env ]]; then docker compose -f deploy/docker-compose.yml --env-file .env down -v; fi
