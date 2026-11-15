@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FacultyFilter, useFacultyFilter } from '@/app/layout/FacultyFilter';
 import { useMe } from '@/features/auth/queries';
@@ -20,7 +20,11 @@ export function StaffLessonsPage()
 {
     const me = useMe();
     const faculty = useFacultyFilter();
+    // Панель остаётся смонтированной после закрытия (анимация и возврат фокуса); opens — новый экземпляр на каждое открытие
     const [selected, setSelected] = useState<Lesson | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [opens, setOpens] = useState(0);
+    const opener = useRef<HTMLElement | null>(null);
     const [params, setParams] = useSearchParams();
     const date = params.get('date');
     const groupChoice = params.get('group_id');
@@ -81,12 +85,12 @@ export function StaffLessonsPage()
                     onNext={() => choose('date', addDays(from, 7))} onToday={() => choose('date', toApiDate())} />
                 <QueryView query={lessons} isEmpty={(data) => data.length === 0} empty={<EmptyState title="На этой неделе занятий нет" description="Выберите другую неделю или группу." />}>
                     {(data) => <div className="flex min-w-0 flex-col gap-6">{Array.from({ length: 7 }, (_, index) => addDays(from, index)).map((day) => <section key={day} aria-labelledby={`staff-day-${day}`}>
-                        <h2 id={`staff-day-${day}`} className="sticky top-header z-10 mb-3 bg-background py-3 text-lg font-semibold">{dayHeading(day)}</h2>
+                        <h2 id={`staff-day-${day}`} className="sticky top-header z-10 [@media(max-height:480px)]:static mb-3 bg-background py-3 text-lg font-semibold">{dayHeading(day)}</h2>
                         {data.some((lesson) => lesson.date === day) ? <ul className="divide-y overflow-hidden rounded-xl border bg-card">{data.filter((lesson) => lesson.date === day).map((lesson) => <li key={`${lesson.id}-${lesson.status}-${lesson.date}`}>
                             <LessonRow lesson={lesson} schedulePath="/staff/lessons" />
                             {['scheduled', 'moved', 'changed'].includes(lesson.status) && (
                                 <div className="px-4 pb-5 sm:px-5">
-                                    <Button variant="outline" onClick={() => setSelected(lesson)}
+                                    <Button variant="outline" onClick={(e) => { opener.current = e.currentTarget; setSelected(lesson); setOpens((n) => n + 1); setSheetOpen(true); }}
                                         aria-label={`Изменить: ${lesson.discipline.name}, ${formatDate(lesson.date)} ${lesson.start_time}`}>
                                         Изменить
                                     </Button>
@@ -96,7 +100,7 @@ export function StaffLessonsPage()
                     </section>)}</div>}
                 </QueryView>
             </>}
-            {selected && <ChangeLessonSheet key={`${selected.id}-${selected.date}-${selected.start_time}`} lesson={selected} onClose={() => setSelected(null)} />}
+            {selected && <ChangeLessonSheet key={opens} lesson={selected} open={sheetOpen} onClose={() => setSheetOpen(false)} returnFocus={() => opener.current?.focus()} />}
         </>
     );
 }

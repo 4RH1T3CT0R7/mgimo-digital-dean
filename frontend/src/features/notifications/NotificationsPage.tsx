@@ -78,7 +78,7 @@ function Deadlines() {
                 <li key={item.id} className="flex flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-5">
                   <div className="min-w-0 space-y-1 wrap-anywhere">
                     <h3 className="font-medium">{item.title}</h3>
-                    {item.description && <p className="text-sm whitespace-pre-wrap text-muted-foreground">{item.description}</p>}
+                    {item.description && <p className="max-w-prose text-sm whitespace-pre-wrap text-muted-foreground">{item.description}</p>}
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <time dateTime={item.due_at}>до {formatDateTime(item.due_at)}</time>
                       <StatusBadge tone={item.days_left <= 1 ? 'danger' : 'neutral'}>{deadlineLabel(item.days_left)}</StatusBadge>
@@ -148,13 +148,13 @@ function FeedCard({ item }: { item: FeedItem }) {
           </span>
           <span className="block font-medium">{item.title}</span>
           {!expanded && (
-            <span className={cn('block text-sm whitespace-pre-wrap text-muted-foreground', !href && 'line-clamp-2')}>{item.body}</span>
+            <span className={cn('block max-w-prose text-sm whitespace-pre-wrap text-muted-foreground', !href && 'line-clamp-2')}>{item.body}</span>
           )}
         </span>
         {!href && <ChevronDownIcon aria-hidden className={cn('mt-1 size-4 shrink-0', expanded && 'rotate-180')} />}
       </button>
       {expanded && (
-        <p id={`feed-body-${item.id}`} className="ml-8 whitespace-pre-wrap wrap-anywhere">
+        <p id={`feed-body-${item.id}`} className="ml-8 max-w-prose whitespace-pre-wrap wrap-anywhere">
           {item.body}
         </p>
       )}

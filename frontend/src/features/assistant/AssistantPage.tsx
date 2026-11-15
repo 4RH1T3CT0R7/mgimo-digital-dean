@@ -105,7 +105,7 @@ export function AssistantPage() {
                 variant="outline"
                 size="sm"
                 disabled={ask.isPending}
-                className="h-auto min-h-9 py-2 text-left whitespace-normal"
+                className="h-auto min-h-9 max-w-full py-2 text-left whitespace-normal"
                 onClick={() => {
                   setQuestion(example);
                   submit(example);

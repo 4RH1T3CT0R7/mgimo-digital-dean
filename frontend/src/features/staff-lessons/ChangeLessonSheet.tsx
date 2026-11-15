@@ -20,7 +20,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
     return <div className="flex min-w-0 flex-col gap-2"><Label htmlFor={id}>{label}</Label>{children}{error && <p id={`${id}-error`} className="text-sm text-danger-strong">{error}</p>}</div>;
 }
 
-export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose: () => void })
+export function ChangeLessonSheet({ lesson, open = true, onClose, returnFocus }: { lesson: Lesson; open?: boolean; onClose: () => void; returnFocus?: () => void })
 {
     const [type, setType] = useState<components['schemas']['LessonChangeType']>('moved');
     const [date, setDate] = useState('');
@@ -172,8 +172,9 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
     };
 
     return (
-        <Sheet open onOpenChange={handleOpenChange}>
-            <SheetContent className="mx-auto max-w-2xl [&>button:last-child]:size-11" onEscapeKeyDown={preventPendingClose} onPointerDownOutside={preventPendingClose}>
+        <Sheet open={open} onOpenChange={handleOpenChange}>
+            <SheetContent className="mx-auto max-w-2xl [&>button:last-child]:size-11" onEscapeKeyDown={preventPendingClose} onPointerDownOutside={preventPendingClose}
+                onCloseAutoFocus={(event) => { if (returnFocus) { event.preventDefault(); returnFocus(); } }}>
                 <SheetHeader><SheetTitle>Изменить занятие</SheetTitle><SheetDescription>{lesson.discipline.name}, {shortDate(lesson.date)}, {lesson.start_time}–{lesson.end_time}</SheetDescription></SheetHeader>
                 {error && <p role="alert" className="text-sm text-danger-strong">{error}</p>}
                 {body ? <div className="flex flex-col gap-5">
@@ -182,7 +183,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                     {body.new_room && <p>Аудитория: {body.new_room.building}, {body.new_room.number}</p>}
                     {body.reason && <p className="break-words">Причина: {body.reason}</p>}
                     <p className="text-sm text-muted-foreground">Уведомление получат студенты {lesson.groups.length === 1 ? 'группы' : 'групп'} {lesson.groups.map((group) => group.name).join(', ')}.</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="sticky -bottom-5 -mx-5 flex flex-wrap gap-3 border-t bg-card px-5 py-3">
                         <Button variant={body.type === 'cancelled' ? 'destructive' : 'default'}
                             disabled={change.isPending || (change.error instanceof ApiError && change.error.status === 409)} onClick={submit}>
                             {change.isPending ? changeActions[body.type].pending : changeActions[body.type].action}
@@ -223,7 +224,7 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                         <Field id="new_room" label={type === 'moved' ? 'Аудитория (необязательно)' : 'Аудитория'} error={errors.new_room}><Input id="new_room" value={room} maxLength={100} onChange={(event) => setRoom(event.target.value)} {...fieldProps('new_room')} /></Field>
                     </>}
                     <Field id="reason" label="Причина" error={errors.reason}><Textarea id="reason" value={reason} maxLength={300} onChange={(event) => setReason(event.target.value)} {...fieldProps('reason')} /></Field>
-                    <Button className="self-start" type="submit">Далее</Button>
+                    <div className="sticky -bottom-5 -mx-5 border-t bg-card px-5 py-3"><Button type="submit">Далее</Button></div>
                 </form>}
             </SheetContent>
         </Sheet>

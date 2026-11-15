@@ -128,11 +128,11 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
-        <header className="sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-header [@media(max-height:480px)]:static shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
           <Logo compact className="lg:hidden" />
           <UserMenu profileLink={profileLink} />
         </header>
-        <main id="main" tabIndex={-1} className="relative isolate mx-auto w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
+        <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
           {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}
           <div key={pathname} className="animate-[rise_200ms_ease-out]">
@@ -208,7 +208,7 @@ function UserMenu({ profileLink }: { profileLink?: string }) {
   if (!me) return null;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         aria-label={`Меню пользователя: ${me.display_name}`}
         className="ml-auto flex min-w-0 items-center gap-2.5 rounded-full py-1 pr-1 pl-1 outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-muted sm:pr-3"

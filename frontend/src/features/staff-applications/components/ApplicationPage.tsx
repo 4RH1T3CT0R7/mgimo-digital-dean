@@ -1,5 +1,5 @@
 import { FileIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useLocation, useParams } from 'react-router';
 import type { components } from '@/api/requests';
 import { FileDrop } from '@/features/requests/components/FileDrop';
@@ -160,11 +160,18 @@ function doneMessage(to: Status, a: Application): string {
 
 function StatusActions({ a }: { a: Application }) {
   const change = useChangeStatus(a.id);
-  const [dialog, setDialog] = useState<DialogStatus | null>(null);
+  // Окно остаётся смонтированным после закрытия: Radix доигрывает анимацию и возвращает фокус на кнопку.
+  // n — новый экземпляр на каждое открытие, чтобы комментарий не переносился.
+  const [dialog, setDialog] = useState<{ to: DialogStatus; n: number } | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const opener = useRef<HTMLElement | null>(null); // у окна нет DialogTrigger — фокус после закрытия возвращаем сами
   if (a.allowed_transitions.length === 0) return null; // завершённая заявка: итог виден на шкале
 
   function onClick(to: Status) {
-    if (to in DIALOGS) return setDialog(to as DialogStatus);
+    if (to in DIALOGS) {
+      setDialog((d) => ({ to: to as DialogStatus, n: (d?.n ?? 0) + 1 }));
+      return setDialogOpen(true);
+    }
     change.mutate(
       { status: to },
       {
@@ -181,17 +188,26 @@ function StatusActions({ a }: { a: Application }) {
           key={to}
           variant={to === 'rejected' ? 'destructive' : to === 'needs_info' ? 'outline' : 'default'}
           disabled={change.isPending}
-          onClick={() => onClick(to)}
+          onClick={(e) => {
+            opener.current = e.currentTarget;
+            onClick(to);
+          }}
         >
           {actionLabel(to, a)}
         </Button>
       ))}
-      {dialog && <StatusDialog a={a} to={dialog} onClose={() => setDialog(null)} />}
+      {dialog && <StatusDialog key={dialog.n} a={a} to={dialog.to} open={dialogOpen} onClose={() => setDialogOpen(false)} returnFocus={() => opener.current?.focus()} />}
     </div>
   );
 }
 
-function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; onClose: () => void }) {
+function StatusDialog({ a, to, open, onClose, returnFocus }: {
+  a: Application;
+  to: DialogStatus;
+  open: boolean;
+  onClose: () => void;
+  returnFocus: () => void;
+}) {
   const change = useChangeStatus(a.id);
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -219,8 +235,13 @@ function StatusDialog({ a, to, onClose }: { a: Application; to: DialogStatus; on
   }
 
   return (
-    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent
+        onCloseAutoFocus={(e) => {
+          e.preventDefault();
+          returnFocus();
+        }}
+      >
         <form onSubmit={onSubmit} noValidate className="grid gap-4">
           <DialogHeader>
             <DialogTitle>
