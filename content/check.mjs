@@ -124,8 +124,9 @@ function checkDate(value, location) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
     report(location, 'такой календарной даты нет');
-  } else if (value < '2026-11-01' || value > '2027-01-31') {
-    report(location, 'дата должна быть с ноября 2026 по январь 2027 включительно');
+  } else if (value < '2026-11-01' || value > '2026-11-21') {
+    // Публикация позже показа жюри выглядит в ленте как «новость из будущего».
+    report(location, 'дата публикации должна быть с 1 по 21 ноября 2026 включительно');
   }
 }
 
