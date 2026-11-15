@@ -13,6 +13,19 @@ const deadlineId = '70000000-0000-4000-8000-000000000002';
 const path = '/staff/announcements';
 const renderPage = (route = path, login = 'dekanat.mo') => renderWithProviders(<AppRoutes />, { route, login });
 
+/** Общий Select: список вариантов открывается в портале, поэтому варианты ищутся во всём документе. */
+async function choose(
+  user: ReturnType<typeof renderPage>['user'],
+  scope: ReturnType<typeof within>,
+  label: string,
+  option: string | RegExp,
+) {
+  await user.click(await scope.findByRole('combobox', { name: label }));
+  await user.click(await screen.findByRole('option', { name: option }));
+}
+
+const section = (title: string) => screen.getByRole('heading', { name: title }).closest('section')!;
+
 beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-18T10:00:00+03:00'));
   resetNotificationsState();
@@ -23,13 +36,16 @@ describe('T13', () => {
   it('X1 — только администратор может выбрать всех студентов', async () => {
     const staff = renderPage();
     await staff.user.click(await screen.findByRole('button', { name: 'Новое объявление' }));
-    expect(within(await screen.findByRole('dialog')).queryByRole('option', { name: 'Все студенты' })).not.toBeInTheDocument();
+    await staff.user.click(within(await screen.findByRole('dialog')).getByRole('combobox', { name: 'Кому показать' }));
+    expect(await screen.findByRole('option', { name: 'Группа' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Все студенты' })).not.toBeInTheDocument();
     staff.unmount();
     const admin = renderPage(path, 'admin');
     await admin.user.click(await screen.findByRole('button', { name: 'Новое объявление' }));
     const form = within(await screen.findByRole('dialog'));
-    expect(form.getByRole('option', { name: 'Все студенты' })).toBeVisible();
-    expect(await form.findByRole('option', { name: /ФМО —/ })).toBeInTheDocument();
+    await choose(admin.user, form, 'Факультет', /ФМО —/);
+    await admin.user.click(form.getByRole('combobox', { name: 'Кому показать' }));
+    expect(await screen.findByRole('option', { name: 'Все студенты' })).toBeInTheDocument();
   });
 
   it('X2 — новость не требует подтверждения', async () => {
@@ -62,8 +78,7 @@ describe('T13', () => {
     expect(response.status).toBe(204);
     renderPage(`${path}/${ackId}`);
     expect(await screen.findByText('Ознакомились: 1 из 3')).toBeVisible();
-    const remaining = screen.getByRole('region', { name: 'Ещё нет' });
-    expect(within(remaining).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(section('Ещё нет')).getAllByRole('listitem')).toHaveLength(2);
   });
 
   it('X5 — удаляет только после подтверждения в диалоге', async () => {
@@ -78,7 +93,7 @@ describe('T13', () => {
       await user.click(trigger);
       const dialog = within(screen.getByRole('dialog', { name: 'Удалить дедлайн?' }));
       expect(remove).not.toHaveBeenCalled();
-      await user.click(dialog.getByRole('button', { name: 'Отмена' }));
+      await user.click(dialog.getByRole('button', { name: 'Не удалять' }));
       expect(remove).not.toHaveBeenCalled();
       await user.click(trigger);
       await user.click(screen.getByRole('button', { name: 'Удалить дедлайн' }));
@@ -100,9 +115,9 @@ describe('T13', () => {
       await user.click(await screen.findByRole('button', { name: 'Новый дедлайн' }));
       const form = within(screen.getByRole('dialog'));
       expect(form.queryByRole('combobox', { name: 'Услуга' })).not.toBeInTheDocument();
-      await user.selectOptions(form.getByLabelText('Тип'), 'application');
-      const select = await form.findByRole('combobox', { name: 'Услуга' });
-      expect(within(select).getByRole('option', { name: 'Материальная помощь' })).toBeInTheDocument();
+      await choose(user, form, 'Тип', 'Подача заявлений');
+      await user.click(await form.findByRole('combobox', { name: 'Услуга' }));
+      expect(await screen.findByRole('option', { name: 'Материальная помощь' })).toBeInTheDocument();
       expect(requested).toHaveBeenCalledOnce();
     } finally {
       server.events.removeListener('request:start', onRequest);
@@ -116,21 +131,22 @@ describe('T13', () => {
     await staff.user.type(publication.getByLabelText('Заголовок'), 'Встреча группы');
     await staff.user.type(publication.getByLabelText('Текст'), 'Проверьте время встречи.');
     await staff.user.click(publication.getByRole('checkbox', { name: 'Требует подтверждения ознакомления' }));
-    await staff.user.selectOptions(publication.getByLabelText('Кому показать'), 'group');
-    const group = await publication.findByLabelText('Группа');
-    expect(within(group).queryByRole('option', { name: 'МЭО-23-02' })).not.toBeInTheDocument();
-    await staff.user.selectOptions(group, within(group).getByRole('option', { name: 'МО-24-03' }));
+    await choose(staff.user, publication, 'Кому показать', 'Группа');
+    await staff.user.click(await publication.findByRole('combobox', { name: 'Группа' }));
+    expect(await screen.findByRole('option', { name: 'МО-24-03' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'МЭО-23-02' })).not.toBeInTheDocument();
+    await staff.user.click(screen.getByRole('option', { name: 'МО-24-03' }));
     await staff.user.click(publication.getByRole('button', { name: 'Опубликовать' }));
-    const reportLink = await screen.findByRole('link', { name: 'Отчёт об ознакомлении: Встреча группы' });
-    const reportPath = reportLink.getAttribute('href')!;
+    const row = (await screen.findByRole('heading', { name: 'Встреча группы' })).closest('li')!;
+    const reportPath = within(row).getByRole('link', { name: 'Отчёт: ознакомились 0' }).getAttribute('href')!;
     staff.unmount();
 
     const dates = renderPage('/staff/deadlines');
     await dates.user.click(await screen.findByRole('button', { name: 'Новый дедлайн' }));
     const form = within(screen.getByRole('dialog'));
     await dates.user.type(form.getByLabelText('Заголовок'), 'Подать заявление до пятницы');
-    await dates.user.selectOptions(form.getByLabelText('Тип'), 'application');
-    await dates.user.selectOptions(await form.findByLabelText('Услуга'), 'financial-aid');
+    await choose(dates.user, form, 'Тип', 'Подача заявлений');
+    await choose(dates.user, form, 'Услуга', 'Материальная помощь');
     fireEvent.change(form.getByLabelText('Дата'), { target: { value: '2026-11-20' } });
     await dates.user.click(form.getByRole('button', { name: 'Создать дедлайн' }));
     expect(await screen.findByRole('heading', { name: 'Подать заявление до пятницы' })).toBeVisible();
@@ -151,9 +167,8 @@ describe('T13', () => {
     student.unmount();
 
     renderPage(reportPath);
-    const confirmed = await screen.findByRole('region', { name: 'Ознакомились' });
-    expect(within(confirmed).getByText('Лебедева А. В.')).toBeVisible();
-    expect(screen.getByText('Ознакомились: 1 из 3')).toBeVisible();
+    expect(await screen.findByText('Ознакомились: 1 из 3')).toBeVisible();
+    expect(within(section('Ознакомились')).getByText('Лебедева А. В.')).toBeVisible();
   });
 
   it('отклоняет чужую группу при записи и скрывает чужой отчёт', async () => {

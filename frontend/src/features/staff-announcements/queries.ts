@@ -44,9 +44,11 @@ export function useAnnouncement(id: string) {
 export function useAckReport(id: string) {
   return useQuery({
     queryKey: [...announcementsKey, id, 'acks'],
-    queryFn: ({ signal }) => unwrap(notificationsApi.GET('/staff/announcements/{announcement_id}/acks', {
-      params: { path: { announcement_id: id } }, signal,
-    })),
+    queryFn: ({ signal }) =>
+      unwrap(notificationsApi.GET('/staff/announcements/{announcement_id}/acks', {
+        params: { path: { announcement_id: id } },
+        signal,
+      })),
   });
 }
 
@@ -66,7 +68,8 @@ export function useStaffActions() {
     refreshFeed(),
   ]);
   const publish = useMutation({
-    mutationFn: (body: S['CreateAnnouncementRequest']) => unwrap(notificationsApi.POST('/staff/announcements', { body })),
+    mutationFn: (body: S['CreateAnnouncementRequest']) =>
+      unwrap(notificationsApi.POST('/staff/announcements', { body })),
     onSuccess: () => Promise.all([client.invalidateQueries({ queryKey: announcementsKey }), refreshFeed()]),
   });
   const createDeadline = useMutation({
@@ -74,7 +77,8 @@ export function useStaffActions() {
     onSuccess: refreshDeadlines,
   });
   const deleteDeadline = useMutation({
-    mutationFn: (id: string) => unwrap(notificationsApi.DELETE('/staff/deadlines/{deadline_id}', { params: { path: { deadline_id: id } } })),
+    mutationFn: (id: string) =>
+      unwrap(notificationsApi.DELETE('/staff/deadlines/{deadline_id}', { params: { path: { deadline_id: id } } })),
     onSuccess: refreshDeadlines,
   });
   return { publish, createDeadline, deleteDeadline };

@@ -31,19 +31,24 @@ export function useFeed(types: FeedType[] | undefined, unreadOnly: boolean) {
 export function useDeadlines() {
   return useQuery({
     queryKey: ['notifications', 'deadlines', 14],
-    queryFn: ({ signal }) => unwrap(notificationsApi.GET('/me/deadlines', { params: { query: { days: 14 } }, signal })),
+    queryFn: ({ signal }) =>
+      unwrap(notificationsApi.GET('/me/deadlines', { params: { query: { days: 14 } }, signal })),
   });
 }
 
 export function useFeedActions() {
   const client = useQueryClient();
   const refresh = () => client.invalidateQueries({ queryKey: ['notifications', 'feed'] });
+  // Прочтение идёт в фоне: лента обновляется, но мутация её не ждёт.
   const read = useMutation({
-    mutationFn: (id: string) => unwrap(notificationsApi.POST('/me/feed/{item_id}/read', { params: { path: { item_id: id } } })),
-    onSuccess: refresh,
+    mutationFn: (id: string) =>
+      unwrap(notificationsApi.POST('/me/feed/{item_id}/read', { params: { path: { item_id: id } } })),
+    onSuccess: () => void refresh(),
   });
+  // Кнопка «Ознакомлен(а)» заблокирована, пока лента не покажет подтверждение.
   const ack = useMutation({
-    mutationFn: (id: string) => unwrap(notificationsApi.POST('/me/feed/{item_id}/ack', { params: { path: { item_id: id } } })),
+    mutationFn: (id: string) =>
+      unwrap(notificationsApi.POST('/me/feed/{item_id}/ack', { params: { path: { item_id: id } } })),
     onSuccess: refresh,
   });
   const readAll = useMutation({
