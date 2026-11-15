@@ -128,7 +128,7 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
-        <header className="sticky top-0 z-30 flex h-header shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-header [@media(max-height:480px)]:static shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
           <Logo compact className="lg:hidden" />
           <UserMenu profileLink={profileLink} />
         </header>

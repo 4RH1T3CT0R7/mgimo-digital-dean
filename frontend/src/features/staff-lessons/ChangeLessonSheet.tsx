@@ -183,7 +183,7 @@ export function ChangeLessonSheet({ lesson, open = true, onClose, returnFocus }:
                     {body.new_room && <p>Аудитория: {body.new_room.building}, {body.new_room.number}</p>}
                     {body.reason && <p className="break-words">Причина: {body.reason}</p>}
                     <p className="text-sm text-muted-foreground">Уведомление получат студенты {lesson.groups.length === 1 ? 'группы' : 'групп'} {lesson.groups.map((group) => group.name).join(', ')}.</p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="sticky -bottom-5 -mx-5 flex flex-wrap gap-3 border-t bg-card px-5 py-3">
                         <Button variant={body.type === 'cancelled' ? 'destructive' : 'default'}
                             disabled={change.isPending || (change.error instanceof ApiError && change.error.status === 409)} onClick={submit}>
                             {change.isPending ? changeActions[body.type].pending : changeActions[body.type].action}
@@ -220,7 +220,7 @@ export function ChangeLessonSheet({ lesson, open = true, onClose, returnFocus }:
                         <Field id="new_room" label={type === 'moved' ? 'Аудитория (необязательно)' : 'Аудитория'} error={errors.new_room}><Input id="new_room" value={room} maxLength={100} onChange={(event) => setRoom(event.target.value)} {...fieldProps('new_room')} /></Field>
                     </>}
                     <Field id="reason" label="Причина" error={errors.reason}><Textarea id="reason" value={reason} maxLength={300} onChange={(event) => setReason(event.target.value)} {...fieldProps('reason')} /></Field>
-                    <Button className="self-start" type="submit">Далее</Button>
+                    <div className="sticky -bottom-5 -mx-5 border-t bg-card px-5 py-3"><Button type="submit">Далее</Button></div>
                 </form>}
             </SheetContent>
         </Sheet>

@@ -85,7 +85,7 @@ export function StaffLessonsPage()
                     onNext={() => choose('date', addDays(from, 7))} onToday={() => choose('date', toApiDate())} />
                 <QueryView query={lessons} isEmpty={(data) => data.length === 0} empty={<EmptyState title="На этой неделе занятий нет" description="Выберите другую неделю или группу." />}>
                     {(data) => <div className="flex min-w-0 flex-col gap-6">{Array.from({ length: 7 }, (_, index) => addDays(from, index)).map((day) => <section key={day} aria-labelledby={`staff-day-${day}`}>
-                        <h2 id={`staff-day-${day}`} className="sticky top-header z-10 mb-3 bg-background py-3 text-lg font-semibold">{dayHeading(day)}</h2>
+                        <h2 id={`staff-day-${day}`} className="sticky top-header z-10 [@media(max-height:480px)]:static mb-3 bg-background py-3 text-lg font-semibold">{dayHeading(day)}</h2>
                         {data.some((lesson) => lesson.date === day) ? <ul className="divide-y overflow-hidden rounded-xl border bg-card">{data.filter((lesson) => lesson.date === day).map((lesson) => <li key={`${lesson.id}-${lesson.status}-${lesson.date}`}>
                             <LessonRow lesson={lesson} schedulePath="/staff/lessons" />
                             {['scheduled', 'moved', 'changed'].includes(lesson.status) && (

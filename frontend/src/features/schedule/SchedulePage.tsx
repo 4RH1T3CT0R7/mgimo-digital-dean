@@ -40,7 +40,7 @@ export function SchedulePage()
                         {Array.from({ length: 7 }, (_, i) => addDays(from, i)).map((date) => (
                             <section key={date} aria-labelledby={`day-${date}`} className="min-w-0">
                                 <h2 id={`day-${date}`} className={cn(
-                                    'sticky top-header z-10 mb-3 flex flex-wrap items-baseline justify-between gap-2 bg-background py-3 text-lg font-semibold',
+                                    'sticky top-header z-10 [@media(max-height:480px)]:static mb-3 flex flex-wrap items-baseline justify-between gap-2 bg-background py-3 text-lg font-semibold',
                                     date === today && 'border-b-2 border-primary',
                                 )}>
                                     <span>{dayHeading(date)}</span>

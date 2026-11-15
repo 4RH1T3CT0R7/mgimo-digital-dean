@@ -33,7 +33,7 @@ export function CertificateCard({ application, headingLevel = 'h2' }: Props & { 
         <span className="text-sm text-muted-foreground">Код проверки</span>
         <span className="font-mono text-xl font-semibold tracking-widest break-all">{certificate.code}</span>
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button
           disabled={download.isPending}
           onClick={() => download.mutate(undefined, { onError: (err) => toast.error(apiErrorMessage(err)) })}
