@@ -5,6 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { shortDate } from '../calendar';
 import { lessonKindLabels } from '../labels';
 import type { Lesson } from '../queries';
+import { RoomLink } from './RoomLink';
 
 export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { lesson: Lesson; schedulePath?: string })
 {
@@ -53,7 +54,9 @@ export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
                 <p className="text-sm text-muted-foreground">{lessonKindLabels[lesson.kind]}{lesson.format === 'online' ? ', онлайн' : ''}</p>
                 <LessonChangeLabel lesson={lesson} schedulePath={schedulePath} />
                 {lesson.change?.reason && <p className="text-sm break-words text-muted-foreground">{lesson.change.reason}</p>}
-                {lesson.room && <p className="text-sm">{lesson.room.building}, {lesson.room.number}</p>}
+                {lesson.room && (inactive
+                    ? <p className="text-sm">{lesson.room.building}, {lesson.room.number}</p>
+                    : <RoomLink room={lesson.room} />)}
                 {lesson.teacher && <p className="text-sm text-muted-foreground">{lesson.teacher.short_name}</p>}
                 <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8125rem] text-muted-foreground" aria-label="Группы занятия">
                     {lesson.groups.map((group) => (

@@ -53,13 +53,24 @@ const DISC = {
 const t = (n: number, short_name: string) => ({ id: `52000000-0000-4000-8000-00000000000${n}`, short_name });
 const TEACH = { orlov: t(1, 'Орлов П. С.'), belova: t(2, 'Белова И. Н.'), kravets: t(3, 'Кравец Д. А.'), mironova: t(4, 'Миронова Е. В.'), tikhonov: t(5, 'Тихонов А. Г.') };
 
+// Настоящие аудитории МГИМО: ссылка в расписании открывает их на карте mgimo.ru/territory (D58)
+const ROOM = {
+  b1047: { building: 'Корпус Б', number: '1047' },
+  b1051: { building: 'Корпус Б', number: '1051' },
+  b2009: { building: 'Корпус Б', number: '2009' },
+  g2115: { building: 'Корпус Г', number: '2115' },
+  n202: { building: 'Новый корпус', number: '202' },
+  n220: { building: 'Новый корпус', number: '220' },
+  n405: { building: 'Новый корпус', number: '405' },
+} satisfies Record<string, S['Room']>;
+
 let seq = 0;
 function lesson(
   date: string,
   pair: Pair,
   discipline: { id: string; name: string },
   kind: S['LessonKind'],
-  room: string,
+  room: S['Room'],
   teacher: S['TeacherRef'],
   groups: S['GroupRef'][],
   extra: Partial<S['Lesson']> = {},
@@ -74,7 +85,7 @@ function lesson(
     discipline,
     kind,
     format: 'offline',
-    room: { building: 'Главный корпус', number: room },
+    room,
     teacher,
     groups,
     status: 'scheduled',
@@ -85,11 +96,11 @@ function lesson(
 }
 
 // Перенос: история МО 17.11 10:30 → 19.11 12:00 (одно занятие — две записи)
-const moved = lesson('2026-11-19', 3, DISC.hist, 'seminar', '2105', TEACH.belova, [groupMO], {
+const moved = lesson('2026-11-19', 3, DISC.hist, 'seminar', ROOM.b2009, TEACH.belova, [groupMO], {
   status: 'moved',
   change: {
     type: 'moved',
-    previous: { date: '2026-11-17', start_time: '10:30', end_time: '11:50', room: { building: 'Главный корпус', number: '2105' } },
+    previous: { date: '2026-11-17', start_time: '10:30', end_time: '11:50', room: ROOM.b2009 },
     reason: 'Перенос по просьбе преподавателя',
     changed_at: '2026-11-13T15:20:00+03:00',
   },
@@ -102,35 +113,35 @@ export const weekSchedule: S['Schedule'] = {
   to: '2026-11-22',
   weeks: [{ start_date: '2026-11-16', number: 12, parity: 'even' }],
   lessons: [
-    lesson('2026-11-16', 1, DISC.tmo, 'lecture', '1001', TEACH.orlov, [groupMO]),
-    lesson('2026-11-16', 2, DISC.en, 'language', '3112', TEACH.mironova, [groupEn]),
-    lesson('2026-11-16', 3, DISC.econ, 'seminar', '2210', TEACH.kravets, [groupMO]),
-    lesson('2026-11-17', 1, DISC.law, 'lecture', '1003', TEACH.tikhonov, [groupMO]),
+    lesson('2026-11-16', 1, DISC.tmo, 'lecture', ROOM.b1047, TEACH.orlov, [groupMO]),
+    lesson('2026-11-16', 2, DISC.en, 'language', ROOM.n202, TEACH.mironova, [groupEn]),
+    lesson('2026-11-16', 3, DISC.econ, 'seminar', ROOM.g2115, TEACH.kravets, [groupMO]),
+    lesson('2026-11-17', 1, DISC.law, 'lecture', ROOM.b1051, TEACH.tikhonov, [groupMO]),
     { ...moved, date: '2026-11-17', start_time: '10:30', end_time: '11:50', pair_number: 2, status: 'moved_away', moved_to: { date: '2026-11-19', start_time: '12:00' } },
-    lesson('2026-11-17', 3, DISC.fr, 'language', '3204', TEACH.belova, [groupFr]),
-    lesson('2026-11-18', 2, DISC.tmo, 'seminar', '2105', TEACH.orlov, [groupMO]),
-    lesson('2026-11-18', 3, DISC.econ, 'lecture', '1001', TEACH.kravets, [groupMO], {
+    lesson('2026-11-17', 3, DISC.fr, 'language', ROOM.n220, TEACH.belova, [groupFr]),
+    lesson('2026-11-18', 2, DISC.tmo, 'seminar', ROOM.b2009, TEACH.orlov, [groupMO]),
+    lesson('2026-11-18', 3, DISC.econ, 'lecture', ROOM.b1047, TEACH.kravets, [groupMO], {
       status: 'cancelled',
       change: {
         type: 'cancelled',
-        previous: { date: '2026-11-18', start_time: '12:00', end_time: '13:20', room: { building: 'Главный корпус', number: '1001' } },
+        previous: { date: '2026-11-18', start_time: '12:00', end_time: '13:20', room: ROOM.b1047 },
         reason: 'Болезнь преподавателя',
         changed_at: '2026-11-13T09:00:00+03:00',
       },
     }),
-    lesson('2026-11-18', 4, DISC.en, 'language', '3112', TEACH.mironova, [groupEn]),
-    lesson('2026-11-19', 1, DISC.hist, 'lecture', '1003', TEACH.belova, [groupMO]),
+    lesson('2026-11-18', 4, DISC.en, 'language', ROOM.n202, TEACH.mironova, [groupEn]),
+    lesson('2026-11-19', 1, DISC.hist, 'lecture', ROOM.b1051, TEACH.belova, [groupMO]),
     moved,
-    lesson('2026-11-20', 2, DISC.law, 'seminar', '3047', TEACH.tikhonov, [groupMO], {
+    lesson('2026-11-20', 2, DISC.law, 'seminar', ROOM.n405, TEACH.tikhonov, [groupMO], {
       status: 'changed',
       change: {
         type: 'room_changed',
-        previous: { date: '2026-11-20', start_time: '10:30', end_time: '11:50', room: { building: 'Главный корпус', number: '2105' } },
+        previous: { date: '2026-11-20', start_time: '10:30', end_time: '11:50', room: ROOM.b2009 },
         reason: null,
         changed_at: '2026-11-12T11:00:00+03:00',
       },
     }),
-    lesson('2026-11-20', 3, DISC.fr, 'language', '3204', TEACH.belova, [groupFr]),
+    lesson('2026-11-20', 3, DISC.fr, 'language', ROOM.n220, TEACH.belova, [groupFr]),
   ],
 };
 
