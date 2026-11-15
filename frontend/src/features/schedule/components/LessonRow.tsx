@@ -1,4 +1,3 @@
-import { MapPinIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import type { components } from '@/api/academic';
 import { StatusBadge } from '@/shared/ui/status-badge';
@@ -6,7 +5,7 @@ import { cn } from '@/shared/lib/utils';
 import { shortDate } from '../calendar';
 import { lessonKindLabels } from '../labels';
 import type { Lesson } from '../queries';
-import { roomMapUrl } from '../room-map';
+import { RoomLink } from './RoomLink';
 
 export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { lesson: Lesson; schedulePath?: string })
 {
@@ -34,23 +33,6 @@ export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { less
     }
 
     return null;
-}
-
-// Аудитория — ссылка на план этажа на открытой карте МГИМО (D58)
-function RoomLink({ room }: { room: NonNullable<Lesson['room']> })
-{
-    return (
-        <a
-            href={roomMapUrl(room)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="-my-3 inline-flex min-h-11 items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-        >
-            <MapPinIcon className="size-4 shrink-0" aria-hidden />
-            {room.building}, {room.number}
-            <span className="sr-only"> — план этажа на сайте МГИМО, откроется в новой вкладке</span>
-        </a>
-    );
 }
 
 export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
