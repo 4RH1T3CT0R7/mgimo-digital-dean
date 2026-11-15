@@ -54,7 +54,7 @@ crontab -e
 ## 7. Обновления и заморозка
 
 - Новая версия: тег `v1.0.1` на ноутбуке → на сервере `bash deploy/deploy.sh v1.0.1`. Тестовые данные повторно не применяются (`seed.sh` помнит применённые файлы), пароли жюри не меняются.
-- e2e на проде: Actions → «e2e» → Run workflow, указать адрес прода (секреты `E2E_PASSWORD_*` — пароли из `~/demo-accounts.txt`).
+- e2e на проде — с ноутбука: `cd e2e && npm ci && npx playwright install chromium`, затем `BASE_URL=https://<домен> E2E_PASSWORD_STUDENT_MO=… npx playwright test` (пароли из `~/demo-accounts.txt`, все переменные — в `e2e/README.md`). Workflow «e2e» в Actions гоняет те же сценарии на стенде внутри CI; его секреты `E2E_PASSWORD_*` — локальные пароли из `.secrets/demo-accounts.md`, а не прод.
 - **22.11 — заморозка**: последний тег; до 28.11 — только исправления критичных ошибок по согласованию команды (Н10).
 
 ## Если что-то пошло не так
