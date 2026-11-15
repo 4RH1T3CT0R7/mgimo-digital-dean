@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { FacultyFilter, useFacultyFilter } from '@/app/layout/FacultyFilter';
 import { useMe } from '@/features/auth/queries';
@@ -20,7 +20,11 @@ export function StaffLessonsPage()
 {
     const me = useMe();
     const faculty = useFacultyFilter();
+    // Панель остаётся смонтированной после закрытия (анимация и возврат фокуса); opens — новый экземпляр на каждое открытие
     const [selected, setSelected] = useState<Lesson | null>(null);
+    const [sheetOpen, setSheetOpen] = useState(false);
+    const [opens, setOpens] = useState(0);
+    const opener = useRef<HTMLElement | null>(null);
     const [params, setParams] = useSearchParams();
     const date = params.get('date');
     const groupChoice = params.get('group_id');
@@ -86,7 +90,7 @@ export function StaffLessonsPage()
                             <LessonRow lesson={lesson} schedulePath="/staff/lessons" />
                             {['scheduled', 'moved', 'changed'].includes(lesson.status) && (
                                 <div className="px-4 pb-5 sm:px-5">
-                                    <Button variant="outline" onClick={() => setSelected(lesson)}
+                                    <Button variant="outline" onClick={(e) => { opener.current = e.currentTarget; setSelected(lesson); setOpens((n) => n + 1); setSheetOpen(true); }}
                                         aria-label={`Изменить: ${lesson.discipline.name}, ${formatDate(lesson.date)} ${lesson.start_time}`}>
                                         Изменить
                                     </Button>
@@ -96,7 +100,7 @@ export function StaffLessonsPage()
                     </section>)}</div>}
                 </QueryView>
             </>}
-            {selected && <ChangeLessonSheet key={`${selected.id}-${selected.date}-${selected.start_time}`} lesson={selected} onClose={() => setSelected(null)} />}
+            {selected && <ChangeLessonSheet key={opens} lesson={selected} open={sheetOpen} onClose={() => setSheetOpen(false)} returnFocus={() => opener.current?.focus()} />}
         </>
     );
 }

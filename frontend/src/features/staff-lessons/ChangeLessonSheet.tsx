@@ -20,7 +20,7 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
     return <div className="flex min-w-0 flex-col gap-2"><Label htmlFor={id}>{label}</Label>{children}{error && <p id={`${id}-error`} className="text-sm text-danger-strong">{error}</p>}</div>;
 }
 
-export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose: () => void })
+export function ChangeLessonSheet({ lesson, open = true, onClose, returnFocus }: { lesson: Lesson; open?: boolean; onClose: () => void; returnFocus?: () => void })
 {
     const [type, setType] = useState<components['schemas']['LessonChangeType']>('moved');
     const [date, setDate] = useState('');
@@ -172,8 +172,9 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
     };
 
     return (
-        <Sheet open onOpenChange={handleOpenChange}>
-            <SheetContent className="mx-auto max-w-2xl [&>button:last-child]:size-11" onEscapeKeyDown={preventPendingClose} onPointerDownOutside={preventPendingClose}>
+        <Sheet open={open} onOpenChange={handleOpenChange}>
+            <SheetContent className="mx-auto max-w-2xl [&>button:last-child]:size-11" onEscapeKeyDown={preventPendingClose} onPointerDownOutside={preventPendingClose}
+                onCloseAutoFocus={(event) => { if (returnFocus) { event.preventDefault(); returnFocus(); } }}>
                 <SheetHeader><SheetTitle>Изменить занятие</SheetTitle><SheetDescription>{lesson.discipline.name}, {shortDate(lesson.date)}, {lesson.start_time}–{lesson.end_time}</SheetDescription></SheetHeader>
                 {error && <p role="alert" className="text-sm text-danger-strong">{error}</p>}
                 {body ? <div className="flex flex-col gap-5">
