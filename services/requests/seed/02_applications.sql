@@ -1,7 +1,7 @@
 -- Заявки тестовых студентов (docs/contracts/seed.md). Время — относительно момента загрузки,
 -- чтобы на показе сроки были свежими. Номера выдаёт последовательность: 000001–000005.
 -- ID заявок: 50000000-0000-4000-8000-00000000000N.
-BEGIN;
+-- Транзакцию открывает deploy/seed.sh (--single-transaction) вместе с отметкой о применении файла.
 
 -- 000001 · student.mo · Вопрос в деканат · ready, с перепиской
 INSERT INTO applications (id, student_id, faculty_id, service_type_id, status, fields, comment, student_snapshot,
@@ -107,4 +107,3 @@ VALUES ('50000000-0000-4000-8000-000000000005', '30000000-0000-4000-8000-0000000
 INSERT INTO status_history (application_id, status, comment, actor_role, actor_id, created_at) VALUES
 ('50000000-0000-4000-8000-000000000005', 'submitted', NULL, 'student', '30000000-0000-4000-8000-000000000002', now() - interval '20 hours');
 
-COMMIT;
