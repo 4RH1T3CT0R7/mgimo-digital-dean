@@ -31,7 +31,7 @@ function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] 
             <div>
                 <div className="mb-2 flex flex-wrap justify-between gap-2 text-sm">
                     <span>Набрано {discipline.score} из 100</span>
-                    <span className="text-muted-foreground">К этой дате возможно {discipline.max_to_date}</span>
+                    <span className="text-muted-foreground">Максимум на сегодня: {discipline.max_to_date}</span>
                 </div>
                 <div className="relative h-3 rounded-full bg-muted" role="progressbar"
                     aria-label={`Баллы: ${discipline.discipline.name}`} aria-valuenow={discipline.score} aria-valuemin={0} aria-valuemax={100}>
@@ -102,7 +102,7 @@ export function GradesPage()
             <PageHeader title="Успеваемость" subtitle="Баллы за семестр и результаты сессий" />
             <QueryView query={summary} isEmpty={(data) => data.average_grade5 == null && data.average_percent == null
                 && !data.rating && data.debts_count === 0 && data.traffic.green + data.traffic.yellow + data.traffic.red === 0}
-                empty={<EmptyState title="Оценок пока нет" description="Сводка появится, когда будут выставлены первые результаты." />}>
+                empty={<EmptyState title="Оценок пока нет" description="Средний балл появится после первых оценок." />}>
                 {(data) => (
                     <section aria-label="Сводка успеваемости" className="flex flex-col gap-5 rounded-xl border bg-card p-5 md:p-6">
                         <dl className="grid grid-cols-2 gap-5 lg:grid-cols-4">
@@ -130,7 +130,7 @@ export function GradesPage()
                         {data.rating && (
                             <div className="border-t pt-4">
                                 <p className="font-medium">Академический рейтинг: {decimal(data.rating.percent)}%</p>
-                                {data.rating.percentile != null && <p className="mt-1 text-sm text-muted-foreground">Выше, чем у {data.rating.percentile}% курса</p>}
+                                {data.rating.percentile != null && <p className="mt-1 text-sm text-muted-foreground">Выше, чем у {data.rating.percentile}% студентов курса</p>}
                             </div>
                         )}
                         <ul aria-label="Дисциплины по степени риска" className="flex flex-wrap gap-2">
@@ -149,7 +149,7 @@ export function GradesPage()
                 </TabsList>
                 <TabsContent value="current">
                     <QueryView query={current} isEmpty={(data) => data.disciplines.length === 0}
-                        empty={<EmptyState title="Дисциплины пока не добавлены" description="Баллы появятся после начала оценивания в семестре." />}>
+                        empty={<EmptyState title="Дисциплины пока не добавлены" />}>
                         {(data) => (
                             <div className="flex flex-col gap-4">
                                 <ul aria-label="Дисциплины текущего семестра" className="divide-y overflow-hidden rounded-xl border bg-card">

@@ -43,10 +43,10 @@ export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
     const inactive = lesson.status === 'cancelled' || lesson.status === 'moved_away';
 
     return (
-        <article className={cn('grid min-w-0 gap-3 px-4 py-5 sm:grid-cols-[6rem_minmax(0,1fr)] sm:px-5', inactive && 'bg-muted/40')}>
+        <article className={cn('grid min-w-0 gap-3 px-4 py-5 sm:grid-cols-[7.5rem_minmax(0,1fr)] sm:px-5', inactive && 'bg-muted/40')}>
             <div className="flex items-baseline gap-3 sm:flex-col sm:gap-1">
-                <p className="font-semibold tabular-nums"><time>{lesson.start_time}</time>–<time>{lesson.end_time}</time></p>
-                <p className="text-sm text-muted-foreground">{lesson.pair_number} пара</p>
+                <p className="font-semibold whitespace-nowrap tabular-nums"><time>{lesson.start_time}</time>–<time>{lesson.end_time}</time></p>
+                <p className="text-sm text-muted-foreground">{lesson.pair_number === 8 ? 'Другое время' : `${lesson.pair_number}-я пара`}</p>
             </div>
             <div className="flex min-w-0 flex-col items-start gap-2">
                 <p className={cn('font-semibold break-words', inactive && 'text-muted-foreground', lesson.status === 'cancelled' && 'line-through')}>{lesson.discipline.name}</p>

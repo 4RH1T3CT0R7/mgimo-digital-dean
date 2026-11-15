@@ -34,6 +34,23 @@ async function readBothSchedules()
 
 describe('T14: последовательные изменения в dev:mock', () =>
 {
+    it.each([['12:15', '13:35'], ['12:00', '13:35']])('своя сетка %s–%s не наследует номер исходной пары', async (start, end) =>
+    {
+        const moved = await unwrap(academicApi.POST('/staff/lessons/{lesson_id}/change', {
+            params: { path },
+            body: { type: 'moved', new_date: '2026-11-19', new_start_time: start, new_end_time: end },
+        }));
+
+        expect(moved.pair_number).toBe(8);
+        for (const items of await readBothSchedules())
+        {
+            expect(items).toEqual(expect.arrayContaining([
+                expect.objectContaining({ status: 'moved_away', pair_number: lesson.pair_number }),
+                expect.objectContaining({ status: 'moved', start_time: start, end_time: end, pair_number: 8 }),
+            ]));
+        }
+    });
+
     it('повторный перенос сохраняет первый слот в обоих расписаниях', async () =>
     {
         await move();
