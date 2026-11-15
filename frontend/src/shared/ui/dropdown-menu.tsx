@@ -12,6 +12,7 @@ export function DropdownMenuContent({ className, sideOffset = 6, align = 'end', 
   return (
     <M.Portal>
       <M.Content
+        data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         align={align}
         className={cn('z-50 min-w-56 rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-lg', className)}

@@ -44,6 +44,8 @@
   --gutter: 1rem;
   --header-h: 3.5rem;
   --tabbar-h: 4rem;
+
+  --skyline-opacity: 0.05;
 }
 
 /* Тёмная тема: нейтральный графит без синевы; цвета МГИМО — только акценты (кнопки, ссылки, активное) */
@@ -74,6 +76,8 @@
   --warning-strong: #f3c66f;
   --danger-soft: #3a1c1e;
   --danger-strong: #ffa29a;
+
+  --skyline-opacity: 0.045;
 }
 
 @media (min-width: 768px) {
@@ -151,6 +155,128 @@
     ::after {
       transition-duration: 0.01ms !important;
       animation-duration: 0.01ms !important;
+      animation-delay: 0s !important;
     }
+  }
+}
+
+/*
+ * Движение (docs/design.md): только в ответ на действие — открыть окно или меню, перейти на страницу, нажать кнопку.
+ * Вход страницы — обёртка Outlet с key={pathname} в AppShell и PublicLayout.
+ * 100–220 мс, без пружин и отскоков. prefers-reduced-motion выключает всё (правило выше).
+ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+@keyframes zoom-out {
+  to {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+@keyframes slide-up {
+  from {
+    translate: 0 100%;
+  }
+}
+@keyframes slide-down {
+  to {
+    translate: 0 100%;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+@keyframes grow-x {
+  from {
+    scale: 0 1;
+  }
+}
+
+@layer components {
+  /* Окна и меню Radix: при data-state=closed Radix ждёт конца анимации и только потом убирает элемент */
+  [data-slot='dialog-overlay'][data-state='open'],
+  [data-slot='sheet-overlay'][data-state='open'] {
+    animation: fade-in 150ms ease-out;
+  }
+  [data-slot='dialog-overlay'][data-state='closed'],
+  [data-slot='sheet-overlay'][data-state='closed'] {
+    animation: fade-out 120ms ease-in forwards;
+  }
+  [data-slot='dialog-content'][data-state='open'] {
+    animation: zoom-in 180ms ease-out;
+  }
+  [data-slot='dialog-content'][data-state='closed'] {
+    animation: zoom-out 120ms ease-in forwards;
+  }
+  [data-slot='sheet-content'][data-side='bottom'][data-state='open'] {
+    animation: slide-up 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  [data-slot='sheet-content'][data-side='bottom'][data-state='closed'] {
+    animation: slide-down 160ms ease-in forwards;
+  }
+  [data-slot='dropdown-menu-content'][data-state='open'] {
+    transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+    animation: zoom-in 120ms ease-out;
+  }
+  [data-slot='dropdown-menu-content'][data-state='closed'] {
+    animation: fade-out 100ms ease-in forwards;
+  }
+  [data-slot='select-content'][data-state='open'] {
+    transform-origin: var(--radix-select-content-transform-origin);
+    animation: zoom-in 120ms ease-out;
+  }
+
+  /* Силуэт здания из логотипа (D57): фон цветом текста на 5 % (в тёмной теме 4,5 %; большой — ещё бледнее), за содержимым (у main — isolate) */
+  .skyline {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--foreground);
+    opacity: var(--skyline-opacity);
+    mask-repeat: no-repeat;
+    mask-composite: intersect;
+  }
+  /* Кабинет, от 768 px: «шапка» за заголовком страницы, растворяется влево и вниз */
+  .skyline-page {
+    display: none;
+    top: 1rem;
+    right: 0;
+    width: 62%;
+    height: 250px;
+    mask-image: linear-gradient(to right, transparent, #000 45%), linear-gradient(to top, transparent, #000 30%), url(/brand/building-outline.png);
+    mask-position: 0 0, 0 0, right bottom;
+    mask-size: 100% 100%, 100% 100%, contain;
+  }
+  @media (min-width: 768px) {
+    .skyline-page {
+      display: block;
+    }
+  }
+  /* Вход, проверка справки, 404: большой силуэт стоит на линии подвала, края растворяются */
+  .skyline-hero {
+    opacity: calc(var(--skyline-opacity) * 0.65);
+    inset-inline: 0;
+    bottom: 0;
+    aspect-ratio: 1175 / 390;
+    mask-image: linear-gradient(to right, transparent, #000 15% 85%, transparent), url(/brand/building-outline.png);
+    mask-position: 0 0, center bottom;
+    mask-size: 100% 100%, contain;
   }
 }
