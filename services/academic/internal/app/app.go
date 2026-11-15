@@ -121,6 +121,18 @@ func (s *Server) GetGroup(ctx context.Context, req internalapi.GetGroupRequestOb
 	}, nil
 }
 
+func (s *Server) GetFaculty(ctx context.Context, req internalapi.GetFacultyRequestObject) (internalapi.GetFacultyResponseObject, error) {
+	row, err := s.q.GetFaculty(ctx, req.FacultyId)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, platform.NotFound()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return internalapi.GetFaculty200JSONResponse{Id: row.ID, ShortName: row.ShortName}, nil
+}
+
 func (s *Server) ResolveAudience(ctx context.Context, req internalapi.ResolveAudienceRequestObject) (internalapi.ResolveAudienceResponseObject, error) {
 	if req.Body == nil {
 		return nil, platform.Validation(map[string]string{"kind": "Укажите адресата"})

@@ -71,6 +71,14 @@ type Error struct {
 	Message string                  `json:"message"`
 }
 
+// Faculty defines model for Faculty.
+type Faculty struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// ShortName «ФМО», «МЭО»
+	ShortName string `json:"short_name"`
+}
+
 // Group defines model for Group.
 type Group struct {
 	Course    int                `json:"course"`
@@ -141,6 +149,9 @@ type ServerInterface interface {
 	// Студенты, попадающие под адресата (для статистики прочтения объявлений)
 	// (POST /internal/audience/students)
 	ResolveAudience(w http.ResponseWriter, r *http.Request)
+	// Факультет (короткое название для подписи объявлений сотрудника, «Деканат ФМО»)
+	// (GET /internal/faculties/{faculty_id})
+	GetFaculty(w http.ResponseWriter, r *http.Request, facultyId openapi_types.UUID)
 	// Группа (для проверки, что адресат объявления — с факультета сотрудника)
 	// (GET /internal/groups/{group_id})
 	GetGroup(w http.ResponseWriter, r *http.Request, groupId openapi_types.UUID)
@@ -166,6 +177,31 @@ func (siw *ServerInterfaceWrapper) ResolveAudience(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResolveAudience(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFaculty operation middleware
+func (siw *ServerInterfaceWrapper) GetFaculty(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "faculty_id" -------------
+	var facultyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "faculty_id", r.PathValue("faculty_id"), &facultyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "faculty_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFaculty(w, r, facultyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -371,6 +407,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/internal/audience/students", wrapper.ResolveAudience)
+	m.HandleFunc("GET "+options.BaseURL+"/internal/faculties/{faculty_id}", wrapper.GetFaculty)
 	m.HandleFunc("GET "+options.BaseURL+"/internal/groups/{group_id}", wrapper.GetGroup)
 	m.HandleFunc("GET "+options.BaseURL+"/internal/students/{student_id}", wrapper.GetStudentCard)
 	m.HandleFunc("GET "+options.BaseURL+"/internal/students/{student_id}/membership", wrapper.GetStudentMembership)
@@ -404,6 +441,32 @@ type ResolveAudience400JSONResponse Error
 func (response ResolveAudience400JSONResponse) VisitResolveAudienceResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetFacultyRequestObject struct {
+	FacultyId openapi_types.UUID `json:"faculty_id"`
+}
+
+type GetFacultyResponseObject interface {
+	VisitGetFacultyResponse(w http.ResponseWriter) error
+}
+
+type GetFaculty200JSONResponse Faculty
+
+func (response GetFaculty200JSONResponse) VisitGetFacultyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetFaculty404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetFaculty404JSONResponse) VisitGetFacultyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -491,6 +554,9 @@ type StrictServerInterface interface {
 	// Студенты, попадающие под адресата (для статистики прочтения объявлений)
 	// (POST /internal/audience/students)
 	ResolveAudience(ctx context.Context, request ResolveAudienceRequestObject) (ResolveAudienceResponseObject, error)
+	// Факультет (короткое название для подписи объявлений сотрудника, «Деканат ФМО»)
+	// (GET /internal/faculties/{faculty_id})
+	GetFaculty(ctx context.Context, request GetFacultyRequestObject) (GetFacultyResponseObject, error)
 	// Группа (для проверки, что адресат объявления — с факультета сотрудника)
 	// (GET /internal/groups/{group_id})
 	GetGroup(ctx context.Context, request GetGroupRequestObject) (GetGroupResponseObject, error)
@@ -555,6 +621,32 @@ func (sh *strictHandler) ResolveAudience(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ResolveAudienceResponseObject); ok {
 		if err := validResponse.VisitResolveAudienceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetFaculty operation middleware
+func (sh *strictHandler) GetFaculty(w http.ResponseWriter, r *http.Request, facultyId openapi_types.UUID) {
+	var request GetFacultyRequestObject
+
+	request.FacultyId = facultyId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFaculty(ctx, request.(GetFacultyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFaculty")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFacultyResponseObject); ok {
+		if err := validResponse.VisitGetFacultyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

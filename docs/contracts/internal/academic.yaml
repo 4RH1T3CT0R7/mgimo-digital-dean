@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: |
     Порт 8081, только внутренняя сеть Docker; через шлюз недоступен.
-    Клиенты: `requests` (слепок студента при подаче заявки), `notifications` (принадлежность студента, адресаты объявлений).
+    Клиенты: `requests` (слепок студента при подаче заявки), `notifications` (принадлежность студента, адресаты объявлений, подпись «Деканат ФМО»).
 servers:
   - url: http://academic:8081
 # Аутентификации нет намеренно: порт 8081 доступен только во внутренней сети Docker, шлюз его не проксирует (D31).
@@ -58,6 +58,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Group'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /internal/faculties/{faculty_id}:
+    get:
+      operationId: getFaculty
+      summary: Факультет (короткое название для подписи объявлений сотрудника, «Деканат ФМО»)
+      parameters:
+        - in: path
+          name: faculty_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Факультет
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Faculty'
         '404':
           $ref: '#/components/responses/NotFound'
   /internal/audience/students:
@@ -199,6 +219,16 @@ components:
         faculty_id:
           type: string
           format: uuid
+    Faculty:
+      type: object
+      required: [id, short_name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        short_name:
+          type: string
+          description: «ФМО», «МЭО»
     StudentRef:
       type: object
       required: [id, short_name, group_name]

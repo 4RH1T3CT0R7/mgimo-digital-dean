@@ -26,6 +26,9 @@ SELECT id, name, kind, course, faculty_id
 FROM groups
 WHERE id = sqlc.arg(group_id);
 
+-- name: GetFaculty :one
+SELECT id, short_name FROM faculties WHERE id = sqlc.arg(faculty_id);
+
 -- name: ResolveAudience :many
 SELECT s.id, s.short_name, g.name AS group_name
 FROM students s
