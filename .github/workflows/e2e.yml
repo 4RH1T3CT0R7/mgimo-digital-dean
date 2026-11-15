@@ -1,9 +1,8 @@
-# Кандидат для согласования. После ревью капитан переносит в .github/workflows/e2e.yml.
+# Сценарий жюри (T20) на изолированном стеке. Только вручную: Actions → e2e → Run workflow.
+# На обычных PR не запускается, чтобы не делать CI красным без стенда и секретов (e2e/README.md).
 name: e2e
 
 on:
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,8 +10,6 @@ permissions:
 
 jobs:
   e2e:
-    # Секреты доступны только веткам своего репозитория.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -25,9 +22,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: e2e/package-lock.json
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
       - name: Установить Playwright и Chromium
         working-directory: e2e
         run: |
