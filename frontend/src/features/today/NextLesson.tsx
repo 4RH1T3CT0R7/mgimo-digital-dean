@@ -22,7 +22,7 @@ export function NextLesson({ schedule, now, languageGroups }: {
     {
         return (
             <>
-                <p className="text-muted-foreground">На этой неделе занятий нет</p>
+                <p className="text-muted-foreground">В ближайшие 14 дней занятий нет</p>
                 <AsOf date={schedule.as_of} />
             </>
         );

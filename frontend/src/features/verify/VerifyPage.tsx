@@ -15,7 +15,7 @@ import { useCertificate } from './queries';
 
 function DemoNote()
 {
-    return <p className="mt-6 text-sm text-muted-foreground">Демонстрационная проверка в прототипе. Справка не является официальным документом.</p>;
+    return <p className="mt-6 text-sm text-muted-foreground">Это учебный прототип. Справка не является официальным документом.</p>;
 }
 
 function AnotherCode()
@@ -90,9 +90,9 @@ function CertificateResult({ code }: { code: string })
                 const Icon = data.valid ? CircleCheckIcon : ClockIcon;
                 const title = data.valid ? 'Справка действительна' : 'Срок действия справки истёк';
                 const fields = [
-                    ['Владелец', data.holder],
+                    ['Кому выдана', data.holder],
                     ['Факультет', data.faculty_short],
-                    ['Название', data.title],
+                    ['Документ', data.title],
                     ['Дата выдачи', formatDate(data.issued_at, { withYear: true })],
                     ['Действительна до', formatDate(data.valid_until, { withYear: true })],
                 ];

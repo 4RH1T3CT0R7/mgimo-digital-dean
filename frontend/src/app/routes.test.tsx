@@ -63,7 +63,7 @@ describe('Сценарии моков на главной-заглушке', () 
 
   it('?scenario=empty — EmptyState', async () => {
     renderWithProviders(<AppRoutes />, { route: '/?scenario=empty', login: 'student.mo' });
-    expect(await screen.findByText('На этой неделе занятий нет')).toBeInTheDocument();
+    expect(await screen.findByText('В ближайшие 14 дней занятий нет')).toBeInTheDocument();
   });
 
   it('?scenario=slow — LoadingState', async () => {

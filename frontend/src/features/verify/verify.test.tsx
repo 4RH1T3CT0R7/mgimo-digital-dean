@@ -30,7 +30,7 @@ describe('T15: обязательные сценарии Z1–Z6', () =>
         expect(screen.getByText('18 декабря 2026 г.')).toBeInTheDocument();
         expect(screen.queryByRole('navigation', { name: 'Разделы' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Меню пользователя/ })).not.toBeInTheDocument();
-        expect(screen.getByText(/Демонстрационная проверка в прототипе/)).toBeInTheDocument();
+        expect(screen.getByText('Это учебный прототип. Справка не является официальным документом.')).toBeInTheDocument();
     });
 
     it('Z2: истёкшая справка сохраняет данные владельца', async () =>
