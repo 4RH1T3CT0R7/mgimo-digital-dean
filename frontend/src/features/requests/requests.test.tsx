@@ -92,7 +92,7 @@ describe('Новая заявка', () => {
       login: 'student.mo',
     });
     expect(await screen.findByRole('combobox', { name: 'Для чего нужна справка' })).toHaveTextContent('Для налоговой');
-    expect(screen.getByLabelText(/Куда предоставляется/)).toHaveValue('ИФНС № 5');
+    expect(screen.getByLabelText(/Куда нужна справка/)).toHaveValue('ИФНС № 5');
   });
 
   it('чужой вариант select из адреса игнорируется', async () => {

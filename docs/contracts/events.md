@@ -79,10 +79,10 @@
 
 | Событие | Заголовок | Текст |
 |---|---|---|
-| lesson moved | `Перенос: {discipline}` | `Занятие {prev.date} в {prev.start} перенесено на {cur.date} в {cur.start}, {cur.room}. {reason}` |
-| lesson cancelled | `Отмена: {discipline}` | `Занятие {prev.date} в {prev.start} отменено. {reason}` |
+| lesson moved | `Перенос: {discipline}` | `Занятие {prev.date} в {prev.start} перенесено на {cur.date} в {cur.start}, {cur.room}. {reason}.` |
+| lesson cancelled | `Отмена: {discipline}` | `Занятие {prev.date} в {prev.start} отменено. {reason}.` |
 | lesson room_changed | `Другая аудитория: {discipline}` | `Занятие {cur.date} в {cur.start} пройдёт в {cur.room}.` |
-| status in_progress | `Заявка №{number} в работе` | `{service_title}: деканат начал обработку.` |
+| status in_progress | `Заявка №{number} в работе` | `{service_title}: деканат взял заявку в работу.` |
 | status needs_info | `Нужны уточнения по заявке №{number}` | `{service_title}: {comment}` |
 | status ready | `Готово: заявка №{number}` | `{service_title}: можно скачать или забрать в деканате.` (если `service_type_id = study-certificate` — `Справка готова, её можно скачать.`) |
 | status rejected | `Заявка №{number} отклонена` | `{service_title}: {comment}` |

@@ -186,7 +186,7 @@ export function AnnouncementForm({ me, done }: { me: Me; done: () => void }) {
                 {...fieldState('requires_ack', errors.fields.requires_ack)}
                 onCheckedChange={(value) => setRequiresAck(value === true)}
               />
-              Требует подтверждения ознакомления
+              Попросить подтвердить ознакомление
             </Label>
             <FieldError name="requires_ack" message={errors.fields.requires_ack} />
           </>

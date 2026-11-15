@@ -52,7 +52,7 @@ describe('T13', () => {
     const { user } = renderPage();
     await user.click(await screen.findByRole('button', { name: 'Новое объявление' }));
     const form = within(screen.getByRole('dialog'));
-    await user.click(form.getByRole('checkbox', { name: 'Требует подтверждения ознакомления' }));
+    await user.click(form.getByRole('checkbox', { name: 'Попросить подтвердить ознакомление' }));
     await user.click(form.getByRole('radio', { name: 'Новость' }));
     expect(form.queryByRole('checkbox', { name: /Требует подтверждения/ })).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('T13', () => {
     const publication = within(screen.getByRole('dialog'));
     await staff.user.type(publication.getByLabelText('Заголовок'), 'Встреча группы');
     await staff.user.type(publication.getByLabelText('Текст'), 'Проверьте время встречи.');
-    await staff.user.click(publication.getByRole('checkbox', { name: 'Требует подтверждения ознакомления' }));
+    await staff.user.click(publication.getByRole('checkbox', { name: 'Попросить подтвердить ознакомление' }));
     await choose(staff.user, publication, 'Кому показать', 'Группа');
     await staff.user.click(await publication.findByRole('combobox', { name: 'Группа' }));
     expect(await screen.findByRole('option', { name: 'МО-24-03' })).toBeInTheDocument();

@@ -103,7 +103,7 @@ function AckError({ error }: { error: Error }) {
   return (
     <p role="alert" className="mt-2 ml-8 text-sm text-danger-strong">
       {error instanceof ApiError && error.status === 409
-        ? 'Не удалось подтвердить ознакомление. Проверьте, что объявление ещё требует подтверждения, и повторите попытку.'
+        ? 'Не удалось подтвердить ознакомление. Обновите страницу и попробуйте ещё раз.'
         : apiErrorMessage(error)}
     </p>
   );
