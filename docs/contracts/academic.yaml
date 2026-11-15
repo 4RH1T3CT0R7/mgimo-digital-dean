@@ -590,7 +590,7 @@ components:
           type: string
           nullable: true
           maxLength: 300
-          example: Болезнь преподавателя
+          example: Преподаватель заболел
         changed_at:
           type: string
           format: date-time

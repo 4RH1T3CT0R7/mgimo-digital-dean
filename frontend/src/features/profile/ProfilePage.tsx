@@ -16,7 +16,7 @@ export function ProfilePage()
 
     return (
         <>
-            <PageHeader title="Профиль" subtitle="Данные изменяются только через деканат" />
+            <PageHeader title="Профиль" subtitle="Изменить данные можно только через деканат" />
             <QueryView query={profile} isEmpty={(data) => !data.full_name}
                 empty={<EmptyState title="Данные профиля пока не заполнены" description="Обратитесь в деканат, чтобы уточнить сведения об обучении." />}>
                 {(data) => (

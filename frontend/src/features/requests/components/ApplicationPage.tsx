@@ -308,7 +308,7 @@ function CancelDialog({ application }: { application: Application }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Отозвать заявку № {application.number}?</DialogTitle>
-          <DialogDescription>Деканат не будет её рассматривать. Вернуть отозванную заявку нельзя — при необходимости подайте новую.</DialogDescription>
+          <DialogDescription>Деканат не будет её рассматривать. Вернуть отозванную заявку нельзя — если понадобится, подайте новую.</DialogDescription>
         </DialogHeader>
         {cancel.isError && (
           <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">

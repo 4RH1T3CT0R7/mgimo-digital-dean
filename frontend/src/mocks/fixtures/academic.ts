@@ -101,7 +101,7 @@ const moved = lesson('2026-11-19', 3, DISC.hist, 'seminar', ROOM.b2009, TEACH.be
   change: {
     type: 'moved',
     previous: { date: '2026-11-17', start_time: '10:30', end_time: '11:50', room: ROOM.b2009 },
-    reason: 'Перенос по просьбе преподавателя',
+    reason: 'Преподаватель перенёс занятие',
     changed_at: '2026-11-13T15:20:00+03:00',
   },
 });
@@ -125,7 +125,7 @@ export const weekSchedule: S['Schedule'] = {
       change: {
         type: 'cancelled',
         previous: { date: '2026-11-18', start_time: '12:00', end_time: '13:20', room: ROOM.b1047 },
-        reason: 'Болезнь преподавателя',
+        reason: 'Преподаватель заболел',
         changed_at: '2026-11-13T09:00:00+03:00',
       },
     }),

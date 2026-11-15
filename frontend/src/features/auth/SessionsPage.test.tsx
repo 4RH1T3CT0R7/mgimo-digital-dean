@@ -15,7 +15,7 @@ describe('Безопасность: сеансы', () => {
     expect(items[0]).toHaveTextContent('Chrome · Windows');
 
     await user.click(screen.getByRole('button', { name: 'Выйти на всех других устройствах' }));
-    expect(await screen.findByText('Вход выполнен только на этом устройстве.')).toBeInTheDocument();
+    expect(await screen.findByText('Вы вошли только на этом устройстве.')).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'Сеансы' })).getAllByRole('listitem')).toHaveLength(1);
   });
 
