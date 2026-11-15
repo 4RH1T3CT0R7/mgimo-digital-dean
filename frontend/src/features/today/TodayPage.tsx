@@ -121,6 +121,7 @@ export function TodayPage()
                         <Button asChild><Link to="/requests/new/study-certificate">Справка с места учёбы</Link></Button>
                         <Button asChild variant="outline"><Link to="/schedule">Расписание</Link></Button>
                         <Button asChild variant="outline"><Link to="/grades">Успеваемость</Link></Button>
+                        <Button asChild variant="outline"><Link to="/assistant">Спросить помощника</Link></Button>
                     </nav>
             </div>}
         </>
