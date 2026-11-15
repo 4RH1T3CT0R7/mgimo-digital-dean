@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -43,7 +43,7 @@ func (s *Server) receiveLesson(ctx context.Context, e events.Envelope[events.Les
 	slices.SortFunc(groups, func(a, b uuid.UUID) int { return slices.Compare(a[:], b[:]) })
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return errors.New("не удалось открыть транзакцию уведомлений")
+		return fmt.Errorf("не удалось открыть транзакцию уведомлений: %w", err)
 	}
 	defer tx.Rollback(ctx)
 	q := s.q.WithTx(tx)
@@ -54,7 +54,7 @@ func (s *Server) receiveLesson(ctx context.Context, e events.Envelope[events.Les
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return errors.New("не удалось сохранить уведомления групп")
+		return fmt.Errorf("не удалось сохранить уведомления групп: %w", err)
 	}
 	return nil
 }
@@ -87,8 +87,8 @@ func insertEvent(ctx context.Context, q *db.Queries, n rules.Notification, id uu
 		AudienceGroupID: n.Audience.GroupId, SourceEventID: &id, CreatedAt: at, AuthorLabel: n.AuthorLabel,
 	})
 	if err != nil {
-		// Подписчик пишет ошибку в лог. Текст уведомления в лог не передаём.
-		return errors.New("не удалось сохранить уведомление")
+		// Подписчик пишет ошибку в лог. PgError.Error() не содержит Detail, текст уведомления в лог не попадает.
+		return fmt.Errorf("не удалось сохранить уведомление: %w", err)
 	}
 	return nil
 }

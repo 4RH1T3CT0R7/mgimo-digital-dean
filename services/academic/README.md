@@ -19,6 +19,7 @@
 | `GET /internal/students/{student_id}` | Карточка для слепка в заявке |
 | `GET /internal/students/{student_id}/membership` | Факультет, курс, академическая и языковые группы |
 | `GET /internal/groups/{group_id}` | Данные и факультет группы |
+| `GET /internal/faculties/{faculty_id}` | Короткое название факультета для подписи «Деканат ФМО» |
 | `POST /internal/audience/students` | Адресаты `all`, `faculty`, `course`, `group`, `user` |
 
 Внутренние пути не зарегистрированы на публичном сервере. Отсутствующие объекты возвращают JSON-404;

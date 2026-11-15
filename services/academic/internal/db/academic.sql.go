@@ -11,6 +11,22 @@ import (
 	"github.com/google/uuid"
 )
 
+const getFaculty = `-- name: GetFaculty :one
+SELECT id, short_name FROM faculties WHERE id = $1
+`
+
+type GetFacultyRow struct {
+	ID        uuid.UUID
+	ShortName string
+}
+
+func (q *Queries) GetFaculty(ctx context.Context, facultyID uuid.UUID) (GetFacultyRow, error) {
+	row := q.db.QueryRow(ctx, getFaculty, facultyID)
+	var i GetFacultyRow
+	err := row.Scan(&i.ID, &i.ShortName)
+	return i, err
+}
+
 const getGroup = `-- name: GetGroup :one
 SELECT id, name, kind, course, faculty_id
 FROM groups

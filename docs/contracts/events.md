@@ -10,7 +10,7 @@
 | Хранение | file storage, `max_age` 7 дней |
 | Дедупликация при публикации | заголовок `Nats-Msg-Id` = `id` события (окно 2 минуты) |
 | Подписчик | durable consumer `notifications`, explicit ack, `max_deliver` 5; несколько копий сервиса читают как одна группа |
-| Гарантия | «как минимум один раз» → получатель обязан быть **идемпотентным**: `notifications.source_event_id` уникален, повтор игнорируется |
+| Гарантия | «как минимум один раз» → получатель обязан быть **идемпотентным**: пара `(source_event_id, audience_group_id)` в `notifications` уникальна (data-model.md), повтор игнорируется |
 
 Публикация — **после** успешного коммита транзакции в БД. Если публикация не удалась, ошибка пишется в лог, а запрос пользователя всё равно успешен: уведомление второстепенно по отношению к самому действию.
 
@@ -58,7 +58,7 @@
 | `new_status` | string | |
 | `comment` | string \| null | Комментарий сотрудника |
 
-**Что делает `notifications`:** если `new_status = submitted` — ничего (студент сам только что подал). Иначе — уведомление типа `application_status`, адресат `user = student_id`, ссылка `{kind: application, id}`. `important = true` для `needs_info`, `ready`, `rejected`.
+**Что делает `notifications`:** если `new_status` — `submitted` или `cancelled`, ничего (студент сам подал или отозвал заявку). Иначе — уведомление типа `application_status`, адресат `user = student_id`, ссылка `{kind: application, id}`. `important = true` для `needs_info`, `ready`, `rejected`.
 
 ### `requests.application.message_added`
 Публикует `requests` при каждом новом сообщении.

@@ -189,6 +189,17 @@ func TestI3Group(t *testing.T) {
 	assertError(t, request(e.in, http.MethodGet, "/internal/groups/"+unknown.String(), ""), 404, "not_found")
 }
 
+func TestI5Faculty(t *testing.T) {
+	e := setup(t)
+	got := decode[internalapi.Faculty](t, request(e.in, http.MethodGet, "/internal/faculties/"+f2.String(), ""))
+	if want := (internalapi.Faculty{Id: f2, ShortName: "МЭО"}); got != want {
+		t.Fatalf("факультет: %+v; ожидался: %+v", got, want)
+	}
+	assertError(t, request(e.in, http.MethodGet, "/internal/faculties/"+unknown.String(), ""), 404, "not_found")
+	assertError(t, request(e.in, http.MethodGet, "/internal/faculties/broken", ""), 400, "validation_failed")
+	assertError(t, request(e.pub, http.MethodGet, "/internal/faculties/"+f1.String(), ""), 404, "not_found")
+}
+
 func TestI4ResolveAudience(t *testing.T) {
 	e := setup(t)
 	cases := []struct {

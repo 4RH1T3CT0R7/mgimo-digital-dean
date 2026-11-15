@@ -20,6 +20,7 @@ WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id,
           $1::uuid, $2::uuid, $3::integer, $4::uuid[])
   AND (NOT $5::boolean OR r.read_at IS NULL)
   AND (cardinality($6::text[]) = 0 OR n.type = ANY($6::text[]))
+  AND n.created_at <= $7::timestamptz
 `
 
 type CountFeedParams struct {
@@ -29,6 +30,7 @@ type CountFeedParams struct {
 	GroupIds   []uuid.UUID
 	UnreadOnly bool
 	Types      []string
+	Now        time.Time
 }
 
 func (q *Queries) CountFeed(ctx context.Context, arg CountFeedParams) (int64, error) {
@@ -39,6 +41,7 @@ func (q *Queries) CountFeed(ctx context.Context, arg CountFeedParams) (int64, er
 		arg.GroupIds,
 		arg.UnreadOnly,
 		arg.Types,
+		arg.Now,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -82,6 +85,7 @@ FROM notifications n
 LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = $1::uuid
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $1::uuid, $2::uuid, $3::integer, $4::uuid[])
+  AND n.created_at <= $5::timestamptz
 `
 
 type FeedCountersParams struct {
@@ -89,6 +93,7 @@ type FeedCountersParams struct {
 	FacultyID uuid.UUID
 	Course    int32
 	GroupIds  []uuid.UUID
+	Now       time.Time
 }
 
 type FeedCountersRow struct {
@@ -102,6 +107,7 @@ func (q *Queries) FeedCounters(ctx context.Context, arg FeedCountersParams) (Fee
 		arg.FacultyID,
 		arg.Course,
 		arg.GroupIds,
+		arg.Now,
 	)
 	var i FeedCountersRow
 	err := row.Scan(&i.Unread, &i.ImportantUnacked)
@@ -113,6 +119,7 @@ SELECT n.requires_ack
 FROM notifications n
 WHERE n.id = $1::uuid AND notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $2::uuid, $3::uuid, $4::integer, $5::uuid[])
+  AND n.created_at <= $6::timestamptz
 `
 
 type FindVisibleNotificationParams struct {
@@ -121,6 +128,7 @@ type FindVisibleNotificationParams struct {
 	FacultyID uuid.UUID
 	Course    int32
 	GroupIds  []uuid.UUID
+	Now       time.Time
 }
 
 func (q *Queries) FindVisibleNotification(ctx context.Context, arg FindVisibleNotificationParams) (bool, error) {
@@ -130,6 +138,7 @@ func (q *Queries) FindVisibleNotification(ctx context.Context, arg FindVisibleNo
 		arg.FacultyID,
 		arg.Course,
 		arg.GroupIds,
+		arg.Now,
 	)
 	var requires_ack bool
 	err := row.Scan(&requires_ack)
@@ -144,8 +153,9 @@ WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id,
           $1::uuid, $2::uuid, $3::integer, $4::uuid[])
   AND (NOT $5::boolean OR r.read_at IS NULL)
   AND (cardinality($6::text[]) = 0 OR n.type = ANY($6::text[]))
+  AND n.created_at <= $7::timestamptz
 ORDER BY (n.important AND r.read_at IS NULL) DESC, n.created_at DESC, n.id DESC
-LIMIT $8::integer OFFSET $7::integer
+LIMIT $9::integer OFFSET $8::integer
 `
 
 type ListFeedParams struct {
@@ -155,6 +165,7 @@ type ListFeedParams struct {
 	GroupIds   []uuid.UUID
 	UnreadOnly bool
 	Types      []string
+	Now        time.Time
 	PageOffset int32
 	PageLimit  int32
 }
@@ -173,6 +184,7 @@ func (q *Queries) ListFeed(ctx context.Context, arg ListFeedParams) ([]ListFeedR
 		arg.GroupIds,
 		arg.UnreadOnly,
 		arg.Types,
+		arg.Now,
 		arg.PageOffset,
 		arg.PageLimit,
 	)
@@ -279,6 +291,7 @@ SELECT n.id, $1::uuid, $2::timestamptz
 FROM notifications n
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $1::uuid, $3::uuid, $4::integer, $5::uuid[])
+  AND n.created_at <= $2::timestamptz
 ON CONFLICT (notification_id, user_id) DO NOTHING
 `
 
@@ -309,6 +322,7 @@ FROM notifications n
 WHERE n.id = $4::uuid AND notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $1::uuid, $5::uuid, $6::integer, $7::uuid[])
   AND (NOT $3::boolean OR n.requires_ack)
+  AND n.created_at <= $2::timestamptz
 ON CONFLICT (notification_id, user_id) DO UPDATE
 SET acked_at = COALESCE(notification_reads.acked_at, excluded.acked_at)
 `

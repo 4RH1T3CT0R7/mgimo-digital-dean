@@ -63,6 +63,7 @@ func TestR2Render(t *testing.T) {
 		{"cancel lesson", lesson("cancelled", prev, nil), "Отмена: История дипломатии", "Занятие 17.11 в 10:30 отменено.", true, api.LinkKindLesson, "2026-11-17"},
 		{"room", lesson("room_changed", cur, nil), "Другая аудитория: История дипломатии", "Занятие 19.11 в 12:00 пройдёт в Главный корпус, 3047.", false, api.LinkKindLesson, "2026-11-19"},
 		{"submitted", status("submitted", "", "", nil), "", "", false, "", ""},
+		{"cancelled", status("cancelled", "financial-aid", "Материальная помощь", nil), "", "", false, "", ""},
 		{"progress", status("in_progress", "military-certificate", "Справка в военкомат", nil), "Заявка №000123 в работе", "Справка в военкомат: деканат начал обработку.", false, api.LinkKindApplication, ""},
 		{"info", status("needs_info", "financial-aid", "Материальная помощь", &info), "Нужны уточнения по заявке №000123", "Материальная помощь: Приложите справку о составе семьи", true, api.LinkKindApplication, ""},
 		{"transcript", status("ready", "transcript", "Выписка оценок / транскрипт", nil), "Готово: заявка №000123", "Выписка оценок / транскрипт: можно скачать или забрать в деканате.", true, api.LinkKindApplication, ""},
@@ -75,6 +76,18 @@ func TestR2Render(t *testing.T) {
 			got, ok := Render(tc.event)
 			if ok != (tc.title != "") || got.Title != tc.title || got.Body != tc.body || got.Important != tc.important || got.Link.Kind != tc.link {
 				t.Fatalf("Render = %+v, ok=%v", got, ok)
+			}
+			var want api.FeedItemType
+			switch tc.event.(type) {
+			case events.LessonChanged:
+				want = api.FeedItemTypeScheduleChange
+			case events.ApplicationStatusChanged:
+				want = api.FeedItemTypeApplicationStatus
+			case events.ApplicationMessageAdded:
+				want = api.FeedItemTypeApplicationMessage
+			}
+			if ok && got.Type != want {
+				t.Fatalf("тип %q, нужен %q", got.Type, want)
 			}
 			if tc.link == api.LinkKindLesson && (got.Link.Date == nil || got.Link.Date.String() != tc.date || got.Link.Id == nil || *got.Link.Id != lessonID) {
 				t.Fatalf("ссылка: %+v", got.Link)

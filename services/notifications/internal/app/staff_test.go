@@ -28,9 +28,13 @@ func TestS2StaffFaculty(t *testing.T) {
 	w := e.req("POST", announcementsPath, platformtest.Staff(uuid.New(), f1), publication(api.Audience{Kind: api.Faculty}), 201)
 	got := decode[api.StaffAnnouncement](t, w)
 	var stored uuid.UUID
-	err := e.s.pool.QueryRow(context.Background(), "SELECT audience_faculty_id FROM notifications WHERE id=$1", got.Id).Scan(&stored)
+	var label string
+	err := e.s.pool.QueryRow(context.Background(), "SELECT audience_faculty_id, author_label FROM notifications WHERE id=$1", got.Id).Scan(&stored, &label)
 	if err != nil || stored != f1 || got.Audience.FacultyId == nil || *got.Audience.FacultyId != f1 {
 		t.Fatalf("факультет: ответ %+v, БД %v, ошибка %v", got.Audience, stored, err)
+	}
+	if label != "Деканат ФМО" {
+		t.Fatalf("подпись %q", label)
 	}
 }
 
@@ -73,7 +77,7 @@ func TestS5AckReport(t *testing.T) {
 	path := announcementsPath + "/" + own.String() + "/acks"
 	got := decode[api.AckReport](t, e.req("GET", path, platformtest.Staff(uuid.New(), f1), nil, 200))
 	if got.Total != 3 || len(got.Acked) != 1 || got.Acked[0].Id != s1 ||
-		got.Acked[0].AckedAt == nil || !got.Acked[0].AckedAt.Equal(clock) || len(got.NotAcked) != 2 {
+		got.Acked[0].AckedAt == nil || !got.Acked[0].AckedAt.Equal(clock) || !inMSK(*got.Acked[0].AckedAt) || len(got.NotAcked) != 2 {
 		t.Fatalf("отчёт: %+v", got)
 	}
 	e.req("GET", path, platformtest.Staff(uuid.New(), f2), nil, 404)
@@ -106,6 +110,22 @@ func TestS6Deadline(t *testing.T) {
 	}
 	e.req("DELETE", path, staff1, nil, 204)
 	e.req("DELETE", path, staff1, nil, 404)
+}
+
+func TestDeadlineInput(t *testing.T) {
+	e := setup(t)
+	staff := platformtest.Staff(uuid.New(), f1)
+	blank, slug := "   ", "Financial aid"
+	body := api.CreateDeadlineRequest{Title: "Срок заявления", Kind: api.DeadlineKindApplication, DueAt: clock.Add(time.Hour),
+		Description: &blank, ServiceTypeId: &slug, Audience: api.Audience{Kind: api.Faculty}}
+	w := e.req("POST", deadlinesPath, staff, body, 400)
+	if platformtest.DecodeError(t, w.Body.Bytes()).Details.Fields["service_type_id"] == "" {
+		t.Fatal("нет ошибки поля service_type_id")
+	}
+	body.ServiceTypeId = nil
+	if got := decode[api.StaffDeadline](t, e.req("POST", deadlinesPath, staff, body, 201)); got.Description != nil {
+		t.Fatalf("пустое описание сохранено: %q", *got.Description)
+	}
 }
 
 func publication(a api.Audience) api.CreateAnnouncementRequest {

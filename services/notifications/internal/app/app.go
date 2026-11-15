@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -47,15 +48,23 @@ func (s *Server) membership(ctx context.Context) (academic.Membership, error) {
 	}
 	r, err := s.academic.GetStudentMembershipWithResponse(ctx, id.UserID)
 	if err != nil {
-		return academic.Membership{}, platform.Internal()
+		return academic.Membership{}, fmt.Errorf("academic getStudentMembership: %w", err)
 	}
 	if r.StatusCode() == http.StatusNotFound {
 		return academic.Membership{}, platform.NotFound()
 	}
 	if r.JSON200 == nil || r.JSON200.StudentId != id.UserID {
-		return academic.Membership{}, platform.Internal()
+		return academic.Membership{}, fmt.Errorf("academic getStudentMembership: неверный ответ, статус %d", r.StatusCode())
 	}
 	return *r.JSON200, nil
+}
+
+func inMoscow(t *time.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	m := t.In(moscow)
+	return &m
 }
 
 func pagination(limit, offset *int) (int32, int32, error) {
