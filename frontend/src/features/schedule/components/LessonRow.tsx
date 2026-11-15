@@ -1,3 +1,4 @@
+import { MapPinIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import type { components } from '@/api/academic';
 import { StatusBadge } from '@/shared/ui/status-badge';
@@ -5,6 +6,7 @@ import { cn } from '@/shared/lib/utils';
 import { shortDate } from '../calendar';
 import { lessonKindLabels } from '../labels';
 import type { Lesson } from '../queries';
+import { roomMapUrl } from '../room-map';
 
 export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { lesson: Lesson; schedulePath?: string })
 {
@@ -34,6 +36,23 @@ export function LessonChangeLabel({ lesson, schedulePath = '/schedule' }: { less
     return null;
 }
 
+// Аудитория — ссылка на план этажа на открытой карте МГИМО (D58)
+function RoomLink({ room }: { room: NonNullable<Lesson['room']> })
+{
+    return (
+        <a
+            href={roomMapUrl(room)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="-my-3 inline-flex min-h-11 items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        >
+            <MapPinIcon className="size-4 shrink-0" aria-hidden />
+            {room.building}, {room.number}
+            <span className="sr-only"> — план этажа на сайте МГИМО, откроется в новой вкладке</span>
+        </a>
+    );
+}
+
 export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
     lesson: Lesson;
     languageGroups?: components['schemas']['LanguageGroupRef'][];
@@ -53,7 +72,9 @@ export function LessonRow({ lesson, languageGroups = [], schedulePath }: {
                 <p className="text-sm text-muted-foreground">{lessonKindLabels[lesson.kind]}{lesson.format === 'online' ? ', онлайн' : ''}</p>
                 <LessonChangeLabel lesson={lesson} schedulePath={schedulePath} />
                 {lesson.change?.reason && <p className="text-sm break-words text-muted-foreground">{lesson.change.reason}</p>}
-                {lesson.room && <p className="text-sm">{lesson.room.building}, {lesson.room.number}</p>}
+                {lesson.room && (inactive
+                    ? <p className="text-sm">{lesson.room.building}, {lesson.room.number}</p>
+                    : <RoomLink room={lesson.room} />)}
                 {lesson.teacher && <p className="text-sm text-muted-foreground">{lesson.teacher.short_name}</p>}
                 <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[0.8125rem] text-muted-foreground" aria-label="Группы занятия">
                     {lesson.groups.map((group) => (
