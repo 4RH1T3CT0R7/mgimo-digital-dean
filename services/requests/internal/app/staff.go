@@ -178,7 +178,7 @@ func (s *Server) UploadStaffAttachment(ctx context.Context, req api.UploadStaffA
 	if closedForMessages(a.Status) {
 		return nil, invalidTransition()
 	}
-	att, err := s.saveUpload(ctx, a, req.Body, string(api.AttachmentUploadedByRoleStaff), me.UserID, true)
+	att, err := s.saveUpload(ctx, a, req.Body, string(api.AttachmentUploadedByRoleStaff), me.UserID, true, nil)
 	if err != nil {
 		return nil, err
 	}

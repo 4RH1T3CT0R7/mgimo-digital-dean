@@ -40,8 +40,9 @@ func readErr(err error) error {
 }
 
 // saveUpload читает multipart (поле file и, у сотрудника, is_result), проверяет размер и тип и сохраняет файл.
+// also — дополнительные шаги в той же транзакции (например, вернуть заявку в работу).
 func (s *Server) saveUpload(ctx context.Context, a db.Application, mr *multipart.Reader, role string, by uuid.UUID,
-	allowResult bool) (api.Attachment, error) {
+	allowResult bool, also func(q *db.Queries) error) (api.Attachment, error) {
 	var (
 		data     []byte
 		name     string
@@ -88,7 +89,13 @@ func (s *Server) saveUpload(ctx context.Context, a db.Application, mr *multipart
 			Now: now}); err != nil {
 			return err
 		}
-		return q.TouchApplication(ctx, db.TouchApplicationParams{ID: a.ID, Now: now})
+		if err := q.TouchApplication(ctx, db.TouchApplicationParams{ID: a.ID, Now: now}); err != nil {
+			return err
+		}
+		if also != nil {
+			return also(q)
+		}
+		return nil
 	}); err != nil {
 		return api.Attachment{}, err
 	}
