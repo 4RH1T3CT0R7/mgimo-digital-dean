@@ -5,8 +5,10 @@ import { login, logout, nav, openService, scheduleDate } from './helpers.js';
 test('жюри: студент смотрит расписание, оценки и скачивает справку', async ({ page }, testInfo) => {
   await login(page, 'student.mo');
 
-  await page.goto(`/schedule?date=${encodeURIComponent(scheduleDate)}`);
+  // Как жюри: через вкладку. Другая неделя — только если данные стенда отличаются от seed.
+  await nav(page, 'Расписание').click();
   await expect(page.getByRole('heading', { name: 'Расписание', exact: true })).toBeVisible();
+  if (process.env.E2E_SCHEDULE_DATE) await page.goto(`/schedule?date=${encodeURIComponent(scheduleDate)}`);
   await expect(page.getByText(/^Перенесено (на|с) /).first()).toBeVisible();
 
   await nav(page, 'Учёба').click();

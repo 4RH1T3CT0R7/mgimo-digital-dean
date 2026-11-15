@@ -2,12 +2,22 @@ import { randomUUID } from 'node:crypto';
 import { expect, request, test, type APIRequestContext, type APIResponse } from '@playwright/test';
 import { mockMode, password, studentId, type Account } from './helpers.js';
 
+const secretFields = ['password', 'password_hash', 'token_hash'];
+
+/** Поиск по всему телу ответа: ловит и поля, и значения вроде вложенного JSON в строке. */
+function noSecretText(value: unknown, endpoint: string): void {
+  const text = JSON.stringify(value).toLowerCase();
+  for (const field of secretFields) {
+    expect(text.includes(field), `подстрока ${field} в ответе ${endpoint}`).toBe(false);
+  }
+}
+
 function noSecretFields(value: unknown, endpoint: string): void {
   if (Array.isArray(value)) {
     for (const item of value) noSecretFields(item, endpoint);
   } else if (value && typeof value === 'object') {
     for (const [key, child] of Object.entries(value)) {
-      expect(['password', 'password_hash', 'token_hash'].includes(key.toLowerCase()),
+      expect(secretFields.includes(key.toLowerCase()),
         `запрещённое поле в ответе ${endpoint}`).toBe(false);
       noSecretFields(child, endpoint);
     }
@@ -18,6 +28,7 @@ async function json(response: APIResponse, status: number, endpoint: string): Pr
   expect(response.status(), endpoint).toBe(status);
   const body: unknown = await response.json();
   noSecretFields(body, endpoint);
+  noSecretText(body, endpoint);
   return body;
 }
 

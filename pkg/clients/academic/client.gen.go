@@ -72,6 +72,14 @@ type Error struct {
 	Message string                  `json:"message"`
 }
 
+// Faculty defines model for Faculty.
+type Faculty struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// ShortName «ФМО», «МЭО»
+	ShortName string `json:"short_name"`
+}
+
 // Group defines model for Group.
 type Group struct {
 	Course    int                `json:"course"`
@@ -215,6 +223,9 @@ type ClientInterface interface {
 
 	ResolveAudience(ctx context.Context, body ResolveAudienceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetFaculty request
+	GetFaculty(ctx context.Context, facultyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// GetGroup request
 	GetGroup(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -239,6 +250,18 @@ func (c *Client) ResolveAudienceWithBody(ctx context.Context, contentType string
 
 func (c *Client) ResolveAudience(ctx context.Context, body ResolveAudienceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResolveAudienceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetFaculty(ctx context.Context, facultyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetFacultyRequest(c.Server, facultyId)
 	if err != nil {
 		return nil, err
 	}
@@ -321,6 +344,40 @@ func NewResolveAudienceRequestWithBody(server string, contentType string, body i
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetFacultyRequest generates requests for GetFaculty
+func NewGetFacultyRequest(server string, facultyId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "faculty_id", runtime.ParamLocationPath, facultyId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/internal/faculties/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -475,6 +532,9 @@ type ClientWithResponsesInterface interface {
 
 	ResolveAudienceWithResponse(ctx context.Context, body ResolveAudienceJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveAudienceResponse, error)
 
+	// GetFacultyWithResponse request
+	GetFacultyWithResponse(ctx context.Context, facultyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetFacultyResponse, error)
+
 	// GetGroupWithResponse request
 	GetGroupWithResponse(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetGroupResponse, error)
 
@@ -504,6 +564,29 @@ func (r ResolveAudienceResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ResolveAudienceResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetFacultyResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Faculty
+	JSON404      *NotFound
+}
+
+// Status returns HTTPResponse.Status
+func (r GetFacultyResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetFacultyResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -596,6 +679,15 @@ func (c *ClientWithResponses) ResolveAudienceWithResponse(ctx context.Context, b
 	return ParseResolveAudienceResponse(rsp)
 }
 
+// GetFacultyWithResponse request returning *GetFacultyResponse
+func (c *ClientWithResponses) GetFacultyWithResponse(ctx context.Context, facultyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetFacultyResponse, error) {
+	rsp, err := c.GetFaculty(ctx, facultyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetFacultyResponse(rsp)
+}
+
 // GetGroupWithResponse request returning *GetGroupResponse
 func (c *ClientWithResponses) GetGroupWithResponse(ctx context.Context, groupId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetGroupResponse, error) {
 	rsp, err := c.GetGroup(ctx, groupId, reqEditors...)
@@ -652,6 +744,39 @@ func ParseResolveAudienceResponse(rsp *http.Response) (*ResolveAudienceResponse,
 			return nil, err
 		}
 		response.JSON400 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetFacultyResponse parses an HTTP response from a GetFacultyWithResponse call
+func ParseGetFacultyResponse(rsp *http.Response) (*GetFacultyResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetFacultyResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Faculty
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest NotFound
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON404 = &dest
 
 	}
 

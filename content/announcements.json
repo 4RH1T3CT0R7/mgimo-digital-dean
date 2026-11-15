@@ -21,7 +21,7 @@
     "faculty": "ФМО",
     "important": false,
     "requires_ack": false,
-    "date": "2026-12-21"
+    "date": "2026-11-21"
   },
   {
     "title": "МЭО: проверьте язык и период перед заказом транскрипта",
@@ -29,6 +29,6 @@
     "faculty": "МЭО",
     "important": false,
     "requires_ack": false,
-    "date": "2027-01-11"
+    "date": "2026-11-21"
   }
 ]

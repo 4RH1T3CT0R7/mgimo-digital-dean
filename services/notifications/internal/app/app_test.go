@@ -61,6 +61,8 @@ func fakeAcademic(w http.ResponseWriter, r *http.Request) {
 		value = academic.Group{Id: g2, FacultyId: f1, Course: 2, Name: "Англ-12", Kind: "language"}
 	case "/internal/groups/" + g7.String():
 		value = academic.Group{Id: g7, FacultyId: f2, Course: 3, Name: "МЭО-23-02", Kind: "academic"}
+	case "/internal/faculties/" + f1.String():
+		value = academic.Faculty{Id: f1, ShortName: "ФМО"}
 	case "/internal/audience/students":
 		var a academic.Audience
 		if err := json.NewDecoder(r.Body).Decode(&a); err != nil || a.GroupId == nil || *a.GroupId != g2 {
@@ -235,11 +237,44 @@ func TestN5Ack(t *testing.T) {
 	e.mark(important, "ack", 204)
 	e.now = clock.Add(time.Hour)
 	e.mark(important, "ack", 204)
-	e.mark(ordinary, "ack", 409)
+	w := e.req("POST", "/me/feed/"+ordinary.String()+"/ack", platformtest.Student(s1), nil, 409)
+	if code := platformtest.DecodeError(t, w.Body.Bytes()).Code; code != "conflict" {
+		t.Fatalf("код ошибки %q", code)
+	}
 	for _, item := range e.feed("").Items {
 		if item.Id == important && (item.ReadAt == nil || !item.ReadAt.Equal(clock) || item.AckedAt == nil || !item.AckedAt.Equal(clock)) {
 			t.Fatalf("отметки %+v", item)
 		}
+		if item.Id == important && (!inMSK(*item.ReadAt) || !inMSK(*item.AckedAt)) {
+			t.Fatalf("отметки не в московском времени: %v, %v", item.ReadAt, item.AckedAt)
+		}
+	}
+}
+
+func inMSK(t time.Time) bool {
+	_, offset := t.Zone()
+	return offset == 3*60*60
+}
+
+// Публикация с будущей датой (seed) не видна и не считается до своего дня.
+func TestFuturePublication(t *testing.T) {
+	e := setup(t)
+	future := e.notification(api.Audience{Kind: api.All}, "announcement", true, true, clock.Add(24*time.Hour))
+	if f := e.feed(""); f.Total != 0 || len(f.Items) != 0 {
+		t.Fatalf("лента до публикации: %+v", f)
+	}
+	if c := e.counters(); c.Unread != 0 || c.ImportantUnacked != 0 {
+		t.Fatalf("счётчики до публикации: %+v", c)
+	}
+	e.mark(future, "read", 404)
+	e.mark(future, "ack", 404)
+	e.req("POST", "/me/feed/read-all", platformtest.Student(s1), nil, 204)
+	e.now = clock.Add(24 * time.Hour)
+	if got := ids(e.feed("?unread_only=true").Items); !slices.Equal(got, []uuid.UUID{future}) {
+		t.Fatalf("лента в день публикации: %v", got)
+	}
+	if c := e.counters(); c.Unread != 1 || c.ImportantUnacked != 1 {
+		t.Fatalf("счётчики в день публикации: %+v", c)
 	}
 }
 

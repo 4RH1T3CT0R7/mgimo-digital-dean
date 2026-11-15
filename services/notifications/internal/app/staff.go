@@ -3,8 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
-	"sort"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,6 +17,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+// serviceTypeID — slug услуги из каталога requests (`financial-aid`).
+var serviceTypeID = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
 func normalizeAudience(ctx context.Context, ac *academic.ClientWithResponses, id platform.Identity, a api.Audience) (api.Audience, error) {
 	invalid := func(message string) (api.Audience, error) {
@@ -41,13 +45,13 @@ func normalizeAudience(ctx context.Context, ac *academic.ClientWithResponses, id
 		}
 		r, err := ac.GetGroupWithResponse(ctx, *a.GroupId)
 		if err != nil {
-			return api.Audience{}, platform.Internal()
+			return api.Audience{}, fmt.Errorf("academic getGroup: %w", err)
 		}
 		if r.StatusCode() == http.StatusNotFound {
 			return invalid("Группа не найдена")
 		}
 		if r.JSON200 == nil || r.JSON200.Id != *a.GroupId || r.JSON200.FacultyId == uuid.Nil {
-			return api.Audience{}, platform.Internal()
+			return api.Audience{}, fmt.Errorf("academic getGroup: неверный ответ, статус %d", r.StatusCode())
 		}
 		if out.FacultyId != nil && *out.FacultyId != r.JSON200.FacultyId {
 			return invalid("Группа относится к другому факультету")
@@ -135,24 +139,22 @@ func (s *Server) ListStaffAnnouncements(ctx context.Context, req api.ListStaffAn
 	return api.ListStaffAnnouncements200JSONResponse{Items: items, Total: int(total)}, nil
 }
 
-func authorLabel(id platform.Identity) string {
+// authorLabel — подпись публикации: «Деканат ФМО» по короткому названию факультета из academic.
+func (s *Server) authorLabel(ctx context.Context, id platform.Identity) (string, error) {
 	if id.Role == platform.RoleAdmin {
-		return "Администрация"
+		return "Администрация", nil
 	}
-	// У внутреннего API academic нет справочника факультетов. Для известных
-	// факультетов прототипа используем общие ID из seed.md, для новых — общую подпись.
-	switch id.FacultyScope().String() {
-	case "10000000-0000-4000-8000-000000000001":
-		return "Деканат ФМО"
-	case "10000000-0000-4000-8000-000000000002":
-		return "Деканат МЭО"
-	case "10000000-0000-4000-8000-000000000003":
-		return "Деканат МП"
-	case "10000000-0000-4000-8000-000000000004":
-		return "Деканат МЖ"
-	default:
-		return "Деканат"
+	r, err := s.academic.GetFacultyWithResponse(ctx, *id.FacultyScope())
+	if err != nil {
+		return "", fmt.Errorf("academic getFaculty: %w", err)
 	}
+	if r.StatusCode() == http.StatusNotFound {
+		return "Деканат", nil
+	}
+	if r.JSON200 == nil {
+		return "", fmt.Errorf("academic getFaculty: неверный ответ, статус %d", r.StatusCode())
+	}
+	return "Деканат " + r.JSON200.ShortName, nil
 }
 
 func (s *Server) CreateAnnouncement(ctx context.Context, req api.CreateAnnouncementRequestObject) (api.CreateAnnouncementResponseObject, error) {
@@ -185,7 +187,10 @@ func (s *Server) CreateAnnouncement(ctx context.Context, req api.CreateAnnouncem
 	if err != nil {
 		return nil, err
 	}
-	label := authorLabel(id)
+	label, err := s.authorLabel(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	row, err := s.q.InsertAnnouncement(ctx, db.InsertAnnouncementParams{
 		Type: string(b.Type), Title: title, Body: body, Important: b.Important, RequiresAck: b.RequiresAck,
 		AudienceKind: string(a.Kind), AudienceFacultyID: a.FacultyId, AudienceCourse: toCourse32(a.Course),
@@ -213,8 +218,11 @@ func (s *Server) GetAnnouncementAcks(ctx context.Context, req api.GetAnnouncemen
 	r, err := s.academic.ResolveAudienceWithResponse(ctx, academic.Audience{
 		Kind: academic.AudienceKind(a.Kind), Course: a.Course, FacultyId: a.FacultyId, GroupId: a.GroupId, UserId: a.UserId,
 	})
-	if err != nil || r.JSON200 == nil {
-		return nil, platform.Internal()
+	if err != nil {
+		return nil, fmt.Errorf("academic resolveAudience: %w", err)
+	}
+	if r.JSON200 == nil {
+		return nil, fmt.Errorf("academic resolveAudience: неверный ответ, статус %d", r.StatusCode())
 	}
 	students := r.JSON200.Students
 	class := make([]uuid.UUID, 0, len(students))
@@ -231,10 +239,10 @@ func (s *Server) GetAnnouncementAcks(ctx context.Context, req api.GetAnnouncemen
 	for _, receipt := range receipts {
 		ackedAt[receipt.UserID] = receipt.AckedAt
 	}
-	sort.SliceStable(students, func(i, j int) bool { return students[i].ShortName < students[j].ShortName })
+	// Порядок — как в resolveAudience: academic сортирует по ФИО с учётом «Ё».
 	out := api.GetAnnouncementAcks200JSONResponse{Total: len(students), Acked: []api.AckStudent{}, NotAcked: []api.AckStudent{}}
 	for _, student := range students {
-		entry := api.AckStudent{Id: student.Id, ShortName: student.ShortName, GroupName: student.GroupName, AckedAt: ackedAt[student.Id]}
+		entry := api.AckStudent{Id: student.Id, ShortName: student.ShortName, GroupName: student.GroupName, AckedAt: inMoscow(ackedAt[student.Id])}
 		if entry.AckedAt == nil {
 			out.NotAcked = append(out.NotAcked, entry)
 		} else {
@@ -279,11 +287,17 @@ func (s *Server) CreateDeadline(ctx context.Context, req api.CreateDeadlineReque
 	b := req.Body
 	now := s.now()
 	title := strings.TrimSpace(b.Title)
+	var description *string
+	if b.Description != nil {
+		if d := strings.TrimSpace(*b.Description); d != "" {
+			description = &d
+		}
+	}
 	fields := map[string]string{}
 	if !validText(title, 3, 120) {
 		fields["title"] = "Введите от 3 до 120 символов"
 	}
-	if b.Description != nil && !validText(*b.Description, 0, 1000) {
+	if description != nil && !validText(*description, 1, 1000) {
 		fields["description"] = "Введите до 1000 символов без недопустимых знаков"
 	}
 	if !b.DueAt.After(now) {
@@ -294,8 +308,12 @@ func (s *Server) CreateDeadline(ctx context.Context, req api.CreateDeadlineReque
 	default:
 		fields["kind"] = "Выберите тип дедлайна"
 	}
-	if b.ServiceTypeId != nil && (b.Kind != api.DeadlineKindApplication || strings.TrimSpace(*b.ServiceTypeId) == "" || strings.ContainsRune(*b.ServiceTypeId, 0)) {
+	switch {
+	case b.ServiceTypeId == nil:
+	case b.Kind != api.DeadlineKindApplication:
 		fields["service_type_id"] = "Услугу можно указать для срока подачи заявлений"
+	case !serviceTypeID.MatchString(*b.ServiceTypeId):
+		fields["service_type_id"] = "Неверный идентификатор услуги"
 	}
 	if len(fields) != 0 {
 		return nil, platform.Validation(fields)
@@ -305,7 +323,7 @@ func (s *Server) CreateDeadline(ctx context.Context, req api.CreateDeadlineReque
 		return nil, err
 	}
 	row, err := s.q.InsertDeadline(ctx, db.InsertDeadlineParams{
-		Title: title, Description: b.Description, Kind: string(b.Kind), DueAt: b.DueAt, ServiceTypeID: b.ServiceTypeId,
+		Title: title, Description: description, Kind: string(b.Kind), DueAt: b.DueAt, ServiceTypeID: b.ServiceTypeId,
 		AudienceKind: string(a.Kind), AudienceFacultyID: a.FacultyId, AudienceCourse: toCourse32(a.Course),
 		AudienceGroupID: a.GroupId, AuthorID: &id.UserID, CreatedAt: now,
 	})

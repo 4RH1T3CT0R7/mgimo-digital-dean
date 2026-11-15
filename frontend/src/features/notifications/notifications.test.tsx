@@ -73,7 +73,15 @@ describe('T11', () => {
     const { user } = renderPage();
     await user.click(await screen.findByRole('button', { name: /Готово: заявка №000004/ }));
     await waitFor(() => expect(location.pathname).toBe(`/requests/${applicationId}`));
-    expect(posted).toHaveBeenCalledOnce();
+    await waitFor(() => expect(posted).toHaveBeenCalledOnce());
+  });
+
+  it('переход не ждёт отметку прочтения и не отменяется её ошибкой', async () => {
+    server.use(http.post(`${api}/me/feed/:id/read`, () =>
+      HttpResponse.json({ code: 'internal', message: 'Сбой' }, { status: 500 })));
+    const { user } = renderPage();
+    await user.click(await screen.findByRole('button', { name: /Готово: заявка №000004/ }));
+    await waitFor(() => expect(location.pathname).toBe(`/requests/${applicationId}`));
   });
 
   it('W5 — подача заявки ведёт к financial-aid', async () => {

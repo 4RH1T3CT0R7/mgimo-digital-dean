@@ -34,7 +34,8 @@ const screens: { account: Account; route: string; heading: string; content: (pag
   { account: 'student.mo', route: `/schedule?date=${encodeURIComponent(scheduleDate)}`, heading: 'Расписание', content: (page) => page.getByText(/^Перенесено (на|с) /).first() },
   { account: 'student.mo', route: '/grades', heading: 'Успеваемость', content: (page) => page.getByRole('region', { name: 'Сводка успеваемости' }) },
   { account: 'student.mo', route: '/requests', heading: 'Заявки', content: (page) => page.getByRole('region', { name: 'Подать заявку' }) },
-  { account: 'student.mo', route: '/notifications', heading: 'Уведомления и дедлайны', content: (page) => page.getByRole('button', { name: 'Ознакомлен(а)' }).first() },
+  // Не кнопка «Ознакомлен(а)»: подтверждение необратимо, после него кнопки нет. Ждём загруженную ленту.
+  { account: 'student.mo', route: '/notifications', heading: 'Уведомления и дедлайны', content: (page) => page.getByRole('region', { name: 'Лента' }).getByRole('listitem').first() },
   { account: 'student.mo', route: '/profile', heading: 'Профиль', content: (page) => page.getByRole('button', { name: 'Выйти' }) },
   { account: 'dekanat.mo', route: '/staff', heading: 'Заявки', content: (page) => page.getByRole('region', { name: 'Счётчики' }).getByRole('button', { name: /^Новые:/ }) },
   { account: 'dekanat.mo', route: '/staff/announcements', heading: 'Объявления', content: (page) => page.getByRole('button', { name: 'Новое объявление' }) },

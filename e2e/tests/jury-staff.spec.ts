@@ -51,6 +51,15 @@ test('жюри: деканат отвечает, студент видит от�
   }
   await test.step('новое уведомление о сообщении деканата', async () => {
     await nav(page, /^Уведомления/).click();
-    await expect(page.getByText(`Ответ по заявке №${number}`, { exact: true })).toBeVisible();
+    // Важные непрочитанные из прошлых прогонов стоят выше: фильтр «Заявки» и листание до нужной строки.
+    await page.getByRole('group', { name: 'Тип уведомлений' }).getByRole('button', { name: 'Заявки', exact: true }).click();
+    const notice = page.getByText(`Ответ по заявке №${number}`, { exact: true });
+    const more = page.getByRole('button', { name: 'Показать ещё', exact: true });
+    await expect(notice.or(more).first()).toBeVisible();
+    while (!(await notice.isVisible())) {
+      await expect(more, 'уведомление не найдено ни на одной странице ленты').toBeVisible();
+      await more.click();
+      await expect(notice.or(more).first()).toBeVisible();
+    }
   });
 });
