@@ -698,6 +698,10 @@ func TestAttachments(t *testing.T) {
 	expectError(t, e.upload(url, asA, "x.png", pngBytes(), false), http.StatusConflict, "invalid_transition")
 	e.forceStatus(a.Id, "needs_info")
 	expect(t, e.upload(url, asA, "x.png", pngBytes(), false), http.StatusCreated)
+	// Файл в ответ на «Нужны уточнения» возвращает заявку в работу, как и сообщение.
+	if got := decode[api.Application](t, e.do(http.MethodGet, "/me/applications/"+a.Id.String(), &asA, nil)); got.Status != api.InProgress {
+		t.Fatalf("после файла в needs_info статус %s, ожидался in_progress", got.Status)
+	}
 	tr := e.create(asA, "transcript", nil)
 	expectError(t, e.upload("/me/applications/"+tr.Id.String()+"/attachments", asA, "x.png", pngBytes(), false),
 		http.StatusConflict, "invalid_transition")

@@ -319,9 +319,20 @@ func (s *Server) UploadMyAttachment(ctx context.Context, req api.UploadMyAttachm
 	if !st.AttachmentsAllowed || (a.Status != string(api.Submitted) && a.Status != string(api.NeedsInfo)) {
 		return nil, invalidTransition()
 	}
-	att, err := s.saveUpload(ctx, a, req.Body, string(api.AttachmentUploadedByRoleStudent), me.UserID, false)
+	// Файл в ответ на «Нужны уточнения» возвращает заявку в работу — как и сообщение (экран обещает это студенту)
+	reopen := a.Status == string(api.NeedsInfo)
+	att, err := s.saveUpload(ctx, a, req.Body, string(api.AttachmentUploadedByRoleStudent), me.UserID, false,
+		func(q *db.Queries) error {
+			if !reopen {
+				return nil
+			}
+			return setStatus(ctx, q, a, api.InProgress, actorStudent, &me.UserID, nil, s.now())
+		})
 	if err != nil {
 		return nil, err
+	}
+	if reopen {
+		s.statusChanged(ctx, a, st, &a.Status, api.InProgress, nil)
 	}
 	return api.UploadMyAttachment201JSONResponse(att), nil
 }

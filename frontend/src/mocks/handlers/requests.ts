@@ -231,7 +231,9 @@ export const requestsHandlers = [
     };
     blobs.set(attachment.id, file);
     a.attachments.push(attachment);
-    touch(a);
+    // Как и сообщение: файл в needs_info возвращает заявку в работу
+    if (a.status === 'needs_info') setStatus(a, 'in_progress', 'student');
+    else touch(a);
     return HttpResponse.json(attachment, { status: 201 });
   }),
 
