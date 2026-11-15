@@ -146,10 +146,8 @@ func applicationStatus(e events.ApplicationStatusChanged) (Notification, bool) {
 		n.Title = "Заявка №" + e.Number + " отклонена"
 		n.Body = comment("подробности в карточке заявки.")
 		n.Important = true
-	case "cancelled":
-		n.Title = "Заявка №" + e.Number + " отозвана"
-		n.Body = e.ServiceTitle + ": обработка заявки прекращена."
 	default:
+		// submitted и cancelled — действия самого студента, уведомление не нужно.
 		return Notification{}, false
 	}
 	return n, true

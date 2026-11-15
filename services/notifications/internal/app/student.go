@@ -35,6 +35,7 @@ func (s *Server) GetMyFeed(ctx context.Context, req api.GetMyFeedRequestObject) 
 		}
 	}
 	unreadOnly := req.Params.UnreadOnly != nil && *req.Params.UnreadOnly
+	now := s.now()
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
 		return nil, err
@@ -43,14 +44,14 @@ func (s *Server) GetMyFeed(ctx context.Context, req api.GetMyFeedRequestObject) 
 	q := s.q.WithTx(tx)
 	total, err := q.CountFeed(ctx, db.CountFeedParams{
 		StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds,
-		Types: typesFilter, UnreadOnly: unreadOnly,
+		Types: typesFilter, UnreadOnly: unreadOnly, Now: now,
 	})
 	if err != nil {
 		return nil, err
 	}
 	rows, err := q.ListFeed(ctx, db.ListFeedParams{
 		StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds,
-		Types: typesFilter, UnreadOnly: unreadOnly, PageLimit: limit, PageOffset: offset,
+		Types: typesFilter, UnreadOnly: unreadOnly, Now: now, PageLimit: limit, PageOffset: offset,
 	})
 	if err != nil {
 		return nil, err
@@ -68,7 +69,7 @@ func (s *Server) GetMyFeed(ctx context.Context, req api.GetMyFeedRequestObject) 
 		items = append(items, api.FeedItem{
 			Id: n.ID, Type: api.FeedItemType(n.Type), Title: n.Title, Body: n.Body,
 			Important: n.Important, RequiresAck: n.RequiresAck, AuthorLabel: n.AuthorLabel,
-			Link: link, CreatedAt: n.CreatedAt.In(moscow), ReadAt: row.ReadAt, AckedAt: row.AckedAt,
+			Link: link, CreatedAt: n.CreatedAt.In(moscow), ReadAt: inMoscow(row.ReadAt), AckedAt: inMoscow(row.AckedAt),
 		})
 	}
 	return api.GetMyFeed200JSONResponse{Items: items, Total: int(total)}, nil
@@ -79,13 +80,13 @@ func (s *Server) GetMyFeedCounters(ctx context.Context, _ api.GetMyFeedCountersR
 	if err != nil {
 		return nil, err
 	}
+	now := s.now()
 	counter, err := s.q.FeedCounters(ctx, db.FeedCountersParams{
-		StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds,
+		StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds, Now: now,
 	})
 	if err != nil {
 		return nil, err
 	}
-	now := s.now()
 	deadlines, err := s.q.CountMyDeadlines(ctx, db.CountMyDeadlinesParams{
 		FromAt: now, ToAt: now.Add(72 * time.Hour), StudentID: m.StudentId, FacultyID: m.FacultyId,
 		Course: int32(m.Course), GroupIds: m.GroupIds,
@@ -103,19 +104,20 @@ func (s *Server) mark(ctx context.Context, itemID uuid.UUID, ack bool) error {
 	if err != nil {
 		return err
 	}
+	now := s.now()
 	count, err := s.q.MarkRead(ctx, db.MarkReadParams{
 		ItemID: itemID, StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course),
-		GroupIds: m.GroupIds, MarkedAt: s.now(), Ack: ack,
+		GroupIds: m.GroupIds, MarkedAt: now, Ack: ack,
 	})
 	if err != nil || count != 0 {
 		return err
 	}
 	if ack {
 		_, err := s.q.FindVisibleNotification(ctx, db.FindVisibleNotificationParams{
-			ItemID: itemID, StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds,
+			ItemID: itemID, StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds, Now: now,
 		})
 		if err == nil {
-			return platform.Conflict("not_acknowledgeable", "Это уведомление не требует подтверждения")
+			return platform.Conflict("conflict", "Это уведомление не требует подтверждения")
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err

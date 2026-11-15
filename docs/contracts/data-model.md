@@ -53,7 +53,7 @@
 
 | Таблица | Колонки | Ограничения |
 |---|---|---|
-| `notifications` | `id`, `type`, `title`, `body`, `important`, `requires_ack`, `link_kind`, `link_id null`, `link_date null`, `audience_kind`, `audience_user_id null`, `audience_faculty_id null`, `audience_course null`, `audience_group_id null`, `author_id null`, `author_label null`, `source_event_id uuid null`, `created_at` | UNIQUE `source_event_id`; индексы по колонкам адресата |
+| `notifications` | `id`, `type`, `title`, `body`, `important`, `requires_ack`, `link_kind`, `link_id null`, `link_date null`, `audience_kind`, `audience_user_id null`, `audience_faculty_id null`, `audience_course null`, `audience_group_id null`, `author_id null`, `author_label null`, `source_event_id uuid null`, `created_at` | частичный UNIQUE `(source_event_id, audience_group_id) NULLS NOT DISTINCT WHERE source_event_id IS NOT NULL`: событие занятия — строка на каждую группу, личное событие (группа NULL) — одна строка; индексы по колонкам адресата |
 | `notification_reads` | `notification_id`, `user_id`, `read_at`, `acked_at null` | PK `(notification_id, user_id)` |
 | `deadlines` | `id`, `title`, `description null`, `kind`, `due_at`, `service_type_id null`, `audience_*` (как в `notifications`), `author_id null`, `created_at` | индекс `(due_at)` |
 
@@ -143,6 +143,7 @@ kind = all
 - Администратор — любой адресат.
 
 ### Б8. Лента
+- Публикация видна и учитывается в счётчиках с момента `created_at` (`created_at <= now`): записи seed с будущей датой появятся в свой день.
 - Порядок: сначала `important` без `read_at`, затем по `created_at` (новые сверху).
 - `unread` — видимые элементы без строки в `notification_reads`.
 - `deadlines_soon` — дедлайны с `due_at` в ближайшие 3 суток.
