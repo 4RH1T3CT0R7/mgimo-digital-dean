@@ -215,7 +215,11 @@ export function ChangeLessonSheet({ lesson, onClose }: { lesson: Lesson; onClose
                         </div>}
                     </>}
                     {type !== 'cancelled' && <>
-                        <Field id="building" label={type === 'moved' ? 'Корпус (необязательно)' : 'Корпус'}><Input id="building" value={building} maxLength={100} onChange={(event) => setBuilding(event.target.value)} aria-describedby={errors.new_room ? 'new_room-error' : undefined} aria-invalid={!!errors.new_room} /></Field>
+                        <Field id="building" label={type === 'moved' ? 'Корпус (необязательно)' : 'Корпус'}><Input id="building" list="mgimo-buildings" value={building} maxLength={100} onChange={(event) => setBuilding(event.target.value)} aria-describedby={errors.new_room ? 'new_room-error' : undefined} aria-invalid={!!errors.new_room} /></Field>
+                        {/* Корпуса с карты МГИМО: по ним аудитория в расписании студента открывается на плане этажа (D58) */}
+                        <datalist id="mgimo-buildings">
+                            {['Корпус А', 'Корпус Б', 'Корпус В', 'Корпус Г', 'Новый корпус'].map((name) => <option key={name} value={name} />)}
+                        </datalist>
                         <Field id="new_room" label={type === 'moved' ? 'Аудитория (необязательно)' : 'Аудитория'} error={errors.new_room}><Input id="new_room" value={room} maxLength={100} onChange={(event) => setRoom(event.target.value)} {...fieldProps('new_room')} /></Field>
                     </>}
                     <Field id="reason" label="Причина" error={errors.reason}><Textarea id="reason" value={reason} maxLength={300} onChange={(event) => setReason(event.target.value)} {...fieldProps('reason')} /></Field>

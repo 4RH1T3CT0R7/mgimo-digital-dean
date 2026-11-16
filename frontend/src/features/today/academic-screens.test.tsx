@@ -32,7 +32,7 @@ describe('T09: обязательные сценарии V1–V8', () => {
 
         expect(await screen.findByText('Перенесено с 17.11, 10:30')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Перенесено на 19.11, 12:00' })).toHaveAttribute('href', '/schedule?date=2026-11-19');
-        expect(screen.getByText('Другая аудитория: 3047 (было 2105)')).toBeInTheDocument();
+        expect(screen.getByText('Другая аудитория: 405 (было 2009)')).toBeInTheDocument();
     });
 
     it('V2: объясняет отмену занятия', async () => {
