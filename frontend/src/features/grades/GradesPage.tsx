@@ -1,4 +1,5 @@
 import type { components } from '@/api/academic';
+import { AcademicYearTab } from '@/features/academic-calendar/AcademicYearTab';
 import { formatDate, plural } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { AsOf } from '@/shared/ui/as-of';
@@ -11,6 +12,9 @@ import { controlFormLabels, decimal, gradeLabels, termLabels, trafficLabels, tra
 import { useCurrentGrades, useGradesSummary, useSessionResults } from './queries';
 
 type S = components['schemas'];
+
+// Три вкладки на 360 px: на телефоне мельче шрифт и поля, подпись может перенестись
+const tabClass = 'h-11 px-2 text-center text-sm leading-tight whitespace-normal sm:px-3 sm:text-[0.9375rem] sm:whitespace-nowrap';
 
 function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] })
 {
@@ -144,8 +148,9 @@ export function GradesPage()
             </QueryView>
             <Tabs defaultValue="current" className="mt-8 gap-5">
                 <TabsList aria-label="Раздел успеваемости">
-                    <TabsTrigger value="current" className="h-11 px-3">Текущий семестр</TabsTrigger>
-                    <TabsTrigger value="sessions" className="h-11 px-3">Сессии</TabsTrigger>
+                    <TabsTrigger value="current" className={tabClass}>Текущий семестр</TabsTrigger>
+                    <TabsTrigger value="sessions" className={tabClass}>Сессии</TabsTrigger>
+                    <TabsTrigger value="year" className={tabClass}>Учебный год</TabsTrigger>
                 </TabsList>
                 <TabsContent value="current">
                     <QueryView query={current} isEmpty={(data) => data.disciplines.length === 0}
@@ -176,6 +181,7 @@ export function GradesPage()
                         ))}<AsOf date={data.as_of} /></div>}
                     </QueryView>
                 </TabsContent>
+                <TabsContent value="year"><AcademicYearTab /></TabsContent>
             </Tabs>
         </>
     );

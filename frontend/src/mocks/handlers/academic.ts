@@ -4,7 +4,7 @@ import { mockCalendar } from '@/features/calendar-export/mock-calendar';
 import { addDays, monday, validDate } from '@/features/schedule/calendar';
 import { pairs } from '@/features/staff-lessons/pairs';
 import { toApiDate } from '@/shared/lib/format';
-import { academicState, currentGrades, faculties, gradesSummary, mockTermEnd, profile, sessionResults, staffGroups, weekSchedule } from '../fixtures/academic';
+import { academicCalendar, academicState, currentGrades, faculties, gradesSummary, mockTermEnd, profile, sessionResults, staffGroups, weekSchedule } from '../fixtures/academic';
 import { list, scenario } from '../scenario';
 import { mockUser } from './auth';
 
@@ -56,7 +56,9 @@ export const academicHandlers = [
     const lessons = list(academicState.lessons.filter((lesson) => lesson.date >= from && lesson.date <= to))
       .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time));
 
-    return new HttpResponse(mockCalendar(lessons, new Date()), { headers: {
+    const points = academicCalendar.events.filter((event) => event.kind === 'control_point' && event.date >= from && event.date <= to);
+
+    return new HttpResponse(mockCalendar(lessons, new Date(), points), { headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'attachment; filename="mgimo-schedule.ics"',
       'Cache-Control': 'no-store',
@@ -88,6 +90,8 @@ export const academicHandlers = [
     : gradesSummary)),
   http.get('/api/academic/me/grades/current', () => HttpResponse.json({ ...currentGrades, disciplines: list(currentGrades.disciplines) })),
   http.get('/api/academic/me/grades/sessions', () => HttpResponse.json({ ...sessionResults, semesters: list(sessionResults.semesters) })),
+  http.get('/api/academic/me/academic-calendar', () => HttpResponse.json({ ...academicCalendar,
+    periods: list(academicCalendar.periods), events: list(academicCalendar.events) })),
   http.get('/api/academic/staff/groups', ({ request }) => {
     const error = staffError();
 
