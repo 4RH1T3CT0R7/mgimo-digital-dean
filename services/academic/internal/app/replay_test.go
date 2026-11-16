@@ -83,7 +83,7 @@ func TestReplaySeedEventsStableIDs(t *testing.T) {
 
 func TestFullSeedScheduleAndGrades(t *testing.T) {
 	pool := platformtest.NewDB(t, migrations.FS)
-	for _, path := range []string{"00_reference.sql", "01_schedule.sql", "02_grades.sql"} {
+	for _, path := range []string{"00_reference.sql", "01_schedule.sql", "02_grades.sql", "03_academic_year.sql"} {
 		sql, err := os.ReadFile("../../seed/" + path)
 		if err != nil {
 			t.Fatal(err)
@@ -138,5 +138,67 @@ func TestFullSeedScheduleAndGrades(t *testing.T) {
 	summary2 := decode[api.GradesSummary](t, e.do("GET", "/me/grades/summary", &asS2, nil))
 	if summary2.DebtsCount != 1 || summary2.CurrentSemester != 5 || summary2.Traffic.Red < 1 {
 		t.Fatalf("seed student.meo: %+v", summary2)
+	}
+	checkSeedSession(t, e)
+}
+
+// Сессия в seed совпадает с дедлайнами notifications/seed/02_deadlines.sql.
+func checkSeedSession(t *testing.T, e *env) {
+	t.Helper()
+
+	plan := decode[api.AcademicCalendar](t, e.do("GET", "/me/academic-calendar", &asS1, nil))
+	kinds := make([]api.TermPeriodKind, 0, len(plan.Periods))
+	for _, period := range plan.Periods {
+		kinds = append(kinds, period.Kind)
+	}
+	if !reflect.DeepEqual(kinds, []api.TermPeriodKind{api.Study, api.CreditWeek, api.Holidays, api.Session, api.Vacation}) ||
+		plan.Term.EndDate.String() != "2027-01-24" {
+		t.Fatalf("календарный план: %v, конец семестра %s", kinds, plan.Term.EndDate)
+	}
+	found := map[string]bool{}
+	for _, event := range plan.Events {
+		if event.StartTime != nil && event.Room != nil {
+			found[string(event.Kind)+" "+event.Discipline.Name+" "+event.Date.String()+" "+*event.StartTime] = true
+		}
+	}
+	for _, want := range []string{"credit Международное публичное право 2026-12-18 10:30", "credit Английский язык 2026-12-22 12:00",
+		"exam Теория международных отношений 2027-01-12 09:00", "consultation Теория международных отношений 2027-01-11 12:00"} {
+		if !found[want] {
+			t.Fatalf("в календаре student.mo нет %q", want)
+		}
+	}
+	kindsIn := func(from, to string) map[api.LessonKind]int {
+		counts := map[api.LessonKind]int{}
+		for _, lesson := range decode[api.Schedule](t, e.do("GET", "/me/schedule?from="+from+"&to="+to, &asS1, nil)).Lessons {
+			counts[lesson.Kind]++
+		}
+
+		return counts
+	}
+	if got := kindsIn("2026-12-21", "2026-12-27"); !reflect.DeepEqual(got, map[api.LessonKind]int{api.LessonKindCredit: 2}) {
+		t.Fatalf("в зачётную неделю только зачёты: %v", got)
+	}
+	if got := kindsIn("2027-01-11", "2027-01-17"); !reflect.DeepEqual(got, map[api.LessonKind]int{api.LessonKindConsultation: 2, api.LessonKindExam: 2}) {
+		t.Fatalf("неделя сессии: %v", got)
+	}
+	slot := 0
+	for _, lesson := range decode[api.Schedule](t, e.do("GET", "/me/schedule?from=2026-12-18&to=2026-12-18", &asS1, nil)).Lessons {
+		if lesson.StartTime == "10:30" {
+			slot++
+			if lesson.Kind != api.LessonKindCredit {
+				t.Fatalf("зачёт 18.12 не заменил пару: %+v", lesson)
+			}
+		}
+	}
+	if slot != 1 {
+		t.Fatalf("18.12 в 10:30 занятий: %d", slot)
+	}
+	forms := map[string]api.ControlForm{}
+	for _, discipline := range decode[api.CurrentGrades](t, e.do("GET", "/me/grades/current", &asS1, nil)).Disciplines {
+		forms[discipline.Discipline.Name] = discipline.ControlForm
+	}
+	if forms["Международное публичное право"] != api.ControlFormCredit || forms["Английский язык"] != api.ControlFormCredit ||
+		forms["Теория международных отношений"] != api.ControlFormExam {
+		t.Fatalf("формы контроля не совпадают с сессией: %v", forms)
 	}
 }

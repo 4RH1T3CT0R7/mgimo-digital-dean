@@ -30,6 +30,10 @@ func (s *Server) GetMyScheduleIcs(ctx context.Context, req api.GetMyScheduleIcsR
 	if err != nil {
 		return nil, err
 	}
+	points, err := s.myControlPoints(ctx, me.UserID, term)
+	if err != nil {
+		return nil, err
+	}
 
 	var body strings.Builder
 	line := func(value string) {
@@ -52,7 +56,7 @@ func (s *Server) GetMyScheduleIcs(ctx context.Context, req api.GetMyScheduleIcsR
 		line("DTSTAMP:" + stamp)
 		line("DTSTART;TZID=Europe/Moscow:" + date + "T" + strings.ReplaceAll(lesson.StartTime, ":", "") + "00")
 		line("DTEND;TZID=Europe/Moscow:" + date + "T" + strings.ReplaceAll(lesson.EndTime, ":", "") + "00")
-		line("SUMMARY:" + escapeICS(lesson.Discipline.Name))
+		line("SUMMARY:" + escapeICS(sessionTitles[lesson.Kind]+lesson.Discipline.Name))
 		if location := eventRoom(lesson.Room); location != nil {
 			line("LOCATION:" + escapeICS(*location))
 		}
@@ -61,11 +65,32 @@ func (s *Server) GetMyScheduleIcs(ctx context.Context, req api.GetMyScheduleIcsR
 		}
 		line("END:VEVENT")
 	}
+	// Контрольные точки — события на весь день: DTEND по RFC 5545 — следующий день.
+	for _, point := range points {
+		day := calendar.Date(point.Date.Time)
+		if day.Before(from) || day.After(to) {
+			continue
+		}
+		line("BEGIN:VEVENT")
+		line("UID:" + point.ID.String())
+		line("DTSTAMP:" + stamp)
+		line("DTSTART;VALUE=DATE:" + day.Format("20060102"))
+		line("DTEND;VALUE=DATE:" + day.AddDate(0, 0, 1).Format("20060102"))
+		line("SUMMARY:" + escapeICS(point.Title+": "+point.DisciplineName))
+		line("END:VEVENT")
+	}
 	line("END:VCALENDAR")
 	result := body.String()
 
 	return api.GetMyScheduleIcs200TextcalendarResponse{Body: strings.NewReader(result), ContentLength: int64(len(result)),
 		Headers: api.GetMyScheduleIcs200ResponseHeaders{ContentDisposition: `attachment; filename="mgimo-schedule.ics"`}}, nil
+}
+
+// Вид занятия сессии в названии события; у обычных пар — только дисциплина.
+var sessionTitles = map[api.LessonKind]string{
+	api.LessonKindConsultation: "Консультация: ",
+	api.LessonKindCredit:       "Зачёт: ",
+	api.LessonKindExam:         "Экзамен: ",
 }
 
 func escapeICS(value string) string {

@@ -142,3 +142,10 @@ type Term struct {
 	EndDate      pgtype.Date
 	IsCurrent    bool
 }
+
+type TermPeriod struct {
+	TermID    uuid.UUID
+	Kind      string
+	StartDate pgtype.Date
+	EndDate   pgtype.Date
+}

@@ -84,7 +84,8 @@ paths:
       summary: Выгрузка расписания в календарь (I4)
       description: |
         Роли — student. Файл iCalendar для импорта в календарь телефона.
-        Без параметров — с сегодняшнего дня до конца семестра. Отменённые и `moved_away` занятия не включаются.
+        Без параметров — с сегодняшнего дня до конца семестра (последний день сессии). Отменённые и `moved_away` занятия не включаются.
+        Зачёты, консультации и экзамены — занятия с видом в названии; контрольные точки студента — события на весь день.
       parameters:
         - $ref: '#/components/parameters/From'
         - $ref: '#/components/parameters/To'
@@ -151,6 +152,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionResults'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/academic-calendar:
+    get:
+      tags: [student]
+      operationId: getMyAcademicCalendar
+      summary: Календарный план семестра (D62)
+      description: |
+        Роли — student. Периоды текущего семестра (учёба, зачётная неделя, праздники, сессия, каникулы) по порядку
+        и контрольные мероприятия студента: его контрольные точки, зачёты, консультации и экзамены
+        академической и языковых групп. Отменённые занятия не включаются, перенесённые — на новой дате.
+      responses:
+        '200':
+          description: Календарный план
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicCalendar'
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
@@ -837,6 +858,98 @@ components:
           type: string
           format: date
           nullable: true
+    TermPeriodKind:
+      type: string
+      description: study — учёба; credit_week — зачётная неделя; holidays — праздники; session — сессия; vacation — каникулы
+      enum: [study, credit_week, holidays, session, vacation]
+    TermPeriod:
+      type: object
+      required: [kind, start_date, end_date]
+      properties:
+        kind:
+          $ref: '#/components/schemas/TermPeriodKind'
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          description: Включительно
+    AcademicEventKind:
+      type: string
+      enum: [control_point, consultation, credit, exam]
+    AcademicEvent:
+      type: object
+      required: [id, kind, date, discipline]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID контрольной точки или занятия
+        kind:
+          $ref: '#/components/schemas/AcademicEventKind'
+        date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          nullable: true
+          pattern: '^\d{2}:\d{2}$'
+          description: null у контрольной точки (на весь день)
+        end_time:
+          type: string
+          nullable: true
+          pattern: '^\d{2}:\d{2}$'
+        title:
+          type: string
+          nullable: true
+          description: Название контрольной точки; у занятий null
+          example: Контрольная работа 1
+        discipline:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        room:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/Room'
+          nullable: true
+    AcademicCalendar:
+      type: object
+      required: [term, periods, events]
+      properties:
+        term:
+          type: object
+          required: [academic_year, term, start_date, end_date]
+          properties:
+            academic_year:
+              type: string
+              example: 2026/2027
+            term:
+              type: string
+              enum: [autumn, spring]
+            start_date:
+              type: string
+              format: date
+            end_date:
+              type: string
+              format: date
+              description: Последний день сессии
+        periods:
+          type: array
+          description: По дате начала
+          items:
+            $ref: '#/components/schemas/TermPeriod'
+        events:
+          type: array
+          description: По дате и времени; контрольные точки — раньше занятий того же дня
+          items:
+            $ref: '#/components/schemas/AcademicEvent'
     Error:
       type: object
       required: [code, message]

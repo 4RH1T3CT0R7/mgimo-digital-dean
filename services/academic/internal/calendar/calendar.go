@@ -27,7 +27,7 @@ func Monday(t time.Time) time.Time {
 
 func SemesterNumber(course int, term Term) int {
 	number := (course-1)*2 + 1
-	if term == api.Spring {
+	if term == api.SessionResultsSemestersTermSpring {
 		number++
 	}
 

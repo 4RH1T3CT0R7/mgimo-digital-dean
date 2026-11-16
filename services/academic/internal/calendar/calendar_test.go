@@ -13,7 +13,7 @@ func TestC1SemesterNumber(t *testing.T) {
 		course int
 		term   calendar.Term
 		want   int
-	}{{1, api.Autumn, 1}, {1, api.Spring, 2}, {2, api.Autumn, 3}, {3, api.Autumn, 5}} {
+	}{{1, api.SessionResultsSemestersTermAutumn, 1}, {1, api.SessionResultsSemestersTermSpring, 2}, {2, api.SessionResultsSemestersTermAutumn, 3}, {3, api.SessionResultsSemestersTermAutumn, 5}} {
 		if got := calendar.SemesterNumber(tc.course, tc.term); got != tc.want {
 			t.Errorf("SemesterNumber(%d,%s) = %d; ожидалось %d", tc.course, tc.term, got, tc.want)
 		}
