@@ -104,9 +104,16 @@ describe('Сценарии моков на главной-заглушке', () 
   });
 
   it('без сценария — данные', async () => {
-    renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
-    expect(await screen.findByText('Теория международных отношений')).toBeInTheDocument();
-    expect(screen.getByText(/Данные актуальны на/)).toBeInTheDocument();
+    // «Сейчас / Далее» зависит от часов: утро понедельника 16.11, ближайшая пара — ТМО в 09:00 (моки на 16–22.11)
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-16T08:00:00+03:00'));
+    try {
+      renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
+      expect(await screen.findByText('Теория международных отношений')).toBeInTheDocument();
+      expect(screen.getByText(/Данные актуальны на/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
