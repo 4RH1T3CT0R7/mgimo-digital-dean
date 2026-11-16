@@ -152,18 +152,23 @@ func (q *Queries) ListDocuments(ctx context.Context) ([]ListDocumentsRow, error)
 }
 
 const searchChunks = `-- name: SearchChunks :many
+WITH query AS (
+    SELECT to_tsquery('simple', coalesce(string_agg(left(lex, greatest(4, length(lex) - 1)) || ':*', ' | '), '')) AS q
+    FROM unnest(tsvector_to_array(to_tsvector('russian', $2::text))) AS lex
+    WHERE lex ~ '^[а-яёa-z0-9]{3,}$'
+)
 SELECT d.id AS document_id, d.title, c.n, c.text, ts_rank_cd(c.tsv, query.q)::real AS rank
 FROM knowledge_chunks c
-JOIN knowledge_documents d ON d.id = c.document_id,
-     (SELECT replace(plainto_tsquery('russian', $1::text)::text, ' & ', ' | ')::tsquery AS q) AS query
+JOIN knowledge_documents d ON d.id = c.document_id
+CROSS JOIN query
 WHERE d.active AND c.tsv @@ query.q
-ORDER BY ts_rank_cd(c.tsv, query.q) DESC, d.created_at DESC, c.n
-LIMIT $2::integer
+ORDER BY rank DESC, d.created_at DESC, c.n
+LIMIT $1::integer
 `
 
 type SearchChunksParams struct {
-	Question  string
 	MaxChunks int32
+	Question  string
 }
 
 type SearchChunksRow struct {
@@ -174,10 +179,12 @@ type SearchChunksRow struct {
 	Rank       float32
 }
 
-// SearchChunks — лучшие фрагменты включённых документов. Запрос — ИЛИ по леммам вопроса с русской
-// морфологией («пересдачу» найдёт «пересдача»); plainto_tsquery сам экранирует ввод, « & » меняем на « | ».
+// SearchChunks — лучшие фрагменты включённых документов. Запрос — ИЛИ по основам слов вопроса (русская
+// морфология) с поиском по началу основы: у «пересдать» и «пересдача» разные основы («пересда», «пересдач»),
+// а «пересд:*» находит обе. Основы берём из to_tsvector и оставляем только буквы и цифры — знаки вопроса
+// в tsquery не попадают (ссылка «x.ru/q:zz» не ломает запрос).
 func (q *Queries) SearchChunks(ctx context.Context, arg SearchChunksParams) ([]SearchChunksRow, error) {
-	rows, err := q.db.Query(ctx, searchChunks, arg.Question, arg.MaxChunks)
+	rows, err := q.db.Query(ctx, searchChunks, arg.MaxChunks, arg.Question)
 	if err != nil {
 		return nil, err
 	}

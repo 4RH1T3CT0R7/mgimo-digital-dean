@@ -1,16 +1,19 @@
 import { ChevronRightIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { PageHeader } from '@/shared/ui/page-header';
-import { studentNav } from '../layout/nav';
+import { useMe } from '@/features/auth/queries';
+import { staffNav, studentNav } from '../layout/nav';
 
 /** «Ещё» (D63): разделы, которым не хватило нижней вкладки. Список — из того же конфига, что и меню. */
-export function MorePage() {
+export function MorePage({ staff = false }: { staff?: boolean }) {
+  const admin = useMe().data?.role === 'admin';
+  const items = staff ? staffNav(admin) : studentNav;
   return (
     <div className="max-w-xl">
       <PageHeader title="Ещё" />
       <nav aria-label="Другие разделы">
         <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-          {studentNav
+          {items
             .filter((item) => item.place === 'more')
             .map((item) => (
               <li key={item.to}>

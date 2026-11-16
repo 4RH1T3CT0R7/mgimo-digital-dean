@@ -194,6 +194,12 @@ func TestSearchFindsRussianWordForms(t *testing.T) {
 		t.Fatalf("источник — документ: %+v", a.Sources)
 	}
 
+	// «пересдать» и «пересдача» — разные основы; находит поиск по началу основы
+	a = decode(t, e.ask(&asStudent, "Как пересдать?"))
+	if !hasDocument(a, doc.Id) || !strings.HasPrefix(a.Answer, "Нашлось в документах деканата: ") {
+		t.Fatalf("«пересдать» должно найти «пересдача»: %+v", a)
+	}
+
 	a = decode(t, e.ask(&asStudent, "Где взять справку для военкомата?"))
 	if len(a.Sources) != 0 || a.SuggestedAction == nil || a.SuggestedAction.ServiceTypeId != "dean-question" {
 		t.Fatalf("документы не подходят — «Вопрос в деканат»: %+v", a)

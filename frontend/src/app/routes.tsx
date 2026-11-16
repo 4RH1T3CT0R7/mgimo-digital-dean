@@ -100,7 +100,7 @@ export const routes: RouteObject[] = [
         <StaffShell />
       </RequireRole>
     ),
-    children: features.flatMap((f) => f.staffRoutes),
+    children: [...features.flatMap((f) => f.staffRoutes), { path: '/staff/more', element: <MorePage staff /> }],
   },
 ];
 

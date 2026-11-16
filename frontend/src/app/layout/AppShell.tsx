@@ -1,15 +1,9 @@
 import {
   BellIcon,
-  BookOpenTextIcon,
-  CalendarClockIcon,
-  CalendarRangeIcon,
   EllipsisIcon,
-  InboxIcon,
   LogOutIcon,
-  MegaphoneIcon,
   MonitorIcon,
   MoonIcon,
-  PanelTopIcon,
   ShieldCheckIcon,
   SunIcon,
   UserIcon,
@@ -34,7 +28,7 @@ import {
 import { useTheme, type Theme } from '../theme';
 import { Footer } from './Footer';
 import { Logo } from './Logo';
-import { isActive, studentNav, type NavItem } from './nav';
+import { isActive, staffNav, studentNav, type NavItem } from './nav';
 
 export function StudentShell() {
   const unread = useFeedCounters().data?.unread;
@@ -50,18 +44,7 @@ export function StudentShell() {
 
 export function StaffShell() {
   const admin = useMe().data?.role === 'admin';
-  return (
-    <AppShell
-      nav={[
-        { to: '/staff', label: 'Заявки', icon: InboxIcon, match: (p) => p === '/staff' || p.startsWith('/staff/requests') },
-        { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
-        { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
-        { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
-        { to: '/staff/knowledge', label: 'Помощник', icon: BookOpenTextIcon },
-        ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon }] : []),
-      ]}
-    />
-  );
+  return <AppShell nav={staffNav(admin)} morePath="/staff/more" />;
 }
 
 function badgeText(n: number) {
@@ -69,14 +52,21 @@ function badgeText(n: number) {
 }
 
 /** Вкладки телефона: пункты `tab` и «Ещё», если есть пункты `more` (D63) */
-function tabItems(nav: NavItem[]): NavItem[] {
+function tabItems(nav: NavItem[], morePath = '/more'): NavItem[] {
   const tabs = nav.filter((item) => (item.place ?? 'tab') === 'tab');
   const more = nav.filter((item) => item.place === 'more');
   if (more.length === 0) return tabs;
-  return [...tabs, { to: '/more', label: 'Ещё', icon: EllipsisIcon, match: (p) => p === '/more' || more.some((item) => isActive(item, p)) }];
+  return [...tabs, { to: morePath, label: 'Ещё', icon: EllipsisIcon, match: (p) => p === morePath || more.some((item) => isActive(item, p)) }];
 }
 
-function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileLink?: string; bell?: { to: string; count?: number }; notice?: ReactNode }) {
+function AppShell({ nav, profileLink, bell, notice, morePath }: {
+  nav: NavItem[];
+  profileLink?: string;
+  bell?: { to: string; count?: number };
+  notice?: ReactNode;
+  /** Адрес страницы «Ещё»: у студента /more, у сотрудника /staff/more */
+  morePath?: string;
+}) {
   const { pathname } = useLocation();
 
   return (
@@ -147,7 +137,7 @@ function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileL
         {/* Равные колонки по числу вкладок (5 у студента и сотрудника, 6 у администратора) и кегль 10 px: подпись «Расписание» (~55 px)
             помещается в колонку 69 px с запасом; у администратора «Объявления» (~58 px) — впритык к колонке 60 px. */}
         <ul className="grid h-tabbar auto-cols-fr grid-flow-col">
-          {tabItems(nav).map((item) => {
+          {tabItems(nav, morePath).map((item) => {
             const active = isActive(item, pathname);
             return (
               <li key={item.to} className="min-w-0">
