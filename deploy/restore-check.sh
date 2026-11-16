@@ -11,7 +11,7 @@ trap 'docker rm -f "$name" >/dev/null' EXIT
 for i in $(seq 1 30); do docker exec "$name" pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
 
 q() { docker exec -i "$name" psql -U postgres -v ON_ERROR_STOP=1 -qtA "$@"; }
-for db in auth academic requests notifications; do
+for db in auth academic requests notifications assistant; do
   q -c "CREATE DATABASE $db" >/dev/null
   docker exec -i "$name" pg_restore -U postgres -d "$db" --no-owner --no-privileges < "$dir/$db.dump"
 done
@@ -21,3 +21,4 @@ echo "  студентов:     $(q -d academic -c 'SELECT count(*) FROM student
 echo "  занятий:       $(q -d academic -c 'SELECT count(*) FROM lessons')"
 echo "  заявок:        $(q -d requests -c 'SELECT count(*) FROM applications')"
 echo "  уведомлений:   $(q -d notifications -c 'SELECT count(*) FROM notifications')"
+echo "  документов помощника: $(q -d assistant -c 'SELECT count(*) FROM knowledge_documents')"

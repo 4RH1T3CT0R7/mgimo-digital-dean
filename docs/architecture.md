@@ -31,7 +31,7 @@ flowchart LR
 | `academic` | Профиль, факультеты, направления, академические и языковые группы, преподаватели (вымышленные), дисциплины, расписание с переносами, оценки и шкала МГИМО (D20), светофор (I2), выгрузка .ics (I4) | students, groups, teachers, disciplines, lessons, grades… | `academic.lesson.changed` | — |
 | `requests` | Каталог услуг, заявки, история статусов, переписка (I3), вложения, PDF-справка с кодом проверки (I1) | service_types, applications, status_history, messages, attachments, certificates | `requests.application.status_changed`, `requests.application.message_added` | `academic` (данные студента для справки и для списка у сотрудника) |
 | `notifications` | Лента уведомлений, объявления с подтверждением прочтения (I3), дедлайны и напоминания о них | notifications, announcements, announcement_reads, deadlines | — | `academic` (группа, курс и факультет получателя) |
-| `assistant` (P2) | ИИ-помощник (I5); ключ LLM есть только у этого сервиса | справочник (FAQ) | — | LLM-API (GigaChat или YandexGPT) |
+| `assistant` (P2) | ИИ-помощник (I5) и его база знаний из документов деканата (D66); ключ LLM есть только у этого сервиса | справочник (FAQ, файл), knowledge_documents, knowledge_chunks | — | LLM-API (GigaChat или YandexGPT) |
 
 Отдельного сервиса-шлюза нет: эту роль играет Caddy. Отдельного сервиса для сотрудника тоже нет, это роль: её эндпоинты живут в `requests` и `notifications`.
 

@@ -14,6 +14,7 @@ sed -e "s|^SITE_ADDRESS=.*|SITE_ADDRESS=$domain|" \
     -e "s|^ACADEMIC_DB_PASSWORD=.*|ACADEMIC_DB_PASSWORD=$(rnd)|" \
     -e "s|^REQUESTS_DB_PASSWORD=.*|REQUESTS_DB_PASSWORD=$(rnd)|" \
     -e "s|^NOTIFICATIONS_DB_PASSWORD=.*|NOTIFICATIONS_DB_PASSWORD=$(rnd)|" \
+    -e "s|^ASSISTANT_DB_PASSWORD=.*|ASSISTANT_DB_PASSWORD=$(rnd)|" \
     .env.example > .env
 chmod 600 .env
 echo ".env создан (права 600). Ключ LLM, если нужен ИИ-помощник с моделью, впишите в LLM_* вручную (D49)."

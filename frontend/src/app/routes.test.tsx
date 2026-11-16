@@ -68,8 +68,17 @@ describe('Охрана маршрутов', () => {
     renderWithProviders(<AppRoutes />, { route: '/', login: 'dekanat.mo' });
     expect(await screen.findByRole('heading', { name: 'Заявки' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/staff');
-    expect(within(tabBar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Заявки', 'Объявления', 'Дедлайны', 'Занятия']);
+    expect(within(tabBar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Заявки', 'Объявления', 'Дедлайны', 'Занятия', 'Ещё']);
     expect(screen.queryByLabelText('Факультет')).not.toBeInTheDocument(); // фильтр — только у admin
+  });
+
+  it('сотрудник на телефоне: «Ещё» — «Помощник», у admin ещё «Баннеры»', async () => {
+    renderWithProviders(<AppRoutes />, { route: '/staff/more', login: 'admin' });
+    const more = await screen.findByRole('navigation', { name: 'Другие разделы' });
+    expect(within(more).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Помощник', '/staff/knowledge'],
+      ['Баннеры', '/admin/banners'],
+    ]);
   });
 
   it('admin видит фильтр факультета', async () => {

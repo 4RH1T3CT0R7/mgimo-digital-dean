@@ -1,4 +1,10 @@
 import {
+  BookOpenTextIcon,
+  CalendarClockIcon,
+  CalendarRangeIcon,
+  InboxIcon,
+  MegaphoneIcon,
+  PanelTopIcon,
   BellIcon,
   BookmarkIcon,
   CalendarDaysIcon,
@@ -45,4 +51,17 @@ export const studentNav: NavItem[] = [
 
 export function isActive(item: NavItem, pathname: string) {
   return item.match ? item.match(pathname) : pathname === item.to || pathname.startsWith(`${item.to}/`);
+}
+
+/** Разделы сотрудника деканата и администратора; на телефоне «Помощник» и «Баннеры» — на странице «Ещё» */
+export function staffNav(admin: boolean): NavItem[] {
+  const more = 'more' as const;
+  return [
+    { to: '/staff', label: 'Заявки', icon: InboxIcon, match: (p) => p === '/staff' || p.startsWith('/staff/requests') },
+    { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
+    { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
+    { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+    { to: '/staff/knowledge', label: 'Помощник', icon: BookOpenTextIcon, place: more },
+    ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon, place: more }] : []),
+  ];
 }

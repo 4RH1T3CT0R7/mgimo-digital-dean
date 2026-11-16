@@ -28,6 +28,7 @@ services:
       ACADEMIC_DB_PASSWORD: ${ACADEMIC_DB_PASSWORD:?}
       REQUESTS_DB_PASSWORD: ${REQUESTS_DB_PASSWORD:?}
       NOTIFICATIONS_DB_PASSWORD: ${NOTIFICATIONS_DB_PASSWORD:?}
+      ASSISTANT_DB_PASSWORD: ${ASSISTANT_DB_PASSWORD:?задайте ASSISTANT_DB_PASSWORD в .env (docs/deploy.md §8)}
       TZ: Europe/Moscow
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -81,12 +82,13 @@ services:
       DATABASE_URL: postgres://notifications:${NOTIFICATIONS_DB_PASSWORD}@postgres:5432/notifications?sslmode=disable
       ACADEMIC_INTERNAL_URL: http://academic:8081
 
-  # ИИ-помощник (T25, P2): без своей БД; справочник — content/faq.md (T19); LLM — необязательно (.env)
+  # ИИ-помощник (T25, P2): база знаний — своя БД (D66); справочник — content/faq.md (T19); LLM — необязательно (.env)
   assistant:
     <<: *service
     build: { context: .., args: { SERVICE: assistant } }
     environment:
       <<: *service-env
+      DATABASE_URL: postgres://assistant:${ASSISTANT_DB_PASSWORD}@postgres:5432/assistant?sslmode=disable
       FAQ_PATH: /content/faq.md
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}

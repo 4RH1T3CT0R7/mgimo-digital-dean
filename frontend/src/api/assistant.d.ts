@@ -24,19 +24,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/staff/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Проверить, как ответит помощник
+         * @description Роли — staff, admin. Тот же ответ, что получит студент. Ограничение: 60 вопросов в час на пользователя, иначе 429.
+         */
+        post: operations["staffAsk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/knowledge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Документы базы знаний помощника
+         * @description Роли — staff, admin. База общая для всего вуза (D66). Новые — сверху.
+         */
+        get: operations["listKnowledge"];
+        put?: never;
+        /**
+         * Добавить документ
+         * @description Роли — staff, admin. Название и либо файл (.txt, .md в UTF-8 или Windows-1251, .docx; до 5 МБ), либо вставленный текст.
+         *     PDF не принимается (415): русский текст из него извлекается ненадёжно — нужен .docx или .txt.
+         *     Текст после извлечения — от 1 до 300 000 символов, иначе 400. Документ режется на фрагменты по ~1000 символов.
+         */
+        post: operations["addKnowledge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/staff/knowledge/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Удалить документ
+         * @description Роли — staff, admin. Документ и его фрагменты удаляются сразу.
+         */
+        delete: operations["deleteKnowledge"];
+        options?: never;
+        head?: never;
+        /**
+         * Включить или выключить документ
+         * @description Роли — staff, admin. Выключенный документ хранится, но в ответах помощника не участвует.
+         */
+        patch: operations["setKnowledgeActive"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AskRequest: {
+            question: string;
+        };
         Answer: {
             /** @description Обычный текст. Фронтенд подписывает «Ответ сгенерирован ИИ и может содержать ошибки» при provider = llm */
             answer: string;
-            /** @enum {string} */
+            /**
+             * @description llm — ответ модели; faq — без модели (запись справочника или фрагмент документа как есть)
+             * @enum {string}
+             */
             provider: "llm" | "faq";
-            sources: {
-                faq_id: string;
-                title: string;
-            }[];
+            /** @description Справочник и документы, по которым дан ответ, без повторов */
+            sources: components["schemas"]["AnswerSource"][];
             /** @description Предложение открыть форму заявки с заполненными полями */
             suggested_action?: {
                 service_type_id: string;
@@ -44,6 +120,42 @@ export interface components {
                     [key: string]: string;
                 };
             } | null;
+        };
+        AnswerSource: {
+            /** @description ID записи справочника или UUID документа базы знаний */
+            faq_id: string;
+            title: string;
+            /**
+             * @description faq — запись справочника content/faq.md, document — документ базы знаний
+             * @enum {string}
+             */
+            kind?: "faq" | "document";
+        };
+        KnowledgeUpload: {
+            title: string;
+            /**
+             * Format: binary
+             * @description .txt, .md или .docx до 5 МБ. Либо file, либо text
+             */
+            file?: string;
+            /** @description Текст документа, если он не в файле */
+            text?: string;
+        };
+        KnowledgeDocument: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description Имя загруженного файла; null — текст вставлен вручную */
+            source_name?: string | null;
+            /** @description Символов в тексте */
+            chars: number;
+            /** @description Фрагментов для поиска */
+            chunks: number;
+            /** @description «Деканат» или «Администрация» — без имён сотрудников (D37) */
+            author_label: string;
+            /** Format: date-time */
+            created_at: string;
+            active: boolean;
         };
         Error: {
             code: string;
@@ -53,7 +165,54 @@ export interface components {
             };
         };
     };
-    responses: never;
+    responses: {
+        /** @description Неверные данные (`validation_failed`) */
+        Validation: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Нет сессии (`unauthenticated`) */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Роль не подходит (`forbidden`) */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Объекта нет (`not_found`) */
+        NotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Слишком много вопросов (`too_many_attempts`) */
+        TooManyAttempts: {
+            headers: {
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+    };
     parameters: never;
     requestBodies: never;
     headers: never;
@@ -70,9 +229,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    question: string;
-                };
+                "application/json": components["schemas"]["AskRequest"];
             };
         };
         responses: {
@@ -85,8 +242,89 @@ export interface operations {
                     "application/json": components["schemas"]["Answer"];
                 };
             };
-            /** @description Неверные данные (`validation_failed`) */
-            400: {
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyAttempts"];
+        };
+    };
+    staffAsk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Ответ */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Answer"];
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyAttempts"];
+        };
+    };
+    listKnowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Список документов */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeDocument"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    addKnowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["KnowledgeUpload"];
+            };
+        };
+        responses: {
+            /** @description Документ добавлен и сразу участвует в ответах */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeDocument"];
+                };
+            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Файл больше 5 МБ (`file_too_large`) */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -94,8 +332,8 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Нет сессии (`unauthenticated`) */
-            401: {
+            /** @description Тип файла не поддерживается (`unsupported_file_type`) */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -103,25 +341,61 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description Роль не подходит (`forbidden`) */
-            403: {
+        };
+    };
+    deleteKnowledge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Удалён */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setKnowledgeActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Документ после изменения */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Error"];
+                    "application/json": components["schemas"]["KnowledgeDocument"];
                 };
             };
-            /** @description Слишком много вопросов (`too_many_attempts`) */
-            429: {
-                headers: {
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
+            400: components["responses"]["Validation"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

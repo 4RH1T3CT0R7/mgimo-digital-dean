@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform/platformtest"
@@ -19,6 +20,7 @@ import (
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/assistant/internal/app"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/assistant/internal/faq"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/assistant/internal/llm"
+	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/assistant/migrations"
 )
 
 var (
@@ -31,20 +33,25 @@ var (
 
 type env struct {
 	pub   http.Handler
+	pool  *pgxpool.Pool
 	clock time.Time
 	logs  *bytes.Buffer
 }
 
 func setup(t *testing.T, client *llm.Client) *env {
-	e := &env{clock: time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC), logs: &bytes.Buffer{}}
-	srv := app.New(entries, client, slog.New(slog.NewJSONHandler(e.logs, nil)), func() time.Time { return e.clock })
+	e := &env{pool: platformtest.NewDB(t, migrations.FS), clock: time.Date(2026, 11, 18, 10, 0, 0, 0, time.UTC), logs: &bytes.Buffer{}}
+	srv := app.New(e.pool, entries, client, slog.New(slog.NewJSONHandler(e.logs, nil)), func() time.Time { return e.clock })
 	e.pub, _ = srv.Handlers()
 	return e
 }
 
 func (e *env) ask(id *platform.Identity, question string) *httptest.ResponseRecorder {
+	return e.askAt("/ask", id, question)
+}
+
+func (e *env) askAt(path string, id *platform.Identity, question string) *httptest.ResponseRecorder {
 	body, _ := json.Marshal(map[string]string{"question": question})
-	r := httptest.NewRequest(http.MethodPost, "/ask", bytes.NewReader(body))
+	r := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
 	if id != nil {
 		platformtest.As(r, *id)
@@ -71,7 +78,7 @@ var asStudent = platformtest.Student(student)
 func TestAnswerFromFAQWithoutLLM(t *testing.T) {
 	e := setup(t, nil)
 	a := decode(t, e.ask(&asStudent, "Как уйти в академ?"))
-	if a.Provider != api.Faq || !strings.Contains(a.Answer, "Академический отпуск") || len(a.Sources) != 1 {
+	if a.Provider != api.AnswerProviderFaq || !strings.Contains(a.Answer, "Академический отпуск") || len(a.Sources) != 1 {
 		t.Fatalf("ответ: %+v", a)
 	}
 	if a.SuggestedAction == nil || a.SuggestedAction.ServiceTypeId != "academic-leave" {
@@ -124,7 +131,7 @@ func TestLLMAnswerAndWhatIsSent(t *testing.T) {
 	e := setup(t, llm.New(fake.URL, "secret-key", "Api-Key", "yandexgpt-lite", 2*time.Second))
 
 	a := decode(t, e.ask(&asStudent, "Как уйти в академ?"))
-	if a.Provider != api.Llm || a.Answer != "Подайте заявление в кабинете." {
+	if a.Provider != api.AnswerProviderLlm || a.Answer != "Подайте заявление в кабинете." {
 		t.Fatalf("ответ LLM: %+v", a)
 	}
 	if got.auth != "Api-Key secret-key" {
@@ -152,13 +159,13 @@ func TestLLMAnswersWhenFAQHasNothing(t *testing.T) {
 	e := setup(t, llm.New(fake.URL, "k", "", "m", 2*time.Second))
 
 	a := decode(t, e.ask(&asStudent, "Сколько раз можно пересдавать экзамен?"))
-	if a.Provider != api.Llm || !strings.Contains(a.Answer, "уточните в деканате") || len(a.Sources) != 0 {
+	if a.Provider != api.AnswerProviderLlm || !strings.Contains(a.Answer, "уточните в деканате") || len(a.Sources) != 0 {
 		t.Fatalf("ответ ИИ без справочника: %+v", a)
 	}
 	if a.SuggestedAction == nil || a.SuggestedAction.ServiceTypeId != "dean-question" {
 		t.Fatalf("и с ответом ИИ остаётся «Вопрос в деканат»: %+v", a.SuggestedAction)
 	}
-	if !strings.Contains(body, "Выдержек из справочника деканата по этому вопросу нет") {
+	if !strings.Contains(body, "Фрагментов из документов деканата и справочника по этому вопросу нет") {
 		t.Errorf("модель должна знать, что справочник пуст: %s", body)
 	}
 }
@@ -178,7 +185,7 @@ func TestLLMFailureFallsBackToFAQ(t *testing.T) {
 		"ошибка 500": llm.New(broken.URL, "k", "", "m", time.Second),
 	} {
 		a := decode(t, setup(t, client).ask(&asStudent, "Как уйти в академ?"))
-		if a.Provider != api.Faq || !strings.Contains(a.Answer, "Академический отпуск") {
+		if a.Provider != api.AnswerProviderFaq || !strings.Contains(a.Answer, "Академический отпуск") {
 			t.Errorf("%s: ждали ответ из справочника, получили %+v", name, a)
 		}
 	}
