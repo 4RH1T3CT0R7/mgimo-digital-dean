@@ -69,7 +69,8 @@ describe('T09: замечания ревью', () =>
 
         expect(await screen.findByText('Заявок пока нет')).toBeInTheDocument();
         expect(await screen.findByText('На ближайшие 7 дней дедлайнов нет')).toBeInTheDocument();
-        expect(count).toEqual({ schedule: 2, profile: 2, counters: 2, applications: 2, deadlines: 2 });
+        // Заявок два запроса: последние три и «Ждёт вашего действия» (needs_info)
+        expect(count).toEqual({ schedule: 2, profile: 2, counters: 2, applications: 4, deadlines: 2 });
     });
 
     it('пустая главная не содержит вложенных карточек и повторных сообщений о занятиях', async () =>

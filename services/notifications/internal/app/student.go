@@ -22,8 +22,11 @@ func (s *Server) GetMyFeed(ctx context.Context, req api.GetMyFeedRequestObject) 
 	if err != nil {
 		return nil, err
 	}
-	typesFilter := []string{}
-	if req.Params.Type != nil {
+	// Без type — лента «Уведомлений»: новости живут в своём разделе (D61) и приходят только по type=news.
+	typesFilter := []string{string(api.FeedItemTypeAnnouncement), string(api.FeedItemTypeApplicationMessage),
+		string(api.FeedItemTypeApplicationStatus), string(api.FeedItemTypeScheduleChange)}
+	if req.Params.Type != nil && len(*req.Params.Type) > 0 {
+		typesFilter = typesFilter[:0:0]
 		for _, kind := range *req.Params.Type {
 			switch kind {
 			case api.FeedItemTypeAnnouncement, api.FeedItemTypeNews, api.FeedItemTypeApplicationMessage,
@@ -66,11 +69,16 @@ func (s *Server) GetMyFeed(ctx context.Context, req api.GetMyFeedRequestObject) 
 		if n.LinkDate.Valid {
 			link.Date = &types.Date{Time: n.LinkDate.Time}
 		}
-		items = append(items, api.FeedItem{
+		item := api.FeedItem{
 			Id: n.ID, Type: api.FeedItemType(n.Type), Title: n.Title, Body: n.Body,
 			Important: n.Important, RequiresAck: n.RequiresAck, AuthorLabel: n.AuthorLabel,
 			Link: link, CreatedAt: n.CreatedAt.In(moscow), ReadAt: inMoscow(row.ReadAt), AckedAt: inMoscow(row.AckedAt),
-		})
+		}
+		if n.EventStartsAt != nil && n.EventPlace != nil {
+			item.Event = &api.FeedEvent{StartsAt: n.EventStartsAt.In(moscow), Place: *n.EventPlace,
+				GoingCount: int(row.GoingCount), Going: row.GoingAt != nil}
+		}
+		items = append(items, item)
 	}
 	return api.GetMyFeed200JSONResponse{Items: items, Total: int(total)}, nil
 }
@@ -138,6 +146,46 @@ func (s *Server) AckFeedItem(ctx context.Context, req api.AckFeedItemRequestObje
 		return nil, err
 	}
 	return api.AckFeedItem204Response{}, nil
+}
+
+// going — «Пойду» (going=true) или отмена. Видимый элемент без будущего мероприятия — 409, невидимый — 404.
+func (s *Server) going(ctx context.Context, itemID uuid.UUID, going bool) error {
+	m, err := s.membership(ctx)
+	if err != nil {
+		return err
+	}
+	now := s.now()
+	count, err := s.q.SetGoing(ctx, db.SetGoingParams{
+		ItemID: itemID, StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course),
+		GroupIds: m.GroupIds, MarkedAt: now, Going: going,
+	})
+	if err != nil || count != 0 {
+		return err
+	}
+	_, err = s.q.FindVisibleNotification(ctx, db.FindVisibleNotificationParams{
+		ItemID: itemID, StudentID: m.StudentId, FacultyID: m.FacultyId, Course: int32(m.Course), GroupIds: m.GroupIds, Now: now,
+	})
+	if err == nil {
+		return platform.Conflict("conflict", "Это не мероприятие или оно уже прошло")
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
+	return platform.NotFound()
+}
+
+func (s *Server) MarkFeedItemGoing(ctx context.Context, req api.MarkFeedItemGoingRequestObject) (api.MarkFeedItemGoingResponseObject, error) {
+	if err := s.going(ctx, req.ItemId, true); err != nil {
+		return nil, err
+	}
+	return api.MarkFeedItemGoing204Response{}, nil
+}
+
+func (s *Server) UnmarkFeedItemGoing(ctx context.Context, req api.UnmarkFeedItemGoingRequestObject) (api.UnmarkFeedItemGoingResponseObject, error) {
+	if err := s.going(ctx, req.ItemId, false); err != nil {
+		return nil, err
+	}
+	return api.UnmarkFeedItemGoing204Response{}, nil
 }
 
 func (s *Server) MarkAllFeedRead(ctx context.Context, _ api.MarkAllFeedReadRequestObject) (api.MarkAllFeedReadResponseObject, error) {

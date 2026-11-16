@@ -2,7 +2,6 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import type { components } from '@/api/notifications';
 import type { Me } from '@/app/session';
 import { useServiceTypes } from '@/features/requests/queries';
-import { apiErrorMessage, fieldErrors } from '@/shared/lib/errors';
 import { toApiDate } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
@@ -13,7 +12,7 @@ import { QueryView } from '@/shared/ui/query-view';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
 import { AudienceField, FieldError, SelectField } from './AudienceField';
-import { fieldState, validateAudience } from './fields';
+import { fieldState, length, useFormErrors, validateAudience } from './fields';
 import { announcementTypeLabels, deadlineKindLabels, type AnnouncementType } from './labels';
 import { useStaffActions } from './queries';
 
@@ -22,32 +21,11 @@ type S = components['schemas'];
 /** Radix Select не принимает пустое значение у пункта, поэтому «без услуги» обозначен своим маркером. */
 const noService = 'none';
 
-function length(value: string) {
-  return Array.from(value).length;
-}
-
 function titleError(value: string) {
   return length(value.trim()) < 3 || length(value.trim()) > 120 ? 'Введите от 3 до 120 символов.' : undefined;
 }
 
-function useFormErrors() {
-  const [fields, setFields] = useState<Record<string, string>>({});
-  const [message, setMessage] = useState<string>();
-  function validate(errors: Record<string, string | undefined>) {
-    const present = Object.fromEntries(Object.entries(errors).flatMap(([key, value]) => (value ? [[key, value]] : [])));
-    setFields(present);
-    setMessage(undefined);
-    return Object.keys(present).length === 0;
-  }
-  function fail(error: unknown) {
-    const details = fieldErrors(error);
-    setFields(details);
-    if (Object.keys(details).length === 0) setMessage(apiErrorMessage(error));
-  }
-  return { fields, message, validate, fail };
-}
-
-function FormLayout({ submit, label, pendingLabel, pending, message, children }: {
+export function FormLayout({ submit, label, pendingLabel, pending, message, children }: {
   submit: (event: FormEvent<HTMLFormElement>) => void;
   label: string;
   /** Подпись кнопки во время отправки — по действию: «Публикуем…», «Создаём…» */
@@ -104,15 +82,26 @@ export function AnnouncementForm({ me, done }: { me: Me; done: () => void }) {
   const [important, setImportant] = useState(false);
   const [requiresAck, setRequiresAck] = useState(false);
   const [audience, setAudience] = useState<S['Audience']>({ kind: 'faculty' });
+  const [isEvent, setIsEvent] = useState(false);
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('18:00');
+  const [place, setPlace] = useState('');
   const { publish } = useStaffActions();
   const errors = useFormErrors();
+  const event = type === 'news' && isEvent;
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const startsAt = `${eventDate}T${eventTime}:00+03:00`;
     const valid = errors.validate({
       title: titleError(title),
       body: !body.trim() ? 'Введите текст.' : length(body.trim()) > 4000 ? 'Не больше 4000 символов.' : undefined,
       audience: validateAudience(audience, me.role === 'admin'),
+      ...(event && {
+        event_starts_at: !eventDate || !eventTime ? 'Укажите дату и время.'
+          : !(Date.parse(startsAt) > Date.now()) ? 'Мероприятие должно быть в будущем.' : undefined,
+        event_place: !place.trim() ? 'Укажите место.' : length(place.trim()) > 120 ? 'Не больше 120 символов.' : undefined,
+      }),
     });
     if (publish.isPending || !valid) return;
     const request = {
@@ -122,10 +111,12 @@ export function AnnouncementForm({ me, done }: { me: Me; done: () => void }) {
       important,
       requires_ack: type === 'announcement' && requiresAck,
       audience,
+      event_starts_at: event ? startsAt : null,
+      event_place: event ? place.trim() : null,
     };
     publish.mutate(request, {
       onSuccess: () => {
-        toast.success(type === 'news' ? 'Новость опубликована' : 'Объявление опубликовано');
+        toast.success(event ? 'Мероприятие опубликовано' : type === 'news' ? 'Новость опубликована' : 'Объявление опубликовано');
         done();
       },
       onError: errors.fail,
@@ -186,14 +177,90 @@ export function AnnouncementForm({ me, done }: { me: Me; done: () => void }) {
                 {...fieldState('requires_ack', errors.fields.requires_ack)}
                 onCheckedChange={(value) => setRequiresAck(value === true)}
               />
-              Требует подтверждения ознакомления
+              Попросить подтвердить ознакомление
             </Label>
             <FieldError name="requires_ack" message={errors.fields.requires_ack} />
           </>
         )}
+        {type === 'news' && (
+          <Label className="flex min-h-11 w-fit cursor-pointer items-center gap-2">
+            <Checkbox checked={isEvent} onCheckedChange={(value) => setIsEvent(value === true)} />
+            Это мероприятие: с датой и местом
+          </Label>
+        )}
       </div>
+      {event && (
+        <>
+          <DateTimeFields
+            id="event"
+            legend="Когда, по Москве"
+            date={eventDate}
+            time={eventTime}
+            setDate={setEventDate}
+            setTime={setEventTime}
+            name="event_starts_at"
+            error={errors.fields.event_starts_at}
+          />
+          <div className="grid gap-2">
+            <Label htmlFor="event-place">Место</Label>
+            <Input
+              id="event-place"
+              value={place}
+              placeholder="Корпус Г, аудитория 2115"
+              {...fieldState('event_place', errors.fields.event_place)}
+              onChange={(e) => setPlace(e.target.value)}
+            />
+            <FieldError name="event_place" message={errors.fields.event_place} />
+          </div>
+        </>
+      )}
       <AudienceField me={me} value={audience} onChange={setAudience} errors={errors.fields} />
     </FormLayout>
+  );
+}
+
+/** Дата и время по Москве: два поля и общая ошибка. Строку RFC 3339 собирает форма: `${date}T${time}:00+03:00`. */
+export function DateTimeFields({ id, legend, date, time, setDate, setTime, name, error }: {
+  id: string;
+  legend: string;
+  date: string;
+  time: string;
+  setDate: (value: string) => void;
+  setTime: (value: string) => void;
+  /** Имя поля в ошибках сервера */
+  name: string;
+  error?: string;
+}) {
+  return (
+    <fieldset className="grid min-w-0 gap-2">
+      <legend className="pb-2 font-semibold">{legend}</legend>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-2">
+          <Label htmlFor={`${id}-date`}>Дата</Label>
+          <Input
+            id={`${id}-date`}
+            type="date"
+            min={toApiDate()}
+            required
+            value={date}
+            {...fieldState(name, error)}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div className="grid min-w-0 gap-2">
+          <Label htmlFor={`${id}-time`}>Время</Label>
+          <Input
+            id={`${id}-time`}
+            type="time"
+            required
+            value={time}
+            {...fieldState(name, error)}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+      </div>
+      <FieldError name={name} message={error} />
+    </fieldset>
   );
 }
 

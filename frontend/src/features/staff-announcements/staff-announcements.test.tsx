@@ -52,7 +52,7 @@ describe('T13', () => {
     const { user } = renderPage();
     await user.click(await screen.findByRole('button', { name: 'Новое объявление' }));
     const form = within(screen.getByRole('dialog'));
-    await user.click(form.getByRole('checkbox', { name: 'Требует подтверждения ознакомления' }));
+    await user.click(form.getByRole('checkbox', { name: 'Попросить подтвердить ознакомление' }));
     await user.click(form.getByRole('radio', { name: 'Новость' }));
     expect(form.queryByRole('checkbox', { name: /Требует подтверждения/ })).not.toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe('T13', () => {
     const publication = within(screen.getByRole('dialog'));
     await staff.user.type(publication.getByLabelText('Заголовок'), 'Встреча группы');
     await staff.user.type(publication.getByLabelText('Текст'), 'Проверьте время встречи.');
-    await staff.user.click(publication.getByRole('checkbox', { name: 'Требует подтверждения ознакомления' }));
+    await staff.user.click(publication.getByRole('checkbox', { name: 'Попросить подтвердить ознакомление' }));
     await choose(staff.user, publication, 'Кому показать', 'Группа');
     await staff.user.click(await publication.findByRole('combobox', { name: 'Группа' }));
     expect(await screen.findByRole('option', { name: 'МО-24-03' })).toBeInTheDocument();
@@ -169,6 +169,39 @@ describe('T13', () => {
     renderPage(reportPath);
     expect(await screen.findByText('Ознакомились: 1 из 3')).toBeVisible();
     expect(within(section('Ознакомились')).getByText('Лебедева А. В.')).toBeVisible();
+  });
+
+  it('мероприятие: сотрудник публикует, студент отмечает «Пойду», в отчёте видно, сколько идёт', async () => {
+    const staff = renderPage();
+    await staff.user.click(await screen.findByRole('button', { name: 'Новое объявление' }));
+    const form = within(screen.getByRole('dialog'));
+    await staff.user.click(form.getByRole('radio', { name: 'Новость' }));
+    await staff.user.click(form.getByRole('checkbox', { name: 'Это мероприятие: с датой и местом' }));
+    await staff.user.type(form.getByLabelText('Заголовок'), 'Вечер переводчиков');
+    await staff.user.type(form.getByLabelText('Текст'), 'Читаем переводы участников.');
+    await staff.user.click(form.getByRole('button', { name: 'Опубликовать' }));
+    expect(await form.findByText('Укажите дату и время.')).toBeVisible();
+    expect(form.getByText('Укажите место.')).toBeVisible();
+    fireEvent.change(form.getByLabelText('Дата'), { target: { value: '2026-11-25' } });
+    await staff.user.clear(form.getByLabelText('Время'));
+    fireEvent.change(form.getByLabelText('Время'), { target: { value: '18:30' } });
+    await staff.user.type(form.getByLabelText('Место'), 'Корпус Б, аудитория 1047');
+    await staff.user.click(form.getByRole('button', { name: 'Опубликовать' }));
+    const row = within((await screen.findByRole('heading', { name: 'Вечер переводчиков' })).closest('li')!);
+    expect(row.getByText('Мероприятие')).toBeVisible();
+    expect(row.getByText('25 ноября в 18:30')).toBeVisible();
+    const reportPath = row.getByRole('link', { name: 'Отчёт: пойдут 0' }).getAttribute('href')!;
+    staff.unmount();
+
+    const student = renderPage('/news', 'student.mo');
+    const card = within((await screen.findByRole('heading', { name: 'Вечер переводчиков' })).closest('li')!);
+    expect(card.getByText('Корпус Б, аудитория 1047')).toBeVisible();
+    await student.user.click(card.getByRole('button', { name: 'Пойду' }));
+    expect(await card.findByRole('button', { name: 'Вы идёте', pressed: true })).toBeVisible();
+    student.unmount();
+
+    renderPage(reportPath);
+    expect(await screen.findByText('Пойдут: 1')).toBeVisible();
   });
 
   it('отклоняет чужую группу при записи и скрывает чужой отчёт', async () => {

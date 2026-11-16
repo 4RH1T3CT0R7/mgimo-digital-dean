@@ -38,7 +38,7 @@ func TestR1Matches(t *testing.T) {
 
 func TestR2Render(t *testing.T) {
 	applicationID, student, lessonID := uuid.New(), uuid.New(), uuid.New()
-	room, reason := "Главный корпус, 3047", "Болезнь преподавателя"
+	room, reason, repair := "Главный корпус, 3047", "Преподаватель заболел", "В аудитории ремонт!"
 	prev := events.LessonSlot{Date: "2026-11-17", StartTime: "10:30"}
 	cur := events.LessonSlot{Date: "2026-11-19", StartTime: "12:00", Room: &room}
 	lesson := func(kind string, slot events.LessonSlot, reason *string) events.LessonChanged {
@@ -51,6 +51,7 @@ func TestR2Render(t *testing.T) {
 		return events.ApplicationMessageAdded{ApplicationID: applicationID, StudentID: student, AuthorRole: role, AuthorLabel: "Деканат ФМО", ServiceTitle: "Справка в военкомат", Number: "000123"}
 	}
 	info, reject := "Приложите справку о составе семьи", "Неполный пакет документов"
+	pickup, answer := "Заберите в кабинете 1045 с 10:00 до 17:00", "Подробности в переписке"
 	for _, tc := range []struct {
 		name        string
 		event       events.Event
@@ -59,15 +60,19 @@ func TestR2Render(t *testing.T) {
 		link        api.LinkKind
 		date        string
 	}{
-		{"move", lesson("moved", cur, &reason), "Перенос: История дипломатии", "Занятие 17.11 в 10:30 перенесено на 19.11 в 12:00, Главный корпус, 3047. Болезнь преподавателя", true, api.LinkKindLesson, "2026-11-19"},
+		{"move", lesson("moved", cur, &reason), "Перенос: История дипломатии", "Занятие 17.11 в 10:30 перенесено на 19.11 в 12:00, Главный корпус, 3047. Преподаватель заболел.", true, api.LinkKindLesson, "2026-11-19"},
 		{"cancel lesson", lesson("cancelled", prev, nil), "Отмена: История дипломатии", "Занятие 17.11 в 10:30 отменено.", true, api.LinkKindLesson, "2026-11-17"},
+		{"cancel with reason", lesson("cancelled", prev, &repair), "Отмена: История дипломатии", "Занятие 17.11 в 10:30 отменено. В аудитории ремонт!", true, api.LinkKindLesson, "2026-11-17"},
 		{"room", lesson("room_changed", cur, nil), "Другая аудитория: История дипломатии", "Занятие 19.11 в 12:00 пройдёт в Главный корпус, 3047.", false, api.LinkKindLesson, "2026-11-19"},
 		{"submitted", status("submitted", "", "", nil), "", "", false, "", ""},
 		{"cancelled", status("cancelled", "financial-aid", "Материальная помощь", nil), "", "", false, "", ""},
-		{"progress", status("in_progress", "military-certificate", "Справка в военкомат", nil), "Заявка №000123 в работе", "Справка в военкомат: деканат начал обработку.", false, api.LinkKindApplication, ""},
+		{"progress", status("in_progress", "military-certificate", "Справка в военкомат", nil), "Заявка №000123 в работе", "Справка в военкомат: деканат взял заявку в работу.", false, api.LinkKindApplication, ""},
 		{"info", status("needs_info", "financial-aid", "Материальная помощь", &info), "Нужны уточнения по заявке №000123", "Материальная помощь: Приложите справку о составе семьи", true, api.LinkKindApplication, ""},
 		{"transcript", status("ready", "transcript", "Выписка оценок / транскрипт", nil), "Готово: заявка №000123", "Выписка оценок / транскрипт: можно скачать или забрать в деканате.", true, api.LinkKindApplication, ""},
+		{"transcript pickup", status("ready", "transcript", "Выписка оценок / транскрипт", &pickup), "Готово: заявка №000123", "Выписка оценок / транскрипт: Заберите в кабинете 1045 с 10:00 до 17:00", true, api.LinkKindApplication, ""},
 		{"certificate", status("ready", "study-certificate", "Справка с места учёбы", nil), "Готово: заявка №000123", "Справка готова, её можно скачать.", true, api.LinkKindApplication, ""},
+		{"question answered", status("ready", "dean-question", "Вопрос в деканат", nil), "Ответ дан: заявка №000123", "Деканат ответил на ваш вопрос.", true, api.LinkKindApplication, ""},
+		{"question with comment", status("ready", "dean-question", "Вопрос в деканат", &answer), "Ответ дан: заявка №000123", "Деканат ответил на ваш вопрос. Подробности в переписке.", true, api.LinkKindApplication, ""},
 		{"rejected", status("rejected", "financial-aid", "Материальная помощь", &reject), "Заявка №000123 отклонена", "Материальная помощь: Неполный пакет документов", true, api.LinkKindApplication, ""},
 		{"staff message", message("staff"), "Ответ по заявке №000123", "Деканат ФМО ответил по заявке «Справка в военкомат».", false, api.LinkKindApplication, ""},
 		{"student message", message("student"), "", "", false, "", ""},

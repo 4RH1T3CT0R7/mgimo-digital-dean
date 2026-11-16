@@ -1,23 +1,23 @@
 import {
   BellIcon,
   CalendarClockIcon,
-  CalendarDaysIcon,
   CalendarRangeIcon,
-  FileTextIcon,
-  GraduationCapIcon,
-  HouseIcon,
+  EllipsisIcon,
   InboxIcon,
   LogOutIcon,
   MegaphoneIcon,
   MonitorIcon,
   MoonIcon,
+  PanelTopIcon,
   ShieldCheckIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/queries';
+import { UrgentBanners } from '@/features/banners/Banners';
 import { useFeedCounters } from '@/features/notifications/queries';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -33,34 +33,22 @@ import {
 import { useTheme, type Theme } from '../theme';
 import { Footer } from './Footer';
 import { Logo } from './Logo';
-
-type NavItem = {
-  to: string;
-  label: string;
-  icon: LucideIcon;
-  /** Когда пункт активен; по умолчанию — адрес совпадает или вложен */
-  match?: (pathname: string) => boolean;
-  /** Счётчик на значке (непрочитанные) */
-  badge?: number;
-};
+import { isActive, studentNav, type NavItem } from './nav';
 
 export function StudentShell() {
   const unread = useFeedCounters().data?.unread;
   return (
     <AppShell
       profileLink="/profile"
-      nav={[
-        { to: '/', label: 'Сегодня', icon: HouseIcon },
-        { to: '/schedule', label: 'Расписание', icon: CalendarDaysIcon },
-        { to: '/grades', label: 'Учёба', icon: GraduationCapIcon },
-        { to: '/requests', label: 'Заявки', icon: FileTextIcon },
-        { to: '/notifications', label: 'Уведомления', icon: BellIcon, badge: unread },
-      ]}
+      nav={studentNav.map((item) => (item.to === '/notifications' ? { ...item, badge: unread } : item))}
+      bell={{ to: '/notifications', count: unread }}
+      notice={<UrgentBanners />}
     />
   );
 }
 
 export function StaffShell() {
+  const admin = useMe().data?.role === 'admin';
   return (
     <AppShell
       nav={[
@@ -68,20 +56,25 @@ export function StaffShell() {
         { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
         { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
         { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+        ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon }] : []),
       ]}
     />
   );
-}
-
-function isActive(item: NavItem, pathname: string) {
-  return item.match ? item.match(pathname) : pathname === item.to || pathname.startsWith(`${item.to}/`);
 }
 
 function badgeText(n: number) {
   return n > 99 ? '99+' : String(n);
 }
 
-function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }) {
+/** Вкладки телефона: пункты `tab` и «Ещё», если есть пункты `more` (D63) */
+function tabItems(nav: NavItem[]): NavItem[] {
+  const tabs = nav.filter((item) => (item.place ?? 'tab') === 'tab');
+  const more = nav.filter((item) => item.place === 'more');
+  if (more.length === 0) return tabs;
+  return [...tabs, { to: '/more', label: 'Ещё', icon: EllipsisIcon, match: (p) => p === '/more' || more.some((item) => isActive(item, p)) }];
+}
+
+function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileLink?: string; bell?: { to: string; count?: number }; notice?: ReactNode }) {
   const { pathname } = useLocation();
 
   return (
@@ -130,8 +123,12 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
       <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
         <header className="sticky top-0 z-30 flex h-header [@media(max-height:480px)]:static shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
           <Logo compact className="lg:hidden" />
-          <UserMenu profileLink={profileLink} />
+          <div className="ml-auto flex min-w-0 items-center gap-1">
+            {bell && <Bell to={bell.to} count={bell.count} active={pathname === bell.to} />}
+            <UserMenu profileLink={profileLink} />
+          </div>
         </header>
+        {notice}
         <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
           {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}
@@ -144,11 +141,10 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
 
       {/* Телефон: нижняя панель вкладок */}
       <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {/* Равные колонки по числу вкладок (5 у студента, 4 у сотрудника) и кегль 10 px: «Уведомления» (~60 px) помещается в колонку (69 px при 345 px
-            с полосой прокрутки) с запасом. Раньше ширина шла по подписи и запас был 2 px — при активной
-            «Заявки» подпись обрезалась. */}
+        {/* Равные колонки по числу вкладок (5 у студента, 4 у сотрудника) и кегль 10 px: самая длинная подпись «Расписание» (~55 px)
+            помещается в колонку (69 px при 345 px с полосой прокрутки) с запасом. */}
         <ul className="grid h-tabbar auto-cols-fr grid-flow-col">
-          {nav.map((item) => {
+          {tabItems(nav).map((item) => {
             const active = isActive(item, pathname);
             return (
               <li key={item.to} className="min-w-0">
@@ -183,6 +179,31 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
   );
 }
 
+/** Колокольчик в шапке телефона (D63): уведомления со счётчиком непрочитанных; на ПК уведомления — в боковом меню */
+function Bell({ to, count, active }: { to: string; count?: number; active: boolean }) {
+  return (
+    <Link
+      to={to}
+      aria-label={count ? `Уведомления, непрочитанных: ${count}` : 'Уведомления'}
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'relative flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none lg:hidden',
+        active && 'bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground',
+      )}
+    >
+      <BellIcon className="size-5" aria-hidden />
+      {!!count && (
+        <span
+          aria-hidden
+          className="absolute top-1 left-[calc(50%+0.25rem)] min-w-[1.125rem] rounded-full bg-destructive px-1 text-center text-[10px] leading-[1.125rem] text-destructive-foreground"
+        >
+          {badgeText(count)}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -211,7 +232,7 @@ function UserMenu({ profileLink }: { profileLink?: string }) {
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         aria-label={`Меню пользователя: ${me.display_name}`}
-        className="ml-auto flex min-w-0 items-center gap-2.5 rounded-full py-1 pr-1 pl-1 outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-muted sm:pr-3"
+        className="flex min-w-0 items-center gap-2.5 rounded-full py-1 pr-1 pl-1 outline-none hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:bg-muted sm:pr-3"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground" aria-hidden>
           {initials(me.display_name)}

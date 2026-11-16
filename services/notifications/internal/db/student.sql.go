@@ -85,7 +85,7 @@ FROM notifications n
 LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = $1::uuid
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $1::uuid, $2::uuid, $3::integer, $4::uuid[])
-  AND n.created_at <= $5::timestamptz
+  AND n.type <> 'news' AND n.created_at <= $5::timestamptz
 `
 
 type FeedCountersParams struct {
@@ -146,7 +146,8 @@ func (q *Queries) FindVisibleNotification(ctx context.Context, arg FindVisibleNo
 }
 
 const listFeed = `-- name: ListFeed :many
-SELECT n.id, n.type, n.title, n.body, n.important, n.requires_ack, n.link_kind, n.link_id, n.link_date, n.audience_kind, n.audience_user_id, n.audience_faculty_id, n.audience_course, n.audience_group_id, n.author_id, n.author_label, n.source_event_id, n.created_at, r.read_at, r.acked_at
+SELECT n.id, n.type, n.title, n.body, n.important, n.requires_ack, n.link_kind, n.link_id, n.link_date, n.audience_kind, n.audience_user_id, n.audience_faculty_id, n.audience_course, n.audience_group_id, n.author_id, n.author_label, n.source_event_id, n.created_at, n.event_starts_at, n.event_place, r.read_at, r.acked_at, r.going_at,
+       (SELECT count(*) FROM notification_reads g WHERE g.notification_id = n.id AND g.going_at IS NOT NULL) AS going_count
 FROM notifications n
 LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = $1::uuid
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
@@ -174,6 +175,8 @@ type ListFeedRow struct {
 	Notification Notification
 	ReadAt       *time.Time
 	AckedAt      *time.Time
+	GoingAt      *time.Time
+	GoingCount   int64
 }
 
 func (q *Queries) ListFeed(ctx context.Context, arg ListFeedParams) ([]ListFeedRow, error) {
@@ -214,8 +217,12 @@ func (q *Queries) ListFeed(ctx context.Context, arg ListFeedParams) ([]ListFeedR
 			&i.Notification.AuthorLabel,
 			&i.Notification.SourceEventID,
 			&i.Notification.CreatedAt,
+			&i.Notification.EventStartsAt,
+			&i.Notification.EventPlace,
 			&i.ReadAt,
 			&i.AckedAt,
+			&i.GoingAt,
+			&i.GoingCount,
 		); err != nil {
 			return nil, err
 		}
@@ -291,7 +298,7 @@ SELECT n.id, $1::uuid, $2::timestamptz
 FROM notifications n
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           $1::uuid, $3::uuid, $4::integer, $5::uuid[])
-  AND n.created_at <= $2::timestamptz
+  AND n.type <> 'news' AND n.created_at <= $2::timestamptz
 ON CONFLICT (notification_id, user_id) DO NOTHING
 `
 
@@ -342,6 +349,46 @@ func (q *Queries) MarkRead(ctx context.Context, arg MarkReadParams) (int64, erro
 		arg.StudentID,
 		arg.MarkedAt,
 		arg.Ack,
+		arg.ItemID,
+		arg.FacultyID,
+		arg.Course,
+		arg.GroupIds,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setGoing = `-- name: SetGoing :execrows
+INSERT INTO notification_reads (notification_id, user_id, read_at, going_at)
+SELECT n.id, $1::uuid, $2::timestamptz,
+       CASE WHEN $3::boolean THEN $2::timestamptz END
+FROM notifications n
+WHERE n.id = $4::uuid AND notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
+          $1::uuid, $5::uuid, $6::integer, $7::uuid[])
+  AND n.event_starts_at > $2::timestamptz
+  AND n.created_at <= $2::timestamptz
+ON CONFLICT (notification_id, user_id) DO UPDATE
+SET going_at = CASE WHEN $3::boolean THEN COALESCE(notification_reads.going_at, excluded.going_at) END
+`
+
+type SetGoingParams struct {
+	StudentID uuid.UUID
+	MarkedAt  time.Time
+	Going     bool
+	ItemID    uuid.UUID
+	FacultyID uuid.UUID
+	Course    int32
+	GroupIds  []uuid.UUID
+}
+
+// «Пойду» — только у мероприятия, которое ещё не началось; заодно отмечает прочитанным.
+func (q *Queries) SetGoing(ctx context.Context, arg SetGoingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setGoing,
+		arg.StudentID,
+		arg.MarkedAt,
+		arg.Going,
 		arg.ItemID,
 		arg.FacultyID,
 		arg.Course,

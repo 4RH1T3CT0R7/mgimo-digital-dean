@@ -44,7 +44,7 @@ func (q *Queries) DeleteStaffDeadline(ctx context.Context, arg DeleteStaffDeadli
 }
 
 const findStaffAnnouncement = `-- name: FindStaffAnnouncement :one
-SELECT id, type, title, body, important, requires_ack, link_kind, link_id, link_date, audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id, author_id, author_label, source_event_id, created_at FROM notifications
+SELECT id, type, title, body, important, requires_ack, link_kind, link_id, link_date, audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id, author_id, author_label, source_event_id, created_at, event_starts_at, event_place FROM notifications
 WHERE id = $1::uuid AND author_id IS NOT NULL AND type IN ('news', 'announcement')
   AND ($2::uuid IS NULL OR audience_faculty_id = $2::uuid)
 `
@@ -76,17 +76,21 @@ func (q *Queries) FindStaffAnnouncement(ctx context.Context, arg FindStaffAnnoun
 		&i.AuthorLabel,
 		&i.SourceEventID,
 		&i.CreatedAt,
+		&i.EventStartsAt,
+		&i.EventPlace,
 	)
 	return i, err
 }
 
 const insertAnnouncement = `-- name: InsertAnnouncement :one
 INSERT INTO notifications (type, title, body, important, requires_ack, audience_kind,
-    audience_faculty_id, audience_course, audience_group_id, author_id, author_label, created_at)
+    audience_faculty_id, audience_course, audience_group_id, author_id, author_label, created_at,
+    event_starts_at, event_place)
 VALUES ($1, $2, $3, $4, $5,
     $6, $7, $8,
-    $9, $10, $11, $12)
-RETURNING id, type, title, body, important, requires_ack, link_kind, link_id, link_date, audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id, author_id, author_label, source_event_id, created_at
+    $9, $10, $11, $12,
+    $13, $14)
+RETURNING id, type, title, body, important, requires_ack, link_kind, link_id, link_date, audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id, author_id, author_label, source_event_id, created_at, event_starts_at, event_place
 `
 
 type InsertAnnouncementParams struct {
@@ -102,6 +106,8 @@ type InsertAnnouncementParams struct {
 	AuthorID          *uuid.UUID
 	AuthorLabel       *string
 	CreatedAt         time.Time
+	EventStartsAt     *time.Time
+	EventPlace        *string
 }
 
 func (q *Queries) InsertAnnouncement(ctx context.Context, arg InsertAnnouncementParams) (Notification, error) {
@@ -118,6 +124,8 @@ func (q *Queries) InsertAnnouncement(ctx context.Context, arg InsertAnnouncement
 		arg.AuthorID,
 		arg.AuthorLabel,
 		arg.CreatedAt,
+		arg.EventStartsAt,
+		arg.EventPlace,
 	)
 	var i Notification
 	err := row.Scan(
@@ -139,6 +147,8 @@ func (q *Queries) InsertAnnouncement(ctx context.Context, arg InsertAnnouncement
 		&i.AuthorLabel,
 		&i.SourceEventID,
 		&i.CreatedAt,
+		&i.EventStartsAt,
+		&i.EventPlace,
 	)
 	return i, err
 }
@@ -240,9 +250,10 @@ func (q *Queries) ListAcknowledgedStudents(ctx context.Context, arg ListAcknowle
 }
 
 const listStaffAnnouncements = `-- name: ListStaffAnnouncements :many
-SELECT n.id, n.type, n.title, n.body, n.important, n.requires_ack, n.link_kind, n.link_id, n.link_date, n.audience_kind, n.audience_user_id, n.audience_faculty_id, n.audience_course, n.audience_group_id, n.author_id, n.author_label, n.source_event_id, n.created_at,
+SELECT n.id, n.type, n.title, n.body, n.important, n.requires_ack, n.link_kind, n.link_id, n.link_date, n.audience_kind, n.audience_user_id, n.audience_faculty_id, n.audience_course, n.audience_group_id, n.author_id, n.author_label, n.source_event_id, n.created_at, n.event_starts_at, n.event_place,
        (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count,
-       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.acked_at IS NOT NULL) AS acked_count
+       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.acked_at IS NOT NULL) AS acked_count,
+       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.going_at IS NOT NULL) AS going_count
 FROM notifications n
 WHERE n.author_id IS NOT NULL AND n.type IN ('news', 'announcement')
   AND ($1::uuid IS NULL OR n.audience_faculty_id = $1::uuid)
@@ -260,6 +271,7 @@ type ListStaffAnnouncementsRow struct {
 	Notification Notification
 	ReadCount    int64
 	AckedCount   int64
+	GoingCount   int64
 }
 
 func (q *Queries) ListStaffAnnouncements(ctx context.Context, arg ListStaffAnnouncementsParams) ([]ListStaffAnnouncementsRow, error) {
@@ -290,8 +302,11 @@ func (q *Queries) ListStaffAnnouncements(ctx context.Context, arg ListStaffAnnou
 			&i.Notification.AuthorLabel,
 			&i.Notification.SourceEventID,
 			&i.Notification.CreatedAt,
+			&i.Notification.EventStartsAt,
+			&i.Notification.EventPlace,
 			&i.ReadCount,
 			&i.AckedCount,
+			&i.GoingCount,
 		); err != nil {
 			return nil, err
 		}

@@ -27,8 +27,12 @@ function foldLine(value: string)
     return result;
 }
 
-// Только вымышленные данные MSW; production получает готовый файл от academic.
-export function mockCalendar(lessons: components['schemas']['Lesson'][], now: Date)
+const sessionTitles: Partial<Record<components['schemas']['LessonKind'], string>> = {
+    consultation: 'Консультация: ', credit: 'Зачёт: ', exam: 'Экзамен: ',
+};
+
+// Только вымышленные данные MSW; production получает готовый файл от academic (ics.go — тот же формат).
+export function mockCalendar(lessons: components['schemas']['Lesson'][], now: Date, points: components['schemas']['AcademicEvent'][] = [])
 {
     const lines = [
         'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Digital Dean Concept//Schedule//RU', 'CALSCALE:GREGORIAN',
@@ -47,7 +51,7 @@ export function mockCalendar(lessons: components['schemas']['Lesson'][], now: Da
         lines.push('BEGIN:VEVENT', `UID:${lesson.id}`, `DTSTAMP:${stamp}`,
             `DTSTART;TZID=Europe/Moscow:${date}T${lesson.start_time.replace(':', '')}00`,
             `DTEND;TZID=Europe/Moscow:${date}T${lesson.end_time.replace(':', '')}00`,
-            `SUMMARY:${escapeText(lesson.discipline.name)}`);
+            `SUMMARY:${escapeText((sessionTitles[lesson.kind] ?? '') + lesson.discipline.name)}`);
 
         if (lesson.room)
         {
@@ -58,6 +62,15 @@ export function mockCalendar(lessons: components['schemas']['Lesson'][], now: Da
             lines.push(`DESCRIPTION:${escapeText(lesson.teacher.short_name)}`);
         }
         lines.push('END:VEVENT');
+    }
+    // Контрольные точки — на весь день
+    for (const point of points)
+    {
+        const next = new Date(`${point.date}T12:00:00Z`);
+        next.setUTCDate(next.getUTCDate() + 1);
+        lines.push('BEGIN:VEVENT', `UID:${point.id}`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${point.date.replace(/-/g, '')}`,
+            `DTEND;VALUE=DATE:${next.toISOString().slice(0, 10).replace(/-/g, '')}`,
+            `SUMMARY:${escapeText(`${point.title ?? ''}: ${point.discipline.name}`)}`, 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
 

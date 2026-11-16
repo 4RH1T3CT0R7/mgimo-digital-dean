@@ -9,10 +9,11 @@ const LIST_REFRESH_MS = 30_000;
 const APPLICATION_REFRESH_MS = 15_000;
 const FINAL_STATUSES = ['ready', 'rejected', 'cancelled'];
 
-export function useStaffStats() {
+/** Счётчики; facultyId — фильтр администратора, как у списка (у staff сервер его игнорирует) */
+export function useStaffStats(facultyId?: string) {
   return useQuery({
-    queryKey: ['requests', 'staff', 'stats'],
-    queryFn: () => unwrap(requestsApi.GET('/staff/stats')),
+    queryKey: ['requests', 'staff', 'stats', facultyId ?? null],
+    queryFn: () => unwrap(requestsApi.GET('/staff/stats', { params: { query: { faculty_id: facultyId } } })),
     refetchInterval: LIST_REFRESH_MS,
   });
 }

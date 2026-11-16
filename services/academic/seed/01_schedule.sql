@@ -79,8 +79,8 @@ UPDATE lessons l SET
     room_number = CASE WHEN c.weekday = 4 THEN '405' ELSE l.room_number END,
     status = CASE c.weekday WHEN 2 THEN 'moved' WHEN 3 THEN 'cancelled' ELSE 'changed' END,
     change_type = CASE c.weekday WHEN 2 THEN 'moved' WHEN 3 THEN 'cancelled' ELSE 'room_changed' END,
-    change_reason = CASE c.weekday WHEN 2 THEN 'Изменение графика преподавателя'
-                                 WHEN 3 THEN 'Болезнь преподавателя' ELSE 'Технические работы в аудитории' END,
+    change_reason = CASE c.weekday WHEN 2 THEN 'Преподаватель перенёс занятие'
+                                 WHEN 3 THEN 'Преподаватель заболел' ELSE 'В аудитории ремонт' END,
     changed_at = now() - interval '30 minutes',
     updated_at = now() - interval '30 minutes'
 FROM changes c WHERE l.id = c.lesson_id;

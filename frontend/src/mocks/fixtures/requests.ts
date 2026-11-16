@@ -22,7 +22,7 @@ export const serviceTypes: S['ServiceType'][] = [
         required: true,
         options: ['По месту требования', 'Для органов соцзащиты', 'Для работодателя', 'Для налоговой', 'Другое'],
       },
-      { key: 'destination', label: 'Куда предоставляется', type: 'text', required: false, placeholder: 'Например, по месту работы родителей', max_length: 200 },
+      { key: 'destination', label: 'Куда нужна справка', type: 'text', required: false, placeholder: 'Например, по месту работы родителей', max_length: 200 },
     ],
     attachments: { allowed: false, required: false, hint: null },
   },
@@ -138,6 +138,36 @@ export const students: Record<string, S['StudentSnapshot']> = {
   },
 };
 
+/** Электронный студенческий (D60) по логину: данные — как в профиле academic, код проверки постоянный */
+export const studentCards: Record<string, Omit<S['StudentCard'], 'valid_until' | 'verify_url'>> = {
+  'student.mo': {
+    number: '2401317',
+    full_name: 'Лебедева Анна Викторовна',
+    faculty_name: 'Факультет международных отношений',
+    program_code: '41.03.05',
+    program_name: 'Международные отношения',
+    course: 2,
+    study_form: 'full_time',
+    code: 'S7TQ4C2DMA',
+  },
+  'student.meo': {
+    number: '2302214',
+    full_name: 'Соколов Максим Олегович',
+    faculty_name: 'Факультет международных экономических отношений',
+    program_code: '38.03.01',
+    program_name: 'Экономика',
+    course: 3,
+    study_form: 'full_time',
+    code: 'M3XV5RKQ2B',
+  },
+};
+
+/** 31 августа текущего учебного года (учебный год начинается 1 сентября) — как на сервере */
+export function academicYearEnd(today = toApiDate()): string {
+  const [year, month] = today.split('-').map(Number);
+  return `${month >= 9 ? year + 1 : year}-08-31`;
+}
+
 /** Студенты группы МО-24-03 без логина: у деканата ФМО есть новые и просроченные заявки */
 const orlova: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000001', full_name: 'Орлова Дарья Игоревна', short_name: 'Орлова Д. И.', student_card_no: '2401322' };
 const kovalev: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000002', full_name: 'Ковалёв Илья Андреевич', short_name: 'Ковалёв И. А.', student_card_no: '2401305' };
@@ -217,7 +247,7 @@ function initialApplications(): MockApplication[] {
       number: 1,
       student: mo,
       serviceTypeId: 'dean-question',
-      fields: { topic: 'Стипендия', question: 'Когда будет начислена повышенная академическая стипендия за осенний семестр?' },
+      fields: { topic: 'Стипендия', question: 'Когда начислят повышенную академическую стипендию за осенний семестр?' },
       createdHoursAgo: 144,
       history: [
         ['submitted', 144, 'student'],
@@ -227,7 +257,7 @@ function initialApplications(): MockApplication[] {
       messages: [
         ['staff', 120, 'Здравствуйте! Приказ о назначении повышенной стипендии подписан, выплата придёт вместе с основной стипендией в ноябре.'],
         ['student', 119.5, 'Спасибо! Нужно ли писать отдельное заявление?'],
-        ['staff', 119, 'Нет, заявление не нужно: начисление автоматическое.'],
+        ['staff', 119, 'Нет, заявление не нужно: стипендию начислят автоматически.'],
       ],
     }),
     buildApplication({
@@ -253,7 +283,7 @@ function initialApplications(): MockApplication[] {
         ['submitted', 48, 'student'],
         ['in_progress', 45, 'staff'],
       ],
-      messages: [['staff', 44.9, 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, при себе иметь паспорт.']],
+      messages: [['staff', 44.9, 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, возьмите с собой паспорт.']],
     }),
     buildApplication({
       number: 4,
@@ -335,6 +365,8 @@ function initialApplications(): MockApplication[] {
         ['submitted', 9 * 24, 'student'],
         ['in_progress', 8 * 24, 'staff'],
       ],
+      // Последнее сообщение — от студента: в списке деканата метка «Студент написал»
+      messages: [['student', 5, 'Нашёлся старый билет, но он повреждён. Заявку оставить или подать новую?']],
     }),
     buildApplication({
       number: 12,
@@ -343,6 +375,19 @@ function initialApplications(): MockApplication[] {
       fields: { topic: 'Стипендия', question: 'Когда начислят стипендию за ноябрь?' },
       createdHoursAgo: 2,
       history: [['submitted', 2, 'student']],
+    }),
+    // У Анны деканат просит уточнить — блок «Ждёт вашего действия» на главной (W1)
+    buildApplication({
+      number: 13,
+      student: mo,
+      serviceTypeId: 'transcript',
+      fields: { language: 'Английский', period: 'Весь период обучения' },
+      createdHoursAgo: 30,
+      history: [
+        ['submitted', 30, 'student'],
+        ['in_progress', 26, 'staff'],
+        ['needs_info', 5, 'staff', 'Напишите, для какой организации нужна выписка: от этого зависит форма документа'],
+      ],
     }),
   ];
 }

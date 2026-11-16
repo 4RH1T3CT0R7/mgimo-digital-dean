@@ -8,7 +8,7 @@ INSERT INTO applications (id, student_id, faculty_id, service_type_id, status, f
                           created_at, updated_at, due_at, last_message_at, last_message_from)
 VALUES ('50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001',
         '10000000-0000-4000-8000-000000000001', 'dean-question', 'ready',
-        '{"topic": "Стипендия", "question": "Когда будет начислена повышенная академическая стипендия за осенний семестр?"}',
+        '{"topic": "Стипендия", "question": "Когда начислят повышенную академическую стипендию за осенний семестр?"}',
         NULL,
         '{"full_name": "Лебедева Анна Викторовна", "short_name": "Лебедева А. В.", "faculty_short": "ФМО",
           "faculty_name": "Факультет международных отношений", "program_code": "41.03.05",
@@ -31,7 +31,7 @@ INSERT INTO messages (id, application_id, author_role, author_id, author_label, 
  now() - interval '5 days' + interval '30 minutes'),
 ('51000000-0000-4000-8000-000000000003', '50000000-0000-4000-8000-000000000001', 'staff',
  '40000000-0000-4000-8000-000000000001', 'Деканат ФМО',
- 'Нет, заявление не нужно: начисление автоматическое.',
+ 'Нет, заявление не нужно: стипендию начислят автоматически.',
  now() - interval '5 days' + interval '1 hour');
 
 -- 000002 · student.meo · Материальная помощь · needs_info
@@ -71,7 +71,7 @@ INSERT INTO status_history (application_id, status, comment, actor_role, actor_i
 INSERT INTO messages (id, application_id, author_role, author_id, author_label, text, created_at) VALUES
 ('51000000-0000-4000-8000-000000000004', '50000000-0000-4000-8000-000000000003', 'staff',
  '40000000-0000-4000-8000-000000000001', 'Деканат ФМО',
- 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, при себе иметь паспорт.',
+ 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, возьмите с собой паспорт.',
  now() - interval '2 days' + interval '3 hours 5 minutes');
 
 -- 000004 · student.mo · Справка с места учёбы · ready, со справкой

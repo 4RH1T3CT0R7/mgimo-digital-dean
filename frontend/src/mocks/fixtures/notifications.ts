@@ -7,7 +7,14 @@ import { users } from './auth';
 type S = components['schemas'];
 
 export type MockDeadline = Omit<S['StaffDeadline'], 'days_left'>;
-export type MockFeedItem = S['FeedItem'] & { audience: S['Audience'] };
+/** event (сколько идёт и иду ли я) считает обработчик из отметок «Пойду» */
+export type MockFeedItem = Omit<S['FeedItem'], 'event'> & {
+  audience: S['Audience'];
+  event_starts_at?: string;
+  event_place?: string;
+};
+/** status и dismissed_count считает обработчик */
+export type MockBanner = Omit<S['AdminBanner'], 'status' | 'dismissed_count'>;
 export const fmo = faculties[0].id;
 export const meo = faculties[1].id;
 const groupMO = profile.group.id;
@@ -48,7 +55,7 @@ export const deadlines: MockDeadline[] = [
     audience: everyone,
     created_at: createdAt,
     title: 'Приём заявлений на материальную помощь',
-    description: 'Заявление подаётся онлайн, документы прикладываются к заявке.',
+    description: 'Подайте заявление онлайн и приложите к нему документы.',
     kind: 'application',
     due_at: '2026-11-30T23:59:00+03:00',
     service_type_id: 'financial-aid',
@@ -93,6 +100,17 @@ export const deadlines: MockDeadline[] = [
     due_at: '2026-12-05T23:59:00+03:00',
     service_type_id: null,
   },
+  // Срок — завтра от момента загрузки: на главной есть блок «Ждёт вашего действия» (W1)
+  {
+    id: '70000000-0000-4000-8000-000000000006',
+    audience: group(groupMO, fmo),
+    created_at: createdAt,
+    title: 'Эссе: Теория международных отношений',
+    description: 'Сдайте эссе преподавателю на семинаре.',
+    kind: 'coursework',
+    due_at: `${toApiDate(new Date(Date.now() + 86_400_000))}T18:00:00+03:00`,
+    service_type_id: null,
+  },
 ];
 
 function publication(n: number, title: string, body: string, audience: S['Audience'], author: string, requiresAck = false): MockFeedItem {
@@ -106,7 +124,7 @@ export const publications = [
   publication(2, 'Расписание можно добавить в календарь', 'Скачайте файл в разделе «Расписание» и импортируйте его в свой календарь.', everyone, 'Администрация'),
   publication(3, 'Проверьте изменения в расписании ФМО', 'Обратите внимание на метки переноса и смены аудитории.', faculty(fmo), 'Деканат ФМО'),
   publication(4, 'Приём заявлений на материальную помощь', 'Подайте заявление до 30 ноября и приложите подтверждающие документы.', faculty(meo), 'Деканат МЭО'),
-  publication(5, 'Проверьте время декабрьских зачётов', 'Уточните даты зачётов для своей группы.\nПосле прочтения подтвердите ознакомление.', faculty(fmo), 'Деканат ФМО', true),
+  publication(5, 'Проверьте время декабрьских зачётов', 'Уточните даты зачётов для своей группы.\nКогда прочитаете, нажмите «Ознакомлен(а)».', faculty(fmo), 'Деканат ФМО', true),
   publication(6, 'Срок сдачи курсовой работы', 'Группа МЭО-23-02 сдаёт курсовую 5 декабря. Уточните формат работы у преподавателя.', faculty(meo), 'Деканат МЭО', true),
 ];
 
@@ -135,12 +153,52 @@ function applicationUpdate(n: number, owner: string, title: string, body: string
 
 const updates = [
   applicationUpdate(4, anna, 'Готово: заявка №000004', 'Справка готова, её можно скачать.', 'Деканат ФМО', 'application_status', true),
-  applicationUpdate(3, anna, 'Заявка №000003 в работе', 'Справка в военкомат: деканат начал обработку.', 'Деканат ФМО', 'application_status', false),
+  applicationUpdate(3, anna, 'Заявка №000003 в работе', 'Справка в военкомат: деканат взял заявку в работу.', 'Деканат ФМО', 'application_status', false),
   applicationUpdate(1, anna, 'Ответ по заявке №000001', 'Деканат ФМО ответил по заявке «Вопрос в деканат».', 'Деканат ФМО', 'application_message', false),
   applicationUpdate(2, maxim, 'Нужны уточнения по заявке №000002', 'Материальная помощь: приложите справку о составе семьи.', 'Деканат МЭО', 'application_status', true),
 ];
 
-export const seedFeed = [...publications, ...lessonChanges, ...updates];
+// Мероприятия и баннеры — как в services/notifications/seed/03_news_banners.sql (вымышленные).
+function event(n: number, title: string, body: string, audience: S['Audience'], author: string, created: string, starts: string, place: string): MockFeedItem {
+  return { id: `74000000-0000-4000-8000-${String(n).padStart(12, '0')}`, type: 'news', title, body, audience,
+    author_label: author, important: false, requires_ack: false, link: { kind: 'none' }, created_at: created,
+    event_starts_at: starts, event_place: place };
+}
+
+export const events = [
+  event(1, 'Клуб дебатов: открытая тренировка', 'Разберём формат британских парламентских дебатов и проведём две пробные игры. Опыт не нужен, достаточно прийти за десять минут до начала.',
+    everyone, 'Администрация', '2026-11-09T09:00:00+03:00', '2026-11-13T18:30:00+03:00', 'Корпус Б, аудитория 1051'),
+  event(2, 'ФМО: встреча с выпускниками о стажировках', 'Выпускники факультета расскажут, как искали первую стажировку и что спрашивали на собеседованиях. Вопросы можно задать после встречи.',
+    faculty(fmo), 'Деканат ФМО', '2026-11-12T10:00:00+03:00', '2026-11-20T17:00:00+03:00', 'Новый корпус, аудитория 212'),
+  event(3, 'Открытая лекция «Как читать международный договор»', 'На примерах учебных договоров разберём структуру текста, оговорки и порядок вступления в силу. Лекция подойдёт студентам любого курса.',
+    everyone, 'Администрация', '2026-11-14T10:00:00+03:00', '2026-11-26T16:00:00+03:00', 'Корпус Г, аудитория 2115'),
+  event(4, 'Мастер-класс: резюме для стажировки', 'Покажем, как описать учёбу, проекты и языки на одной странице. Возьмите с собой черновик резюме, если он уже есть.',
+    everyone, 'Администрация', '2026-11-16T09:00:00+03:00', '2026-12-03T15:00:00+03:00', 'Корпус Г, аудитория 3124'),
+];
+
+/** Кто из вымышленных одногруппников уже отметил «Пойду» */
+export const seedGoing: [studentId: string, itemId: string][] = [
+  [recipients[2].id, events[1].id],
+  [recipients[2].id, events[2].id],
+  [recipients[3].id, events[2].id],
+];
+
+export const banners: MockBanner[] = [
+  {
+    id: '75000000-0000-4000-8000-000000000001', priority: 'normal', audience: everyone, created_at: '2026-11-14T09:00:00+03:00',
+    title: 'Новости и мероприятия — в отдельном разделе',
+    body: 'Новости деканата больше не смешиваются с уведомлениями. Отмечайте «Пойду» и добавляйте мероприятия в свой календарь.',
+    link_url: '/news', link_label: 'Открыть раздел', starts_at: '2026-11-14T09:00:00+03:00', ends_at: '2026-11-28T23:59:00+03:00',
+  },
+  {
+    id: '75000000-0000-4000-8000-000000000002', priority: 'urgent', audience: everyone, created_at: '2026-11-14T09:00:00+03:00',
+    title: 'С 16 ноября справки и заявления — только через кабинет',
+    body: 'Бумажные заявления деканаты больше не принимают. Справку с места учёбы кабинет выдаёт сразу после подачи.',
+    link_url: '/requests', link_label: 'Подать заявку', starts_at: '2026-11-14T09:00:00+03:00', ends_at: '2026-11-28T03:00:00+03:00',
+  },
+];
+
+export const seedFeed = [...publications, ...events, ...lessonChanges, ...updates];
 export const dayMs = 86_400_000;
 
 export function deadlineDays(value: string, now = new Date()) {

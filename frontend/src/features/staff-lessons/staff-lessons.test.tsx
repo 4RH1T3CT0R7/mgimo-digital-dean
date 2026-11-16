@@ -87,7 +87,7 @@ describe('T14: обязательные сценарии Y1–Y5', () => {
 
     it('Y4: у отменённого и перенесённого исходного занятия нет «Изменить»', async () => {
         renderWithProviders(<StaffLessonsPage />, { route: '/staff/lessons?date=2026-11-18', login: 'dekanat.mo' });
-        const cancelled = await screen.findByText('Болезнь преподавателя');
+        const cancelled = await screen.findByText('Преподаватель заболел');
         const ghost = screen.getByRole('link', { name: 'Перенесено на 19.11, 12:00' });
 
         expect(within(cancelled.closest('li')!).queryByRole('button', { name: 'Изменить' })).not.toBeInTheDocument();
@@ -137,12 +137,12 @@ describe('T14: дополнительные проверки', () => {
         server.use(http.post('/api/academic/staff/lessons/:id/change', async ({ request }) => { body = await request.json(); return HttpResponse.json(lesson); }));
         const { user, onClose } = renderSheet();
         await chooseSelect(user, 'Что изменить', 'Отменить');
-        await user.type(screen.getByLabelText('Причина'), 'Болезнь преподавателя');
+        await user.type(screen.getByLabelText('Причина'), 'Преподаватель заболел');
         await user.click(screen.getByRole('button', { name: 'Далее' }));
         await user.click(screen.getByRole('button', { name: 'Отменить занятие' }));
         await waitFor(() => expect(onClose).toHaveBeenCalled());
 
-        expect(body).toEqual({ type: 'cancelled', reason: 'Болезнь преподавателя' });
+        expect(body).toEqual({ type: 'cancelled', reason: 'Преподаватель заболел' });
     });
 
     it('смена аудитории требует корпус и номер', async () => {
@@ -163,12 +163,12 @@ describe('T14: дополнительные проверки', () => {
         const { user } = renderWithProviders(<StaffLessonsPage />, { route: '/staff/lessons?date=2026-11-18', login: 'admin' });
         await chooseSelect(user, 'Факультет', /^ФМО —/);
         expect(await screen.findByLabelText('Группа')).toHaveTextContent('МО-24-03');
-        expect(await screen.findByText('Болезнь преподавателя')).toBeInTheDocument();
+        expect(await screen.findByText('Преподаватель заболел')).toBeInTheDocument();
         await chooseSelect(user, 'Факультет', /^МЭО —/);
 
         expect(await screen.findByText('На этой неделе занятий нет')).toBeInTheDocument();
         expect(screen.getByLabelText('Группа')).toHaveTextContent('МЭО-23-02');
-        expect(screen.queryByText('Болезнь преподавателя')).not.toBeInTheDocument();
+        expect(screen.queryByText('Преподаватель заболел')).not.toBeInTheDocument();
         expect(new URLSearchParams(location.search).get('faculty_id')).toBe('10000000-0000-4000-8000-000000000002');
         expect(new URLSearchParams(location.search).get('group_id')).toBe('20000000-0000-4000-8000-000000000004');
     });

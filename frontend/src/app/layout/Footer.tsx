@@ -8,7 +8,7 @@ export function Footer() {
     <footer className="border-t px-gutter py-5 text-[0.8125rem] leading-relaxed text-muted-foreground">
       <div className="mx-auto flex max-w-6xl flex-col gap-1 [&>p]:max-w-prose">
         <p className="font-medium text-foreground/80">
-          Концепт для конкурса «Цифровой деканат будущего». Не является официальным сервисом МГИМО. Все данные вымышлены.
+          Концепт для конкурса «Цифровой деканат будущего». Это не официальный сервис МГИМО. Все данные вымышлены.
         </p>
         <p>
           Прототип подготовила команда участников конкурса: {TEAM}.{' '}

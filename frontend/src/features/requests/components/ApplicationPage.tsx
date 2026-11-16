@@ -16,6 +16,7 @@ import { StatusSteps } from '@/shared/ui/status-steps';
 import { Textarea } from '@/shared/ui/textarea';
 import { toast } from '@/shared/ui/toast';
 import { applicationSteps, feedbackQuestion, formatSize, statusLabel, statusTones } from '../labels';
+import { resubmitPath } from '../links';
 import {
   useCancelApplication,
   useDownloadAttachment,
@@ -88,6 +89,15 @@ function ApplicationDetails({ application: a }: { application: Application }) {
           {a.overdue && a.due_at && (
             <p className="mt-4 border-t pt-3 text-sm font-medium text-danger-strong">Срок готовности ({formatDate(a.due_at)}) прошёл — деканат видит заявку первой в списке.</p>
           )}
+          {a.status === 'ready' && a.service_type.kind === 'document' && (
+            <p className="mt-4 border-t pt-3 text-sm">
+              Если документ нужно забрать в деканате, посмотрите{' '}
+              <Link to="/useful#dean" className="font-medium text-primary underline underline-offset-4">
+                кабинет и часы приёма
+              </Link>
+              .
+            </p>
+          )}
         </section>
       )}
 
@@ -102,7 +112,15 @@ function ApplicationDetails({ application: a }: { application: Application }) {
             </Notice>
           )}
           {a.status === 'rejected' && (
-            <Notice tone="danger" title="Заявка отклонена">
+            <Notice
+              tone="danger"
+              title="Заявка отклонена"
+              action={
+                <Button asChild variant="outline" className="self-start">
+                  <Link to={resubmitPath(a, lastComment(a, 'rejected'))}>Подать заново</Link>
+                </Button>
+              }
+            >
               {lastComment(a, 'rejected') ?? 'Подробности — в переписке с деканатом.'}
             </Notice>
           )}
@@ -158,7 +176,7 @@ function ApplicationDetails({ application: a }: { application: Application }) {
 }
 
 
-function Notice({ tone, title, children }: { tone: 'warning' | 'danger'; title: string; children: ReactNode }) {
+function Notice({ tone, title, children, action }: { tone: 'warning' | 'danger'; title: string; children: ReactNode; action?: ReactNode }) {
   return (
     <div
       className={cn(
@@ -170,6 +188,7 @@ function Notice({ tone, title, children }: { tone: 'warning' | 'danger'; title: 
       <div className="flex min-w-0 flex-col gap-1">
         <p className="font-medium break-words">{title}</p>
         <p className="text-sm">{children}</p>
+        {action && <div className="mt-2 flex">{action}</div>}
       </div>
     </div>
   );
@@ -308,7 +327,7 @@ function CancelDialog({ application }: { application: Application }) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Отозвать заявку № {application.number}?</DialogTitle>
-          <DialogDescription>Деканат не будет её рассматривать. Вернуть отозванную заявку нельзя — при необходимости подайте новую.</DialogDescription>
+          <DialogDescription>Деканат не будет её рассматривать. Вернуть отозванную заявку нельзя — если понадобится, подайте новую.</DialogDescription>
         </DialogHeader>
         {cancel.isError && (
           <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">

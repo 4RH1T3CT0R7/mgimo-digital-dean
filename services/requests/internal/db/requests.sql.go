@@ -315,6 +315,36 @@ func (q *Queries) GetStudentApplication(ctx context.Context, arg GetStudentAppli
 	return i, err
 }
 
+const getStudentCardByCode = `-- name: GetStudentCardByCode :one
+SELECT student_id, code, holder, faculty_short, course, issued_at, valid_until FROM student_cards WHERE code = $1
+`
+
+func (q *Queries) GetStudentCardByCode(ctx context.Context, code string) (StudentCard, error) {
+	row := q.db.QueryRow(ctx, getStudentCardByCode, code)
+	var i StudentCard
+	err := row.Scan(
+		&i.StudentID,
+		&i.Code,
+		&i.Holder,
+		&i.FacultyShort,
+		&i.Course,
+		&i.IssuedAt,
+		&i.ValidUntil,
+	)
+	return i, err
+}
+
+const getStudentCardCode = `-- name: GetStudentCardCode :one
+SELECT code FROM student_cards WHERE student_id = $1
+`
+
+func (q *Queries) GetStudentCardCode(ctx context.Context, studentID uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getStudentCardCode, studentID)
+	var code string
+	err := row.Scan(&code)
+	return code, err
+}
+
 const insertAttachment = `-- name: InsertAttachment :exec
 INSERT INTO attachments (id, application_id, uploaded_by_role, uploaded_by_id, file_name, content_type, size, data,
                          is_result, created_at)
@@ -975,4 +1005,50 @@ func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (int
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertStudentCard = `-- name: UpsertStudentCard :one
+
+INSERT INTO student_cards (student_id, code, holder, faculty_short, course, issued_at, valid_until)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7)
+ON CONFLICT (student_id) DO UPDATE
+SET holder = EXCLUDED.holder, faculty_short = EXCLUDED.faculty_short, course = EXCLUDED.course,
+    valid_until = EXCLUDED.valid_until
+RETURNING student_id, code, holder, faculty_short, course, issued_at, valid_until
+`
+
+type UpsertStudentCardParams struct {
+	StudentID    uuid.UUID
+	Code         string
+	Holder       string
+	FacultyShort string
+	Course       int32
+	Now          time.Time
+	ValidUntil   pgtype.Date
+}
+
+// ---------- Электронный студенческий (D60) ----------
+// Код выдаётся при первом открытии и не меняется: при повторе обновляются только данные для проверки и срок.
+func (q *Queries) UpsertStudentCard(ctx context.Context, arg UpsertStudentCardParams) (StudentCard, error) {
+	row := q.db.QueryRow(ctx, upsertStudentCard,
+		arg.StudentID,
+		arg.Code,
+		arg.Holder,
+		arg.FacultyShort,
+		arg.Course,
+		arg.Now,
+		arg.ValidUntil,
+	)
+	var i StudentCard
+	err := row.Scan(
+		&i.StudentID,
+		&i.Code,
+		&i.Holder,
+		&i.FacultyShort,
+		&i.Course,
+		&i.IssuedAt,
+		&i.ValidUntil,
+	)
+	return i, err
 }

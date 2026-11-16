@@ -9,6 +9,15 @@ export function useRecentApplications()
     });
 }
 
+/** Заявки, где деканат просит уточнить, — для блока «Ждёт вашего действия» */
+export function useApplicationsNeedingInfo()
+{
+    return useQuery({
+        queryKey: ['requests', 'applications', { status: 'needs_info' }],
+        queryFn: () => unwrap(requestsApi.GET('/me/applications', { params: { query: { status: ['needs_info'], limit: 10 } } })),
+    });
+}
+
 export function useUpcomingDeadlines()
 {
     return useQuery({

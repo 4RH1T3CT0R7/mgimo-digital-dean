@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Banner struct {
+	ID                uuid.UUID
+	Title             string
+	Body              *string
+	Priority          string
+	LinkUrl           *string
+	LinkLabel         *string
+	AudienceKind      string
+	AudienceFacultyID *uuid.UUID
+	AudienceCourse    *int32
+	AudienceGroupID   *uuid.UUID
+	StartsAt          time.Time
+	EndsAt            time.Time
+	AuthorID          uuid.UUID
+	CreatedAt         time.Time
+}
+
+type BannerDismissal struct {
+	BannerID uuid.UUID
+	UserID   uuid.UUID
+}
+
 type Deadline struct {
 	ID                uuid.UUID
 	Title             string
@@ -46,6 +68,8 @@ type Notification struct {
 	AuthorLabel       *string
 	SourceEventID     *uuid.UUID
 	CreatedAt         time.Time
+	EventStartsAt     *time.Time
+	EventPlace        *string
 }
 
 type NotificationRead struct {
@@ -53,4 +77,5 @@ type NotificationRead struct {
 	UserID         uuid.UUID
 	ReadAt         time.Time
 	AckedAt        *time.Time
+	GoingAt        *time.Time
 }

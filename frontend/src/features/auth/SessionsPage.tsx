@@ -17,7 +17,7 @@ export function SessionsPage() {
 
   return (
     <>
-      <PageHeader title="Безопасность" subtitle="Где выполнен вход в кабинет" />
+      <PageHeader title="Безопасность" subtitle="Где вы вошли в кабинет" />
       <QueryView query={sessions}>
         {({ items }) => {
           const others = items.filter((s) => !s.current).length;
@@ -50,7 +50,7 @@ export function SessionsPage() {
                   disabled={endOthers.isPending}
                   onClick={() =>
                     endOthers.mutate(undefined, {
-                      onSuccess: ({ ended }) => toast.success(ended > 0 ? 'Вход на других устройствах завершён' : 'Других сеансов уже нет'),
+                      onSuccess: ({ ended }) => toast.success(ended > 0 ? 'Вы вышли на других устройствах' : 'Других сеансов уже нет'),
                       onError: (err) => toast.error(apiErrorMessage(err)),
                     })
                   }
@@ -59,7 +59,7 @@ export function SessionsPage() {
                   Выйти на всех других устройствах
                 </Button>
               ) : (
-                <p className="text-sm">Вход выполнен только на этом устройстве.</p>
+                <p className="text-sm">Вы вошли только на этом устройстве.</p>
               )}
               <p className="text-sm text-muted-foreground">
                 Сеанс действует 24 часа. Об устройстве мы храним только браузер и систему — без IP-адреса. Не узнаёте устройство — выйдите на всех других.

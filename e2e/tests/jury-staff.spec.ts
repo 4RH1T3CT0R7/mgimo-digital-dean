@@ -50,7 +50,8 @@ test('жюри: деканат отвечает, студент видит от�
     return;
   }
   await test.step('новое уведомление о сообщении деканата', async () => {
-    await nav(page, /^Уведомления/).click();
+    // На телефоне «Уведомления» — колокольчик в шапке, на ПК — пункт бокового меню (D63)
+    await page.getByRole('link', { name: /^Уведомления/ }).click();
     // Важные непрочитанные из прошлых прогонов стоят выше: фильтр «Заявки» и листание до нужной строки.
     await page.getByRole('group', { name: 'Тип уведомлений' }).getByRole('button', { name: 'Заявки', exact: true }).click();
     const notice = page.getByText(`Ответ по заявке №${number}`, { exact: true });

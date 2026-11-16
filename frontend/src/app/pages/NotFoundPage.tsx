@@ -9,7 +9,7 @@ export function NotFoundPage() {
       <h1 className="sr-only">Страница не найдена</h1>
       <EmptyState
         title="Такой страницы нет"
-        description="Возможно, адрес набран с ошибкой или страница была удалена."
+        description="Возможно, в адресе ошибка или страницу удалили."
         illustration={
           <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground" aria-hidden>
             <SearchXIcon className="size-6" />

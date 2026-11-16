@@ -1,4 +1,7 @@
+import { Link } from 'react-router';
 import type { components } from '@/api/academic';
+import { askDeanPath } from '@/features/requests/links';
+import { AcademicYearTab } from '@/features/academic-calendar/AcademicYearTab';
 import { formatDate, plural } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { AsOf } from '@/shared/ui/as-of';
@@ -11,6 +14,22 @@ import { controlFormLabels, decimal, gradeLabels, termLabels, trafficLabels, tra
 import { useCurrentGrades, useGradesSummary, useSessionResults } from './queries';
 
 type S = components['schemas'];
+
+/** Долг — вопрос о пересдаче; «Нужно внимание» в текущем семестре — как исправить баллы до сессии */
+function RetakeLink({ discipline, current = false }: { discipline: string; current?: boolean })
+{
+    const question = current
+        ? `Как исправить баллы по дисциплине «${discipline}» до сессии? Что можно досдать?`
+        : `Как пересдать дисциплину «${discipline}»? Подскажите сроки и порядок.`;
+    return (
+        <Link to={askDeanPath(question)}
+            className="flex min-h-11 w-fit items-center text-sm font-medium text-primary underline underline-offset-4">
+            {current ? 'Спросить, как исправить баллы' : 'Спросить о пересдаче'}
+        </Link>
+    );
+}
+// Три вкладки на 360 px: на телефоне мельче шрифт и поля, подпись может перенестись
+const tabClass = 'h-11 px-2 text-center text-sm leading-tight whitespace-normal sm:px-3 sm:text-[0.9375rem] sm:whitespace-nowrap';
 
 function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] })
 {
@@ -41,6 +60,7 @@ function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] 
             </div>
             <p className="text-sm">Посещаемость: {discipline.attendance_percent}%</p>
             {discipline.traffic_reason && <p className="text-sm">{discipline.traffic_reason}</p>}
+            {discipline.traffic === 'red' && <RetakeLink discipline={discipline.discipline.name} current />}
             {discipline.control_form !== 'credit' && (
                 <p className="text-sm text-muted-foreground">
                     {discipline.to_excellent.needed === 0 ? 'Идёте на «отлично»' : discipline.to_excellent.achievable
@@ -75,6 +95,7 @@ function SessionResult({ result }: { result: S['SessionResult'] })
                     {result.hours} {plural(result.hours, ['час', 'часа', 'часов'])},
                     {' '}{result.credits} {plural(result.credits, ['зачётная единица', 'зачётные единицы', 'зачётных единиц'])}
                 </p>
+                {result.status === 'failed' && <RetakeLink discipline={result.discipline.name} />}
             </div>
             <div className="flex flex-col items-start gap-2 sm:items-end">
                 <StatusBadge tone={result.status === 'failed' ? 'danger' : result.status === 'passed' ? 'success' : 'neutral'}>
@@ -144,8 +165,9 @@ export function GradesPage()
             </QueryView>
             <Tabs defaultValue="current" className="mt-8 gap-5">
                 <TabsList aria-label="Раздел успеваемости">
-                    <TabsTrigger value="current" className="h-11 px-3">Текущий семестр</TabsTrigger>
-                    <TabsTrigger value="sessions" className="h-11 px-3">Сессии</TabsTrigger>
+                    <TabsTrigger value="current" className={tabClass}>Текущий семестр</TabsTrigger>
+                    <TabsTrigger value="sessions" className={tabClass}>Сессии</TabsTrigger>
+                    <TabsTrigger value="year" className={tabClass}>Учебный год</TabsTrigger>
                 </TabsList>
                 <TabsContent value="current">
                     <QueryView query={current} isEmpty={(data) => data.disciplines.length === 0}
@@ -176,6 +198,7 @@ export function GradesPage()
                         ))}<AsOf date={data.as_of} /></div>}
                     </QueryView>
                 </TabsContent>
+                <TabsContent value="year"><AcademicYearTab /></TabsContent>
             </Tabs>
         </>
     );

@@ -8,8 +8,8 @@ import { codeHint } from './code';
 
 const code = 'K7M2QX4PWA';
 const verification: components['schemas']['CertificateVerification'] = {
-    valid: true, holder: 'Лебедева А. В.', faculty_short: 'ФМО', title: 'Справка с места учёбы',
-    issued_at: '2026-11-18T09:00:00+03:00', valid_until: '2026-12-18',
+    kind: 'certificate', valid: true, holder: 'Лебедева А. В.', faculty_short: 'ФМО', title: 'Справка с места учёбы',
+    course: null, issued_at: '2026-11-18T09:00:00+03:00', valid_until: '2026-12-18',
 };
 
 function renderResult()
@@ -30,7 +30,7 @@ describe('T15: обязательные сценарии Z1–Z6', () =>
         expect(screen.getByText('18 декабря 2026 г.')).toBeInTheDocument();
         expect(screen.queryByRole('navigation', { name: 'Разделы' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Меню пользователя/ })).not.toBeInTheDocument();
-        expect(screen.getByText('Это учебный прототип. Справка не является официальным документом.')).toBeInTheDocument();
+        expect(screen.getByText('Это учебный прототип. Справка — не официальный документ.')).toBeInTheDocument();
     });
 
     it('Z2: истёкшая справка сохраняет данные владельца', async () =>
@@ -48,7 +48,7 @@ describe('T15: обязательные сценарии Z1–Z6', () =>
         server.use(http.get('/api/requests/public/certificates/:code', () => HttpResponse.json({ code: 'not_found', message: 'Нет справки' }, { status: 404 })));
         renderResult();
 
-        expect(await screen.findByText('Справка с таким кодом не найдена')).toBeInTheDocument();
+        expect(await screen.findByText('Документ с таким кодом не найден')).toBeInTheDocument();
         expect(screen.getByText('Проверьте код')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Проверить другой код' })).toHaveAttribute('href', '/verify');
     });
@@ -57,9 +57,9 @@ describe('T15: обязательные сценарии Z1–Z6', () =>
     it('Z4: k7m2 qx4p7a нормализуется в K7M2QX4P7A, кнопка активна', async () =>
     {
         const { user } = renderWithProviders(<AppRoutes />, { route: '/verify' });
-        await user.type(screen.getByLabelText('Код справки'), 'k7m2 qx4p7a');
+        await user.type(screen.getByLabelText('Код проверки'), 'k7m2 qx4p7a');
 
-        expect(screen.getByLabelText('Код справки')).toHaveValue('K7M2QX4P7A');
+        expect(screen.getByLabelText('Код проверки')).toHaveValue('K7M2QX4P7A');
         expect(screen.getByRole('button', { name: 'Проверить' })).toBeEnabled();
         await user.click(screen.getByRole('button', { name: 'Проверить' }));
         expect(window.location.pathname).toBe('/verify/K7M2QX4P7A');
@@ -68,10 +68,10 @@ describe('T15: обязательные сценарии Z1–Z6', () =>
     it('Z5: цифра 1 не допускается', async () =>
     {
         const { user } = renderWithProviders(<AppRoutes />, { route: '/verify' });
-        await user.type(screen.getByLabelText('Код справки'), 'K7M2QX4P91');
+        await user.type(screen.getByLabelText('Код проверки'), 'K7M2QX4P91');
 
         expect(screen.getByText(codeHint)).toBeInTheDocument();
-        expect(screen.getByLabelText('Код справки')).toHaveAttribute('aria-invalid', 'true');
+        expect(screen.getByLabelText('Код проверки')).toHaveAttribute('aria-invalid', 'true');
         expect(screen.getByRole('button', { name: 'Проверить' })).toBeDisabled();
     });
 
@@ -98,7 +98,7 @@ describe('T15: дополнительные сценарии', () =>
     it.each(['K7M2QX4P9A', 'K7M2QX4P0A', 'К7M2QX4P7A', 'SHORT', 'K7M2QX4P7AA'])('не допускает %s', async (value) =>
     {
         const { user } = renderWithProviders(<AppRoutes />, { route: '/verify' });
-        await user.type(screen.getByLabelText('Код справки'), value);
+        await user.type(screen.getByLabelText('Код проверки'), value);
 
         expect(screen.getByRole('button', { name: 'Проверить' })).toBeDisabled();
     });
@@ -138,7 +138,7 @@ describe('T15: дополнительные сценарии', () =>
         await screen.findByRole('heading', { name: 'Справка действительна' });
         const result = client.getQueryData<components['schemas']['CertificateVerification']>(['requests', 'public', 'certificate', code]);
 
-        expect(Object.keys(result!).sort()).toEqual(['faculty_short', 'holder', 'issued_at', 'title', 'valid', 'valid_until']);
+        expect(Object.keys(result!).sort()).toEqual(['course', 'faculty_short', 'holder', 'issued_at', 'kind', 'title', 'valid', 'valid_until']);
         expect(result?.holder).toBe('Лебедева А. В.');
         expect(result).not.toHaveProperty('student_card_no');
     });
@@ -156,7 +156,35 @@ describe('T15: дополнительные сценарии', () =>
         const { user } = renderResult();
         await user.click(await screen.findByRole('link', { name: 'Проверить другой код' }));
 
-        await waitFor(() => expect(screen.getByLabelText('Код справки')).toHaveValue(''));
+        await waitFor(() => expect(screen.getByLabelText('Код проверки')).toHaveValue(''));
         expect(window.location.pathname).toBe('/verify');
+    });
+});
+
+describe('Студенческий (D60)', () =>
+{
+    it('код студенческого из моков: вид документа, курс, срок и пометка о прототипе', async () =>
+    {
+        renderWithProviders(<AppRoutes />, { route: '/verify/S7TQ4C2DMA' });
+
+        expect(await screen.findByRole('heading', { name: 'Студенческий действителен' })).toBeInTheDocument();
+        expect(screen.getByText('Электронный студенческий билет')).toBeInTheDocument();
+        expect(screen.getByText('Лебедева А. В.')).toBeInTheDocument();
+        expect(screen.getByText('ФМО')).toBeInTheDocument();
+        expect(screen.getByText('Курс').nextElementSibling).toHaveTextContent('2');
+        expect(screen.getByText('Действителен до')).toBeInTheDocument();
+        expect(screen.getByText('Это учебный прототип, данные вымышлены. Студенческий — не официальный документ.')).toBeInTheDocument();
+        expect(screen.queryByText('Лебедева Анна Викторовна')).not.toBeInTheDocument();
+    });
+
+    it('истёкший студенческий', async () =>
+    {
+        server.use(http.get('/api/requests/public/certificates/:code', () => HttpResponse.json({
+            ...verification, kind: 'student_card', valid: false, title: 'Электронный студенческий билет', course: 2, valid_until: '2026-08-31',
+        })));
+        renderResult();
+
+        expect(await screen.findByRole('heading', { name: 'Срок действия студенческого истёк' })).toBeInTheDocument();
+        expect(screen.getByText('31 августа 2026 г.')).toBeInTheDocument();
     });
 });

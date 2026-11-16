@@ -22,6 +22,20 @@ const (
 	SessionCookieScopes = "sessionCookie.Scopes"
 )
 
+// Defines values for AcademicCalendarTermTerm.
+const (
+	AcademicCalendarTermTermAutumn AcademicCalendarTermTerm = "autumn"
+	AcademicCalendarTermTermSpring AcademicCalendarTermTerm = "spring"
+)
+
+// Defines values for AcademicEventKind.
+const (
+	AcademicEventKindConsultation AcademicEventKind = "consultation"
+	AcademicEventKindControlPoint AcademicEventKind = "control_point"
+	AcademicEventKindCredit       AcademicEventKind = "credit"
+	AcademicEventKindExam         AcademicEventKind = "exam"
+)
+
 // Defines values for ControlForm.
 const (
 	ControlFormCredit       ControlForm = "credit"
@@ -49,8 +63,8 @@ const (
 
 // Defines values for GroupInfoKind.
 const (
-	Academic GroupInfoKind = "academic"
-	Language GroupInfoKind = "language"
+	GroupInfoKindAcademic GroupInfoKind = "academic"
+	GroupInfoKindLanguage GroupInfoKind = "language"
 )
 
 // Defines values for LessonFormat.
@@ -120,8 +134,17 @@ const (
 
 // Defines values for SessionResultsSemestersTerm.
 const (
-	Autumn SessionResultsSemestersTerm = "autumn"
-	Spring SessionResultsSemestersTerm = "spring"
+	SessionResultsSemestersTermAutumn SessionResultsSemestersTerm = "autumn"
+	SessionResultsSemestersTermSpring SessionResultsSemestersTerm = "spring"
+)
+
+// Defines values for TermPeriodKind.
+const (
+	CreditWeek TermPeriodKind = "credit_week"
+	Holidays   TermPeriodKind = "holidays"
+	Session    TermPeriodKind = "session"
+	Study      TermPeriodKind = "study"
+	Vacation   TermPeriodKind = "vacation"
 )
 
 // Defines values for Traffic.
@@ -136,6 +159,50 @@ const (
 	Even WeekInfoParity = "even"
 	Odd  WeekInfoParity = "odd"
 )
+
+// AcademicCalendar defines model for AcademicCalendar.
+type AcademicCalendar struct {
+	// Events По дате и времени; контрольные точки — раньше занятий того же дня
+	Events []AcademicEvent `json:"events"`
+
+	// Periods По дате начала
+	Periods []TermPeriod `json:"periods"`
+	Term    struct {
+		AcademicYear string `json:"academic_year"`
+
+		// EndDate Последний день сессии
+		EndDate   openapi_types.Date       `json:"end_date"`
+		StartDate openapi_types.Date       `json:"start_date"`
+		Term      AcademicCalendarTermTerm `json:"term"`
+	} `json:"term"`
+}
+
+// AcademicCalendarTermTerm defines model for AcademicCalendar.Term.Term.
+type AcademicCalendarTermTerm string
+
+// AcademicEvent defines model for AcademicEvent.
+type AcademicEvent struct {
+	Date       openapi_types.Date `json:"date"`
+	Discipline struct {
+		Id   openapi_types.UUID `json:"id"`
+		Name string             `json:"name"`
+	} `json:"discipline"`
+	EndTime *string `json:"end_time"`
+
+	// Id ID контрольной точки или занятия
+	Id   openapi_types.UUID `json:"id"`
+	Kind AcademicEventKind  `json:"kind"`
+	Room *Room              `json:"room"`
+
+	// StartTime null у контрольной точки (на весь день)
+	StartTime *string `json:"start_time"`
+
+	// Title Название контрольной точки; у занятий null
+	Title *string `json:"title"`
+}
+
+// AcademicEventKind defines model for AcademicEventKind.
+type AcademicEventKind string
 
 // ControlForm exam — экзамен; credit — зачёт; graded_credit — зачёт с оценкой
 type ControlForm string
@@ -442,6 +509,19 @@ type TeacherRef struct {
 	ShortName string `json:"short_name"`
 }
 
+// TermPeriod defines model for TermPeriod.
+type TermPeriod struct {
+	// EndDate Включительно
+	EndDate openapi_types.Date `json:"end_date"`
+
+	// Kind study — учёба; credit_week — зачётная неделя; holidays — праздники; session — сессия; vacation — каникулы
+	Kind      TermPeriodKind     `json:"kind"`
+	StartDate openapi_types.Date `json:"start_date"`
+}
+
+// TermPeriodKind study — учёба; credit_week — зачётная неделя; holidays — праздники; session — сессия; vacation — каникулы
+type TermPeriodKind string
+
 // Traffic Светофор I2, правила — data-model.md
 type Traffic string
 
@@ -525,6 +605,9 @@ type ServerInterface interface {
 	// Список факультетов
 	// (GET /faculties)
 	ListFaculties(w http.ResponseWriter, r *http.Request)
+	// Календарный план семестра (D62)
+	// (GET /me/academic-calendar)
+	GetMyAcademicCalendar(w http.ResponseWriter, r *http.Request)
 	// Текущая успеваемость по дисциплинам семестра со светофором (F3, I2)
 	// (GET /me/grades/current)
 	GetMyCurrentGrades(w http.ResponseWriter, r *http.Request)
@@ -574,6 +657,26 @@ func (siw *ServerInterfaceWrapper) ListFaculties(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListFaculties(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyAcademicCalendar operation middleware
+func (siw *ServerInterfaceWrapper) GetMyAcademicCalendar(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyAcademicCalendar(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -986,6 +1089,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("GET "+options.BaseURL+"/faculties", wrapper.ListFaculties)
+	m.HandleFunc("GET "+options.BaseURL+"/me/academic-calendar", wrapper.GetMyAcademicCalendar)
 	m.HandleFunc("GET "+options.BaseURL+"/me/grades/current", wrapper.GetMyCurrentGrades)
 	m.HandleFunc("GET "+options.BaseURL+"/me/grades/sessions", wrapper.GetMySessionResults)
 	m.HandleFunc("GET "+options.BaseURL+"/me/grades/summary", wrapper.GetMyGradesSummary)
@@ -1030,6 +1134,40 @@ type ListFaculties401JSONResponse struct{ UnauthenticatedJSONResponse }
 func (response ListFaculties401JSONResponse) VisitListFacultiesResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyAcademicCalendarRequestObject struct {
+}
+
+type GetMyAcademicCalendarResponseObject interface {
+	VisitGetMyAcademicCalendarResponse(w http.ResponseWriter) error
+}
+
+type GetMyAcademicCalendar200JSONResponse AcademicCalendar
+
+func (response GetMyAcademicCalendar200JSONResponse) VisitGetMyAcademicCalendarResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyAcademicCalendar401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response GetMyAcademicCalendar401JSONResponse) VisitGetMyAcademicCalendarResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyAcademicCalendar403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetMyAcademicCalendar403JSONResponse) VisitGetMyAcademicCalendarResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -1421,6 +1559,9 @@ type StrictServerInterface interface {
 	// Список факультетов
 	// (GET /faculties)
 	ListFaculties(ctx context.Context, request ListFacultiesRequestObject) (ListFacultiesResponseObject, error)
+	// Календарный план семестра (D62)
+	// (GET /me/academic-calendar)
+	GetMyAcademicCalendar(ctx context.Context, request GetMyAcademicCalendarRequestObject) (GetMyAcademicCalendarResponseObject, error)
 	// Текущая успеваемость по дисциплинам семестра со светофором (F3, I2)
 	// (GET /me/grades/current)
 	GetMyCurrentGrades(ctx context.Context, request GetMyCurrentGradesRequestObject) (GetMyCurrentGradesResponseObject, error)
@@ -1496,6 +1637,30 @@ func (sh *strictHandler) ListFaculties(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListFacultiesResponseObject); ok {
 		if err := validResponse.VisitListFacultiesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyAcademicCalendar operation middleware
+func (sh *strictHandler) GetMyAcademicCalendar(w http.ResponseWriter, r *http.Request) {
+	var request GetMyAcademicCalendarRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyAcademicCalendar(ctx, request.(GetMyAcademicCalendarRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyAcademicCalendar")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyAcademicCalendarResponseObject); ok {
+		if err := validResponse.VisitGetMyAcademicCalendarResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -19,7 +19,7 @@ import (
 func TestPersonalRoutesRequireStudent(t *testing.T) {
 	e := setupPublic(t)
 	missingStudent := platformtest.Student(unknown)
-	for _, path := range []string{"/me/profile", "/me/schedule", "/me/schedule.ics", "/me/grades/current", "/me/grades/summary", "/me/grades/sessions"} {
+	for _, path := range []string{"/me/profile", "/me/schedule", "/me/schedule.ics", "/me/grades/current", "/me/grades/summary", "/me/grades/sessions", "/me/academic-calendar"} {
 		assertError(t, e.do("GET", path, nil, nil), 401, "unauthenticated")
 		for _, identity := range []platform.Identity{asStaff1, asAdmin} {
 			assertError(t, e.do("GET", path, &identity, nil), 403, "forbidden")

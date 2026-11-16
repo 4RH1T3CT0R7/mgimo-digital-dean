@@ -1,4 +1,4 @@
-import { FileIcon, ThumbsDownIcon, ThumbsUpIcon } from 'lucide-react';
+import { FileIcon, ThumbsDownIcon, ThumbsUpIcon, TriangleAlertIcon } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { useLocation, useParams } from 'react-router';
 import type { components } from '@/api/requests';
@@ -212,6 +212,9 @@ function StatusDialog({ a, to, open, onClose, returnFocus }: {
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
   const cfg = DIALOGS[to];
+  // Завершая документ, деканат пишет, где и когда его забрать; без файла-результата студенту нечего скачать
+  const finishDocument = to === 'ready' && a.service_type.kind === 'document';
+  const noResultFile = finishDocument && !a.attachments.some((f) => f.is_result);
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -249,6 +252,12 @@ function StatusDialog({ a, to, open, onClose, returnFocus }: {
             </DialogTitle>
             <DialogDescription>{cfg.description}</DialogDescription>
           </DialogHeader>
+          {noResultFile && (
+            <p className="flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2.5 text-sm text-warning-strong">
+              <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+              Файл документа не приложен. Если документ выдаётся только на бумаге, напишите в комментарии, где и когда его забрать.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="status-comment">
               Комментарий для студента{!cfg.required && <span className="font-normal text-muted-foreground"> (необязательно)</span>}
@@ -257,6 +266,7 @@ function StatusDialog({ a, to, open, onClose, returnFocus }: {
               id="status-comment"
               value={comment}
               maxLength={2000}
+              placeholder={finishDocument ? 'Где и когда забрать документ' : undefined}
               aria-required={cfg.required}
               aria-invalid={!!error}
               aria-describedby={error ? 'status-comment-error' : undefined}

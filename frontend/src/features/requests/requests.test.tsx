@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppRoutes } from '@/app/routes';
 import { resetApplications } from '@/mocks/fixtures/requests';
 import { renderWithProviders, server } from '@/test/render';
+import { resubmitPath } from './links';
 
 // Заявки в моке меняются в памяти — каждый тест начинает с исходных
 beforeEach(() => resetApplications());
@@ -92,7 +93,7 @@ describe('Новая заявка', () => {
       login: 'student.mo',
     });
     expect(await screen.findByRole('combobox', { name: 'Для чего нужна справка' })).toHaveTextContent('Для налоговой');
-    expect(screen.getByLabelText(/Куда предоставляется/)).toHaveValue('ИФНС № 5');
+    expect(screen.getByLabelText(/Куда нужна справка/)).toHaveValue('ИФНС № 5');
   });
 
   it('чужой вариант select из адреса игнорируется', async () => {
@@ -156,6 +157,31 @@ describe('Заявка', () => {
     expect(await screen.findByRole('heading', { name: 'Справка готова' })).toBeInTheDocument();
     expect(screen.getByText('K7M2QX4PWA')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Страница проверки/ })).toHaveAttribute('href', '/verify/K7M2QX4PWA');
+  });
+
+  it('отказ — «Подать заново» открывает форму той же услуги с полями отклонённой заявки', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: `/requests/${id(7)}`, login: 'student.mo' });
+    expect(await screen.findByText('Заявка отклонена')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Подать заново' }));
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Повторная выдача студенческого билета' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /Причина/ })).toHaveTextContent('Смена фамилии');
+  });
+
+  it('«Подать заново» переносит и комментарий', async () => {
+    const path = resubmitPath({
+      service_type: { id: 'academic-leave', title: 'Академический отпуск', kind: 'document' },
+      fields: [{ key: 'start_date', label: 'С какой даты', value: '2027-02-01' }],
+      comment: 'Справку приложу',
+    });
+    renderWithProviders(<AppRoutes />, { route: path, login: 'student.mo' });
+    expect(await screen.findByLabelText('С какой даты')).toHaveValue('2027-02-01');
+    expect(screen.getByLabelText(/Комментарий для деканата/)).toHaveValue('Справку приложу');
+  });
+
+  it('готовый документ — ссылка на кабинет и часы деканата', async () => {
+    renderWithProviders(<AppRoutes />, { route: `/requests/${id(6)}`, login: 'student.mo' });
+    expect(await screen.findByRole('link', { name: 'кабинет и часы приёма' })).toHaveAttribute('href', '/useful#dean');
   });
 
   it('чужая заявка — «Заявка не найдена»', async () => {

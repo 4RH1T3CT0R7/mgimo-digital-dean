@@ -120,9 +120,14 @@ WHERE sd.student_id = sqlc.arg(student_id)
 ORDER BY sd.semester DESC, d.name, d.id;
 
 -- name: ListMyControlPoints :many
-SELECT * FROM control_points
-WHERE student_id = sqlc.arg(student_id) AND semester = sqlc.arg(semester)
-ORDER BY date, id;
+SELECT cp.*, d.name AS discipline_name
+FROM control_points cp
+JOIN disciplines d ON d.id = cp.discipline_id
+WHERE cp.student_id = sqlc.arg(student_id) AND cp.semester = sqlc.arg(semester)
+ORDER BY cp.date, cp.id;
+
+-- name: ListTermPeriods :many
+SELECT * FROM term_periods WHERE term_id = sqlc.arg(term_id) ORDER BY start_date;
 
 -- name: GetMyRating :one
 SELECT semester, percent::float8 AS percent, percentile FROM student_ratings

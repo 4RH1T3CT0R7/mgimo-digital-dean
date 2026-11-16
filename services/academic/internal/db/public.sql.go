@@ -283,9 +283,11 @@ func (q *Queries) ListLessonGroupsBatch(ctx context.Context, lessonIds []uuid.UU
 }
 
 const listMyControlPoints = `-- name: ListMyControlPoints :many
-SELECT id, student_id, discipline_id, semester, date, title, score, max FROM control_points
-WHERE student_id = $1 AND semester = $2
-ORDER BY date, id
+SELECT cp.id, cp.student_id, cp.discipline_id, cp.semester, cp.date, cp.title, cp.score, cp.max, d.name AS discipline_name
+FROM control_points cp
+JOIN disciplines d ON d.id = cp.discipline_id
+WHERE cp.student_id = $1 AND cp.semester = $2
+ORDER BY cp.date, cp.id
 `
 
 type ListMyControlPointsParams struct {
@@ -293,15 +295,27 @@ type ListMyControlPointsParams struct {
 	Semester  int32
 }
 
-func (q *Queries) ListMyControlPoints(ctx context.Context, arg ListMyControlPointsParams) ([]ControlPoint, error) {
+type ListMyControlPointsRow struct {
+	ID             uuid.UUID
+	StudentID      uuid.UUID
+	DisciplineID   uuid.UUID
+	Semester       int32
+	Date           pgtype.Date
+	Title          string
+	Score          *int32
+	Max            int32
+	DisciplineName string
+}
+
+func (q *Queries) ListMyControlPoints(ctx context.Context, arg ListMyControlPointsParams) ([]ListMyControlPointsRow, error) {
 	rows, err := q.db.Query(ctx, listMyControlPoints, arg.StudentID, arg.Semester)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ControlPoint
+	var items []ListMyControlPointsRow
 	for rows.Next() {
-		var i ControlPoint
+		var i ListMyControlPointsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.StudentID,
@@ -311,6 +325,7 @@ func (q *Queries) ListMyControlPoints(ctx context.Context, arg ListMyControlPoin
 			&i.Title,
 			&i.Score,
 			&i.Max,
+			&i.DisciplineName,
 		); err != nil {
 			return nil, err
 		}
@@ -596,6 +611,35 @@ func (q *Queries) ListStaffLessons(ctx context.Context, arg ListStaffLessonsPara
 			&i.Lesson.UpdatedAt,
 			&i.DisciplineName,
 			&i.TeacherShort,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTermPeriods = `-- name: ListTermPeriods :many
+SELECT term_id, kind, start_date, end_date FROM term_periods WHERE term_id = $1 ORDER BY start_date
+`
+
+func (q *Queries) ListTermPeriods(ctx context.Context, termID uuid.UUID) ([]TermPeriod, error) {
+	rows, err := q.db.Query(ctx, listTermPeriods, termID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TermPeriod
+	for rows.Next() {
+		var i TermPeriod
+		if err := rows.Scan(
+			&i.TermID,
+			&i.Kind,
+			&i.StartDate,
+			&i.EndDate,
 		); err != nil {
 			return nil, err
 		}

@@ -58,6 +58,12 @@ const (
 	AttachmentUploadedByRoleStudent AttachmentUploadedByRole = "student"
 )
 
+// Defines values for CertificateVerificationKind.
+const (
+	CertificateVerificationKindCertificate CertificateVerificationKind = "certificate"
+	CertificateVerificationKindStudentCard CertificateVerificationKind = "student_card"
+)
+
 // Defines values for FormFieldType.
 const (
 	Date     FormFieldType = "date"
@@ -105,6 +111,13 @@ const (
 	Staff   StatusHistoryEntryByRole = "staff"
 	Student StatusHistoryEntryByRole = "student"
 	System  StatusHistoryEntryByRole = "system"
+)
+
+// Defines values for StudentCardStudyForm.
+const (
+	Extramural StudentCardStudyForm = "extramural"
+	FullTime   StudentCardStudyForm = "full_time"
+	PartTime   StudentCardStudyForm = "part_time"
 )
 
 // Application defines model for Application.
@@ -223,17 +236,25 @@ type CertificateInfo struct {
 
 // CertificateVerification defines model for CertificateVerification.
 type CertificateVerification struct {
+	// Course Только у студенческого
+	Course       *int   `json:"course"`
 	FacultyShort string `json:"faculty_short"`
 
 	// Holder Только инициалы и фамилия
 	Holder   string    `json:"holder"`
 	IssuedAt time.Time `json:"issued_at"`
-	Title    string    `json:"title"`
+
+	// Kind certificate — справка с места учёбы; student_card — электронный студенческий (D60)
+	Kind  CertificateVerificationKind `json:"kind"`
+	Title string                      `json:"title"`
 
 	// Valid false, если срок действия истёк
 	Valid      bool               `json:"valid"`
 	ValidUntil openapi_types.Date `json:"valid_until"`
 }
+
+// CertificateVerificationKind certificate — справка с места учёбы; student_card — электронный студенческий (D60)
+type CertificateVerificationKind string
 
 // CreateApplicationRequest defines model for CreateApplicationRequest.
 type CreateApplicationRequest struct {
@@ -465,6 +486,30 @@ type StatusHistoryEntry struct {
 // StatusHistoryEntryByRole defines model for StatusHistoryEntry.ByRole.
 type StatusHistoryEntryByRole string
 
+// StudentCard Электронный студенческий учебного прототипа (D60); данные вымышленные
+type StudentCard struct {
+	// Code Код проверки (как у справки)
+	Code        string `json:"code"`
+	Course      int    `json:"course"`
+	FacultyName string `json:"faculty_name"`
+	FullName    string `json:"full_name"`
+
+	// Number Номер студенческого билета
+	Number      string               `json:"number"`
+	ProgramCode string               `json:"program_code"`
+	ProgramName string               `json:"program_name"`
+	StudyForm   StudentCardStudyForm `json:"study_form"`
+
+	// ValidUntil 31 августа текущего учебного года
+	ValidUntil openapi_types.Date `json:"valid_until"`
+
+	// VerifyUrl Относительный адрес страницы проверки в SPA
+	VerifyUrl string `json:"verify_url"`
+}
+
+// StudentCardStudyForm defines model for StudentCard.StudyForm.
+type StudentCardStudyForm string
+
 // StudentSnapshot Слепок данных студента на момент подачи заявки (D32)
 type StudentSnapshot struct {
 	Course        int                `json:"course"`
@@ -549,6 +594,12 @@ type ListStaffApplicationsParams struct {
 	Offset *Offset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// GetStaffStatsParams defines parameters for GetStaffStats.
+type GetStaffStatsParams struct {
+	// FacultyId Только для admin; у staff игнорируется
+	FacultyId *openapi_types.UUID `form:"faculty_id,omitempty" json:"faculty_id,omitempty"`
+}
+
 // CreateApplicationJSONRequestBody defines body for CreateApplication for application/json ContentType.
 type CreateApplicationJSONRequestBody = CreateApplicationRequest
 
@@ -599,7 +650,13 @@ type ServerInterface interface {
 	// Написать в деканат по заявке (I3)
 	// (POST /me/applications/{application_id}/messages)
 	PostMyMessage(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
-	// Проверка справки по коду
+	// Электронный студенческий (D60)
+	// (GET /me/student-card)
+	GetMyStudentCard(w http.ResponseWriter, r *http.Request)
+	// QR со ссылкой на проверку студенческого
+	// (GET /me/student-card/qr.png)
+	GetMyStudentCardQr(w http.ResponseWriter, r *http.Request)
+	// Проверка справки или студенческого по коду
 	// (GET /public/certificates/{code})
 	VerifyCertificate(w http.ResponseWriter, r *http.Request, code string)
 	// Каталог услуг
@@ -625,7 +682,7 @@ type ServerInterface interface {
 	ChangeApplicationStatus(w http.ResponseWriter, r *http.Request, applicationId ApplicationId)
 	// Счётчики для главной сотрудника
 	// (GET /staff/stats)
-	GetStaffStats(w http.ResponseWriter, r *http.Request)
+	GetStaffStats(w http.ResponseWriter, r *http.Request, params GetStaffStatsParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -940,6 +997,46 @@ func (siw *ServerInterfaceWrapper) PostMyMessage(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetMyStudentCard operation middleware
+func (siw *ServerInterfaceWrapper) GetMyStudentCard(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyStudentCard(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyStudentCardQr operation middleware
+func (siw *ServerInterfaceWrapper) GetMyStudentCardQr(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyStudentCardQr(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // VerifyCertificate operation middleware
 func (siw *ServerInterfaceWrapper) VerifyCertificate(w http.ResponseWriter, r *http.Request) {
 
@@ -1225,14 +1322,27 @@ func (siw *ServerInterfaceWrapper) ChangeApplicationStatus(w http.ResponseWriter
 // GetStaffStats operation middleware
 func (siw *ServerInterfaceWrapper) GetStaffStats(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
 	ctx := r.Context()
 
 	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStaffStatsParams
+
+	// ------------- Optional query parameter "faculty_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "faculty_id", r.URL.Query(), &params.FacultyId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "faculty_id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetStaffStats(w, r)
+		siw.Handler.GetStaffStats(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1371,6 +1481,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/me/applications/{application_id}/certificate.pdf", wrapper.DownloadMyCertificate)
 	m.HandleFunc("PUT "+options.BaseURL+"/me/applications/{application_id}/feedback", wrapper.PutMyFeedback)
 	m.HandleFunc("POST "+options.BaseURL+"/me/applications/{application_id}/messages", wrapper.PostMyMessage)
+	m.HandleFunc("GET "+options.BaseURL+"/me/student-card", wrapper.GetMyStudentCard)
+	m.HandleFunc("GET "+options.BaseURL+"/me/student-card/qr.png", wrapper.GetMyStudentCardQr)
 	m.HandleFunc("GET "+options.BaseURL+"/public/certificates/{code}", wrapper.VerifyCertificate)
 	m.HandleFunc("GET "+options.BaseURL+"/service-types", wrapper.ListServiceTypes)
 	m.HandleFunc("GET "+options.BaseURL+"/staff/applications", wrapper.ListStaffApplications)
@@ -1908,6 +2020,93 @@ func (response PostMyMessage409JSONResponse) VisitPostMyMessageResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetMyStudentCardRequestObject struct {
+}
+
+type GetMyStudentCardResponseObject interface {
+	VisitGetMyStudentCardResponse(w http.ResponseWriter) error
+}
+
+type GetMyStudentCard200JSONResponse StudentCard
+
+func (response GetMyStudentCard200JSONResponse) VisitGetMyStudentCardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyStudentCard401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response GetMyStudentCard401JSONResponse) VisitGetMyStudentCardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyStudentCard403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetMyStudentCard403JSONResponse) VisitGetMyStudentCardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyStudentCardQrRequestObject struct {
+}
+
+type GetMyStudentCardQrResponseObject interface {
+	VisitGetMyStudentCardQrResponse(w http.ResponseWriter) error
+}
+
+type GetMyStudentCardQr200ImagepngResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response GetMyStudentCardQr200ImagepngResponse) VisitGetMyStudentCardQrResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "image/png")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	_, err := io.Copy(w, response.Body)
+	return err
+}
+
+type GetMyStudentCardQr401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response GetMyStudentCardQr401JSONResponse) VisitGetMyStudentCardQrResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyStudentCardQr403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetMyStudentCardQr403JSONResponse) VisitGetMyStudentCardQrResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyStudentCardQr404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetMyStudentCardQr404JSONResponse) VisitGetMyStudentCardQrResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type VerifyCertificateRequestObject struct {
 	Code string `json:"code"`
 }
@@ -2304,6 +2503,7 @@ func (response ChangeApplicationStatus409JSONResponse) VisitChangeApplicationSta
 }
 
 type GetStaffStatsRequestObject struct {
+	Params GetStaffStatsParams
 }
 
 type GetStaffStatsResponseObject interface {
@@ -2366,7 +2566,13 @@ type StrictServerInterface interface {
 	// Написать в деканат по заявке (I3)
 	// (POST /me/applications/{application_id}/messages)
 	PostMyMessage(ctx context.Context, request PostMyMessageRequestObject) (PostMyMessageResponseObject, error)
-	// Проверка справки по коду
+	// Электронный студенческий (D60)
+	// (GET /me/student-card)
+	GetMyStudentCard(ctx context.Context, request GetMyStudentCardRequestObject) (GetMyStudentCardResponseObject, error)
+	// QR со ссылкой на проверку студенческого
+	// (GET /me/student-card/qr.png)
+	GetMyStudentCardQr(ctx context.Context, request GetMyStudentCardQrRequestObject) (GetMyStudentCardQrResponseObject, error)
+	// Проверка справки или студенческого по коду
 	// (GET /public/certificates/{code})
 	VerifyCertificate(ctx context.Context, request VerifyCertificateRequestObject) (VerifyCertificateResponseObject, error)
 	// Каталог услуг
@@ -2685,6 +2891,54 @@ func (sh *strictHandler) PostMyMessage(w http.ResponseWriter, r *http.Request, a
 	}
 }
 
+// GetMyStudentCard operation middleware
+func (sh *strictHandler) GetMyStudentCard(w http.ResponseWriter, r *http.Request) {
+	var request GetMyStudentCardRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyStudentCard(ctx, request.(GetMyStudentCardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyStudentCard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyStudentCardResponseObject); ok {
+		if err := validResponse.VisitGetMyStudentCardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyStudentCardQr operation middleware
+func (sh *strictHandler) GetMyStudentCardQr(w http.ResponseWriter, r *http.Request) {
+	var request GetMyStudentCardQrRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyStudentCardQr(ctx, request.(GetMyStudentCardQrRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyStudentCardQr")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyStudentCardQrResponseObject); ok {
+		if err := validResponse.VisitGetMyStudentCardQrResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // VerifyCertificate operation middleware
 func (sh *strictHandler) VerifyCertificate(w http.ResponseWriter, r *http.Request, code string) {
 	var request VerifyCertificateRequestObject
@@ -2914,8 +3168,10 @@ func (sh *strictHandler) ChangeApplicationStatus(w http.ResponseWriter, r *http.
 }
 
 // GetStaffStats operation middleware
-func (sh *strictHandler) GetStaffStats(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) GetStaffStats(w http.ResponseWriter, r *http.Request, params GetStaffStatsParams) {
 	var request GetStaffStatsRequestObject
+
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.GetStaffStats(ctx, request.(GetStaffStatsRequestObject))

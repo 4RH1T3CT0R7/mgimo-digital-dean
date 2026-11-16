@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/clients/academic"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/events"
@@ -96,7 +97,8 @@ func lesson(e events.LessonChanged) (Notification, bool) {
 			n.Body = "Занятие " + oldSlot() + " отменено."
 		}
 		if e.Reason != nil && strings.TrimSpace(*e.Reason) != "" {
-			n.Body += " " + strings.TrimSpace(*e.Reason)
+			// Причина — отдельное предложение: «Преподаватель заболел» → «… отменено. Преподаватель заболел.»
+			n.Body += " " + sentence(*e.Reason)
 		}
 	case "room_changed":
 		n.Title = "Другая аудитория: " + e.DisciplineName
@@ -108,6 +110,15 @@ func lesson(e events.LessonChanged) (Notification, bool) {
 		return Notification{}, false
 	}
 	return n, true
+}
+
+// sentence — текст как отдельное предложение с точкой в конце.
+func sentence(text string) string {
+	text = strings.TrimSpace(text)
+	if r, _ := utf8.DecodeLastRuneInString(text); !strings.ContainsRune(".!?…", r) {
+		text += "."
+	}
+	return text
 }
 
 func application(id, student uuid.UUID) Notification {
@@ -130,16 +141,25 @@ func applicationStatus(e events.ApplicationStatusChanged) (Notification, bool) {
 	switch e.NewStatus {
 	case "in_progress":
 		n.Title = "Заявка №" + e.Number + " в работе"
-		n.Body = e.ServiceTitle + ": деканат начал обработку."
+		n.Body = e.ServiceTitle + ": деканат взял заявку в работу."
 	case "needs_info":
 		n.Title = "Нужны уточнения по заявке №" + e.Number
 		n.Body = comment("посмотрите, что нужно уточнить, в карточке заявки.")
 		n.Important = true
 	case "ready":
 		n.Title = "Готово: " + number
-		n.Body = e.ServiceTitle + ": можно скачать или забрать в деканате."
-		if e.ServiceTypeID == "study-certificate" {
+		// Комментарий сотрудника при «Готово» — где и когда забрать документ.
+		n.Body = comment("можно скачать или забрать в деканате.")
+		switch e.ServiceTypeID {
+		case "study-certificate":
 			n.Body = "Справка готова, её можно скачать."
+		case "dean-question":
+			// У вопроса «Готово» в интерфейсе — «Ответ дан»: забирать нечего, ответ в карточке.
+			n.Title = "Ответ дан: " + number
+			n.Body = "Деканат ответил на ваш вопрос."
+			if e.Comment != nil && strings.TrimSpace(*e.Comment) != "" {
+				n.Body += " " + sentence(*e.Comment)
+			}
 		}
 		n.Important = true
 	case "rejected":

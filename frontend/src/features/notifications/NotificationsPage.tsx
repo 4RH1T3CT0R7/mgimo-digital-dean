@@ -20,7 +20,8 @@ type FeedItem = components['schemas']['FeedItem'];
 const filters: { label: string; types?: FeedType[] }[] = [
   { label: 'Все' },
   { label: 'Важное' },
-  { label: 'Объявления', types: ['announcement', 'news'] },
+  // Новости — в разделе «Новости и мероприятия» (D61)
+  { label: 'Объявления', types: ['announcement'] },
   { label: 'Расписание', types: ['schedule_change'] },
   { label: 'Заявки', types: ['application_status', 'application_message'] },
 ];
@@ -103,7 +104,7 @@ function AckError({ error }: { error: Error }) {
   return (
     <p role="alert" className="mt-2 ml-8 text-sm text-danger-strong">
       {error instanceof ApiError && error.status === 409
-        ? 'Не удалось подтвердить ознакомление. Проверьте, что объявление ещё требует подтверждения, и повторите попытку.'
+        ? 'Не удалось подтвердить ознакомление. Обновите страницу и попробуйте ещё раз.'
         : apiErrorMessage(error)}
     </p>
   );
