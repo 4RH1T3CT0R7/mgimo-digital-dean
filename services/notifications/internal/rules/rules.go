@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/clients/academic"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/events"
@@ -96,7 +97,12 @@ func lesson(e events.LessonChanged) (Notification, bool) {
 			n.Body = "Занятие " + oldSlot() + " отменено."
 		}
 		if e.Reason != nil && strings.TrimSpace(*e.Reason) != "" {
-			n.Body += " " + strings.TrimSpace(*e.Reason)
+			// Причина — отдельное предложение: «Преподаватель заболел» → «… отменено. Преподаватель заболел.»
+			reason := strings.TrimSpace(*e.Reason)
+			if r, _ := utf8.DecodeLastRuneInString(reason); !strings.ContainsRune(".!?…", r) {
+				reason += "."
+			}
+			n.Body += " " + reason
 		}
 	case "room_changed":
 		n.Title = "Другая аудитория: " + e.DisciplineName
@@ -130,7 +136,7 @@ func applicationStatus(e events.ApplicationStatusChanged) (Notification, bool) {
 	switch e.NewStatus {
 	case "in_progress":
 		n.Title = "Заявка №" + e.Number + " в работе"
-		n.Body = e.ServiceTitle + ": деканат начал обработку."
+		n.Body = e.ServiceTitle + ": деканат взял заявку в работу."
 	case "needs_info":
 		n.Title = "Нужны уточнения по заявке №" + e.Number
 		n.Body = comment("посмотрите, что нужно уточнить, в карточке заявки.")

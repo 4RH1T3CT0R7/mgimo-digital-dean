@@ -372,7 +372,7 @@ export interface components {
                 end_time: string;
                 room?: components["schemas"]["Room"] | null;
             };
-            /** @example Болезнь преподавателя */
+            /** @example Преподаватель заболел */
             reason?: string | null;
             /** Format: date-time */
             changed_at: string;

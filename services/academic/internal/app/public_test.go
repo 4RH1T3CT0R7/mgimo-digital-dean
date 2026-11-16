@@ -76,7 +76,7 @@ WHERE id IN ('60000000-0000-4000-8000-000000000005', '60000000-0000-4000-8000-00
 UPDATE lessons SET status = 'moved', change_type = 'moved', prev_date = '2026-11-17',
     prev_start_time = '10:30', prev_end_time = '11:50'
 WHERE id = '60000000-0000-4000-8000-000000000005';
-UPDATE lessons SET status = 'cancelled', change_type = 'cancelled', change_reason = 'Болезнь преподавателя'
+UPDATE lessons SET status = 'cancelled', change_type = 'cancelled', change_reason = 'Преподаватель заболел'
 WHERE id = '60000000-0000-4000-8000-000000000006';
 UPDATE lessons SET status = 'changed', change_type = 'room_changed', room_number = '3047'
 WHERE id = '60000000-0000-4000-8000-000000000007';

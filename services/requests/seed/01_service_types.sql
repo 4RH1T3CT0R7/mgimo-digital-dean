@@ -8,7 +8,7 @@ VALUES
  'certificates', 'instant_certificate', 0,
  '[{"key": "purpose", "label": "Для чего нужна справка", "type": "select", "required": true,
     "options": ["По месту требования", "Для органов соцзащиты", "Для работодателя", "Для налоговой", "Другое"]},
-   {"key": "destination", "label": "Куда предоставляется", "type": "text", "required": false,
+   {"key": "destination", "label": "Куда нужна справка", "type": "text", "required": false,
     "placeholder": "Например, по месту работы родителей", "max_length": 200}]',
  false, false, NULL, 1, true),
 

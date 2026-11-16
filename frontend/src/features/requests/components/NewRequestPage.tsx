@@ -41,7 +41,7 @@ export function NewRequestPage() {
               <PageHeader title="Новая заявка" />
               <EmptyState
                 title="Такой услуги нет"
-                description="Возможно, она больше не оказывается. Выберите другую из списка."
+                description="Возможно, её больше нет в каталоге. Выберите другую из списка."
                 action={
                   <Button asChild variant="outline">
                     <Link to="/requests#catalog">К списку услуг</Link>

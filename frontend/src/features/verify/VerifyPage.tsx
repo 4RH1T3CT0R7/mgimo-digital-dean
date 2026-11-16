@@ -15,7 +15,7 @@ import { useCertificate } from './queries';
 
 function DemoNote()
 {
-    return <p className="mt-6 text-sm text-muted-foreground">Это учебный прототип. Справка не является официальным документом.</p>;
+    return <p className="mt-6 text-sm text-muted-foreground">Это учебный прототип. Справка — не официальный документ.</p>;
 }
 
 function AnotherCode()

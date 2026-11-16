@@ -22,7 +22,7 @@ export const serviceTypes: S['ServiceType'][] = [
         required: true,
         options: ['По месту требования', 'Для органов соцзащиты', 'Для работодателя', 'Для налоговой', 'Другое'],
       },
-      { key: 'destination', label: 'Куда предоставляется', type: 'text', required: false, placeholder: 'Например, по месту работы родителей', max_length: 200 },
+      { key: 'destination', label: 'Куда нужна справка', type: 'text', required: false, placeholder: 'Например, по месту работы родителей', max_length: 200 },
     ],
     attachments: { allowed: false, required: false, hint: null },
   },
@@ -217,7 +217,7 @@ function initialApplications(): MockApplication[] {
       number: 1,
       student: mo,
       serviceTypeId: 'dean-question',
-      fields: { topic: 'Стипендия', question: 'Когда будет начислена повышенная академическая стипендия за осенний семестр?' },
+      fields: { topic: 'Стипендия', question: 'Когда начислят повышенную академическую стипендию за осенний семестр?' },
       createdHoursAgo: 144,
       history: [
         ['submitted', 144, 'student'],
@@ -227,7 +227,7 @@ function initialApplications(): MockApplication[] {
       messages: [
         ['staff', 120, 'Здравствуйте! Приказ о назначении повышенной стипендии подписан, выплата придёт вместе с основной стипендией в ноябре.'],
         ['student', 119.5, 'Спасибо! Нужно ли писать отдельное заявление?'],
-        ['staff', 119, 'Нет, заявление не нужно: начисление автоматическое.'],
+        ['staff', 119, 'Нет, заявление не нужно: стипендию начислят автоматически.'],
       ],
     }),
     buildApplication({
@@ -253,7 +253,7 @@ function initialApplications(): MockApplication[] {
         ['submitted', 48, 'student'],
         ['in_progress', 45, 'staff'],
       ],
-      messages: [['staff', 44.9, 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, при себе иметь паспорт.']],
+      messages: [['staff', 44.9, 'Справку готовим. Забрать её можно в деканате с 10:00 до 17:00, возьмите с собой паспорт.']],
     }),
     buildApplication({
       number: 4,

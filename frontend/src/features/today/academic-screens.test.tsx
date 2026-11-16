@@ -39,7 +39,7 @@ describe('T09: обязательные сценарии V1–V8', () => {
         renderWithProviders(<SchedulePage />, { route: '/schedule?date=2026-11-18' });
 
         expect(await screen.findByText('Отменено')).toBeInTheDocument();
-        expect(screen.getByText('Болезнь преподавателя')).toBeInTheDocument();
+        expect(screen.getByText('Преподаватель заболел')).toBeInTheDocument();
     });
 
     it('V3: следующая неделя меняет параметры запроса и URL', async () => {
