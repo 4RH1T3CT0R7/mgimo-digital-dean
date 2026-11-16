@@ -88,3 +88,13 @@ type StatusHistory struct {
 	ActorID       *uuid.UUID
 	CreatedAt     time.Time
 }
+
+type StudentCard struct {
+	StudentID    uuid.UUID
+	Code         string
+	Holder       string
+	FacultyShort string
+	Course       int32
+	IssuedAt     time.Time
+	ValidUntil   pgtype.Date
+}

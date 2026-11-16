@@ -1,4 +1,4 @@
-import { SearchIcon, SlidersHorizontalIcon, ThumbsUpIcon } from 'lucide-react';
+import { MessageSquareTextIcon, SearchIcon, SlidersHorizontalIcon, ThumbsUpIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router';
 import type { components } from '@/api/requests';
@@ -39,7 +39,7 @@ export function ApplicationsPage() {
   const q = params.get('q') ?? '';
   const overdue = filter === 'overdue';
 
-  const stats = useStaffStats();
+  const stats = useStaffStats(facultyId);
   const serviceTypes = useServiceTypes();
   const applications = useStaffApplications({
     // «Просрочены» — незавершённые заявки с прошедшим сроком: берём submitted + in_progress, оставляем overdue
@@ -211,6 +211,17 @@ function Status({ a }: { a: Summary }) {
   return <StatusBadge tone={statusTone(a.status)}>{statusLabel(a.status, a.service_type.kind)}</StatusBadge>;
 }
 
+/** Последнее сообщение в переписке — от студента: ждёт ответа деканата */
+function StudentWrote({ a }: { a: Summary }) {
+  if (a.last_message_from !== 'student') return null;
+  return (
+    <StatusBadge tone="info" className="gap-1.5">
+      <MessageSquareTextIcon className="size-3.5" aria-hidden />
+      Студент написал
+    </StatusBadge>
+  );
+}
+
 // Компьютер — таблица, телефон — карточки (вторая копия скрыта CSS и не читается экранными чтецами)
 function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
   const linkProps = (a: Summary) => ({ to: `/staff/requests/${a.id}`, state: { back } });
@@ -242,7 +253,10 @@ function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
                   <span className="block text-muted-foreground">{a.student.group_name}</span>
                 </td>
                 <td className="py-3.5 pr-4">
-                  <Status a={a} />
+                  <span className="flex flex-col gap-1.5">
+                    <Status a={a} />
+                    <StudentWrote a={a} />
+                  </span>
                 </td>
                 <td className="py-3.5">
                   <Due a={a} />
@@ -262,7 +276,10 @@ function ApplicationList({ items, back }: { items: Summary[]; back: string }) {
             >
               <span className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold">№ {a.number}</span>
-                <Status a={a} />
+                <span className="flex flex-wrap gap-1.5">
+                  <StudentWrote a={a} />
+                  <Status a={a} />
+                </span>
               </span>
               <span className="font-medium">{a.service_type.title}</span>
               <span className="text-sm text-muted-foreground">

@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { components } from '@/api/requests';
-import { applications, buildApplication, serviceTypes, students, type MockApplication } from '../fixtures/requests';
+import { academicYearEnd, applications, buildApplication, serviceTypes, studentCards, students, type MockApplication } from '../fixtures/requests';
+import { studentCardQr } from '../fixtures/student-card-qr';
 import { list, page } from '../scenario';
 import { mockUser } from './auth';
 
@@ -90,23 +91,59 @@ export const requestsHandlers = [
     {
       return HttpResponse.json({ code: 'rate_limited', message: 'Слишком много проверок' }, { status: 429, headers: { 'Retry-After': '30' } });
     }
+    const expired = mode === 'expired';
+    const valid = (until: string) => Date.now() < Date.parse(`${until}T00:00:00+03:00`) + 86_400_000;
+    // Код студенческого (D60) проверяется по тому же адресу, что и справка
+    const card = Object.entries(studentCards).find(([, c]) => c.code === params.code);
+    if (card && list([card]).length > 0)
+    {
+      const [login, { course }] = card;
+      const validUntil = expired ? '2026-08-31' : academicYearEnd();
+      const data: S['CertificateVerification'] = {
+        kind: 'student_card',
+        valid: valid(validUntil),
+        title: 'Электронный студенческий билет',
+        holder: students[login].short_name,
+        faculty_short: students[login].faculty_short,
+        course,
+        issued_at: '2026-09-01T09:00:00+03:00',
+        valid_until: validUntil,
+      };
+
+      return HttpResponse.json(data);
+    }
     if (!application?.certificate || list([application]).length === 0)
     {
       return HttpResponse.json({ code: 'not_found', message: 'Справка не найдена' }, { status: 404 });
     }
     const certificate = application.certificate;
-    const expired = mode === 'expired';
     const validUntil = expired ? '2026-10-01' : certificate.valid_until;
     const data: S['CertificateVerification'] = {
-      valid: Date.now() < Date.parse(`${validUntil}T00:00:00+03:00`) + 86_400_000,
+      kind: 'certificate',
+      valid: valid(validUntil),
       title: application.service_type.title,
       holder: application.student.short_name,
       faculty_short: application.student.faculty_short,
+      course: null,
       issued_at: expired ? '2026-09-01T09:00:00+03:00' : certificate.issued_at,
       valid_until: validUntil,
     };
 
     return HttpResponse.json(data);
+  }),
+
+  http.get('/api/requests/me/student-card', () => {
+    const card = studentCards[mockUser()?.login ?? ''];
+    if (!card) return error(403, 'forbidden', 'Доступно только студенту');
+    const data: S['StudentCard'] = { ...card, valid_until: academicYearEnd(), verify_url: `/verify/${card.code}` };
+    return HttpResponse.json(data);
+  }),
+
+  http.get('/api/requests/me/student-card/qr.png', () => {
+    const card = studentCards[mockUser()?.login ?? ''];
+    if (!card) return error(404, 'not_found', 'Код ещё не выдан');
+    const png = Uint8Array.from(atob(studentCardQr[card.code]), (c) => c.charCodeAt(0));
+    return new HttpResponse(png, { headers: { 'Content-Type': 'image/png' } });
   }),
 
   http.get('/api/requests/service-types', () => HttpResponse.json(list(serviceTypes))),

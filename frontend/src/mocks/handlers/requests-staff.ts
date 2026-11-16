@@ -36,8 +36,8 @@ const conflict = () => error(409, 'invalid_transition', 'Это действие
 const closed = (a: MockApplication) => a.status === 'rejected' || a.status === 'cancelled';
 
 export const requestsStaffHandlers = [
-  http.get('/api/requests/staff/stats', () => {
-    const items = list(scoped()).map(view);
+  http.get('/api/requests/staff/stats', ({ request }) => {
+    const items = list(scoped(new URL(request.url).searchParams.get('faculty_id'))).map(view);
     const count = (f: (a: (typeof items)[number]) => boolean) => items.filter(f).length;
     const today = toApiDate();
     return HttpResponse.json({

@@ -25,7 +25,7 @@ describe('Охрана маршрутов', () => {
     expect(await screen.findByRole('link', { name: 'Уведомления, непрочитанных: 3' })).toHaveAttribute('href', '/notifications');
     const sidebar = screen.getAllByRole('navigation', { name: 'Разделы' })[0];
     expect(within(sidebar).getAllByRole('link').map((l) => l.textContent?.replace(/\d+ непрочитанных$/, ''))).toEqual([
-      'Сегодня', 'Расписание', 'Учёба', 'Заявки', 'Уведомления', 'Полезное', 'Помощник', 'Профиль', 'Безопасность',
+      'Сегодня', 'Расписание', 'Учёба', 'Заявки', 'Уведомления', 'Студенческий', 'Полезное', 'Помощник', 'Профиль', 'Безопасность',
     ]);
     expect(screen.getByRole('button', { name: 'Меню пользователя: Лебедева А. В.' })).toBeInTheDocument();
   });
@@ -36,6 +36,7 @@ describe('Охрана маршрутов', () => {
     await user.click(within(tabBar()).getByRole('link', { name: 'Ещё' }));
     const more = await screen.findByRole('navigation', { name: 'Другие разделы' });
     expect(within(more).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Студенческий', '/student-card'],
       ['Полезное', '/useful'],
       ['Помощник', '/assistant'],
       ['Профиль', '/profile'],

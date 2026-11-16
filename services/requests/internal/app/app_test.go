@@ -801,6 +801,106 @@ func TestVerifyRateLimit(t *testing.T) {
 	expect(t, get("10.0.0.1"), http.StatusNotFound)
 }
 
+// ---------- Электронный студенческий (D60) ----------
+
+func TestStudentCard(t *testing.T) {
+	e := setup(t, nil)
+	for _, id := range []platform.Identity{asStaffMO, asAdmin} {
+		for _, path := range []string{"/me/student-card", "/me/student-card/qr.png"} {
+			expectError(t, e.do(http.MethodGet, path, &id, nil), http.StatusForbidden, "forbidden")
+		}
+	}
+	expectError(t, e.do(http.MethodGet, "/me/student-card", nil, nil), http.StatusUnauthorized, "unauthenticated")
+	// QR до выдачи кода — 404
+	expectError(t, e.do(http.MethodGet, "/me/student-card/qr.png", &asA, nil), http.StatusNotFound, "not_found")
+
+	card := decode[api.StudentCard](t, e.do(http.MethodGet, "/me/student-card", &asA, nil))
+	if card.Number != "24-0101" || card.FullName != "Лебедева Анна Викторовна" || card.FacultyName != "Факультет международных отношений" ||
+		card.ProgramCode != "41.03.05" || card.ProgramName != "Международные отношения" || card.Course != 2 ||
+		card.StudyForm != api.FullTime || card.ValidUntil.String() != "2027-08-31" || !codeRe.MatchString(card.Code) ||
+		card.VerifyUrl != "/verify/"+card.Code {
+		t.Fatalf("студенческий: %+v", card)
+	}
+	// Код стабилен между запросами; у другого студента — свой.
+	if again := decode[api.StudentCard](t, e.do(http.MethodGet, "/me/student-card", &asA, nil)); again.Code != card.Code {
+		t.Fatalf("код сменился: %s → %s", card.Code, again.Code)
+	}
+	if b := decode[api.StudentCard](t, e.do(http.MethodGet, "/me/student-card", &asB, nil)); b.Code == card.Code || b.Number != "23-0202" {
+		t.Fatalf("студенческий Б: %+v", b)
+	}
+
+	w := e.do(http.MethodGet, "/me/student-card/qr.png", &asA, nil)
+	expect(t, w, http.StatusOK)
+	if w.Header().Get("Content-Type") != "image/png" || !bytes.HasPrefix(w.Body.Bytes(), []byte("\x89PNG\r\n\x1a\n")) {
+		t.Fatalf("QR не PNG: %v", w.Header())
+	}
+
+	// Проверка по коду студенческого — тот же публичный адрес, что у справки.
+	verify := func(code string) api.CertificateVerification {
+		w := e.do(http.MethodGet, "/public/certificates/"+code, nil, nil)
+		expect(t, w, http.StatusOK)
+		if strings.Contains(w.Body.String(), "Анна") || strings.Contains(w.Body.String(), "24-0101") {
+			t.Fatalf("в проверке лишние данные: %s", w.Body)
+		}
+		return decode[api.CertificateVerification](t, w)
+	}
+	v := verify(card.Code)
+	if v.Kind != api.CertificateVerificationKindStudentCard || !v.Valid || v.Title != "Электронный студенческий билет" ||
+		v.Holder != "Лебедева А. В." || v.FacultyShort != "ФМО" || v.Course == nil || *v.Course != 2 ||
+		v.ValidUntil.String() != "2027-08-31" {
+		t.Fatalf("проверка студенческого: %+v", v)
+	}
+	cert := e.create(asA, "study-certificate", map[string]string{"purpose": "По месту требования"})
+	if v := verify(cert.Certificate.Code); v.Kind != api.CertificateVerificationKindCertificate || v.Course != nil ||
+		v.Title != "Справка с места учёбы" {
+		t.Fatalf("проверка справки: %+v", v)
+	}
+	expectError(t, e.do(http.MethodGet, "/public/certificates/AAAAAAAAAA", nil, nil), http.StatusNotFound, "not_found")
+
+	// После 31 августа срок истёк; открыл карточку в новом учебном году — код тот же, срок новый.
+	e.clock = time.Date(2027, 9, 1, 9, 0, 0, 0, msk)
+	if v := verify(card.Code); v.Valid {
+		t.Fatal("студенческий прошлого учебного года должен быть valid=false")
+	}
+	renewed := decode[api.StudentCard](t, e.do(http.MethodGet, "/me/student-card", &asA, nil))
+	if renewed.Code != card.Code || renewed.ValidUntil.String() != "2028-08-31" {
+		t.Fatalf("продление: %+v", renewed)
+	}
+	if v := verify(card.Code); !v.Valid || v.ValidUntil.String() != "2028-08-31" {
+		t.Fatalf("проверка после продления: %+v", v)
+	}
+}
+
+// Счётчики администратора — по выбранному факультету, как список заявок; у staff faculty_id игнорируется.
+func TestStaffStatsFacultyFilter(t *testing.T) {
+	e := setup(t, nil)
+	e.create(asA, "academic-leave", leaveFields) // ФМО
+	e.create(asB, "transcript", nil)             // МЭО
+	e.create(asB, "academic-leave", leaveFields) // МЭО
+	submitted := func(id platform.Identity, query string) int {
+		w := e.do(http.MethodGet, "/staff/stats"+query, &id, nil)
+		expect(t, w, http.StatusOK)
+		return decode[api.StaffStats](t, w).Submitted
+	}
+	for _, c := range []struct {
+		name  string
+		id    platform.Identity
+		query string
+		want  int
+	}{
+		{"admin, все", asAdmin, "", 3},
+		{"admin, МЭО", asAdmin, "?faculty_id=" + facultyMEO.String(), 2},
+		{"admin, ФМО", asAdmin, "?faculty_id=" + facultyMO.String(), 1},
+		{"staff ФМО с чужим faculty_id", asStaffMO, "?faculty_id=" + facultyMEO.String(), 1},
+		{"staff МЭО", asStaffMEO, "", 2},
+	} {
+		if got := submitted(c.id, c.query); got != c.want {
+			t.Errorf("%s: submitted %d, ожидалось %d", c.name, got, c.want)
+		}
+	}
+	expectError(t, e.do(http.MethodGet, "/staff/stats?faculty_id=abc", &asAdmin, nil), http.StatusBadRequest, "validation_failed")
+}
+
 // ---------- Списки ----------
 
 func TestStudentListFiltersAndPaging(t *testing.T) {

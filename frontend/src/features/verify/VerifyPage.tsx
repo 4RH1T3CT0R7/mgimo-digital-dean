@@ -13,9 +13,13 @@ import { Section } from '@/shared/ui/section';
 import { codeHint, normalizeCode, validCode } from './code';
 import { useCertificate } from './queries';
 
-function DemoNote()
+function DemoNote({ studentCard = false }: { studentCard?: boolean })
 {
-    return <p className="mt-6 text-sm text-muted-foreground">Это учебный прототип. Справка — не официальный документ.</p>;
+    const text = studentCard
+        ? 'Это учебный прототип, данные вымышлены. Студенческий — не официальный документ.'
+        : 'Это учебный прототип. Справка — не официальный документ.';
+
+    return <p className="mt-6 text-sm text-muted-foreground">{text}</p>;
 }
 
 function AnotherCode()
@@ -40,10 +44,10 @@ export function VerifyFormPage()
 
     return (
         <div className="max-w-2xl">
-            <PageHeader title="Проверка справки" subtitle="Введите код, напечатанный на справке" />
+            <PageHeader title="Проверка документа" subtitle="Введите код со справки или студенческого билета" />
             <form onSubmit={submit} className="flex flex-col items-start gap-5 rounded-xl border bg-card p-5 md:p-6">
                 <div className="flex w-full flex-col gap-2">
-                    <Label htmlFor="certificate-code">Код справки</Label>
+                    <Label htmlFor="certificate-code">Код проверки</Label>
                     <Input id="certificate-code" value={code} onChange={(event) => setCode(normalizeCode(event.target.value))} autoComplete="off" autoCapitalize="characters" spellCheck={false}
                         aria-invalid={code.length > 0 && !valid} aria-describedby="code-hint" className="font-mono tracking-wider" />
                     <p id="code-hint" className={`text-sm ${code.length > 0 && !valid ? 'text-danger-strong' : 'text-muted-foreground'}`}>{codeHint}</p>
@@ -66,7 +70,7 @@ function CertificateResult({ code }: { code: string })
     }
     if (error instanceof ApiError && error.status === 404)
     {
-        return <EmptyState title="Справка с таким кодом не найдена" description="Проверьте код" action={<AnotherCode />} />;
+        return <EmptyState title="Документ с таким кодом не найден" description="Проверьте код" action={<AnotherCode />} />;
     }
     if (error instanceof ApiError && error.status === 429)
     {
@@ -88,14 +92,26 @@ function CertificateResult({ code }: { code: string })
             {(data) =>
             {
                 const Icon = data.valid ? CircleCheckIcon : ClockIcon;
-                const title = data.valid ? 'Справка действительна' : 'Срок действия справки истёк';
-                const fields = [
-                    ['Кому выдана', data.holder],
-                    ['Факультет', data.faculty_short],
-                    ['Документ', data.title],
-                    ['Дата выдачи', formatDate(data.issued_at, { withYear: true })],
-                    ['Действительна до', formatDate(data.valid_until, { withYear: true })],
-                ];
+                // Код студенческого (D60) проверяется по тому же адресу, что и справка
+                const card = data.kind === 'student_card';
+                const title = card
+                    ? (data.valid ? 'Студенческий действителен' : 'Срок действия студенческого истёк')
+                    : (data.valid ? 'Справка действительна' : 'Срок действия справки истёк');
+                const fields = card
+                    ? [
+                        ['Документ', data.title],
+                        ['Кому выдан', data.holder],
+                        ['Факультет', data.faculty_short],
+                        ['Курс', String(data.course ?? '—')],
+                        ['Действителен до', formatDate(data.valid_until, { withYear: true })],
+                    ]
+                    : [
+                        ['Кому выдана', data.holder],
+                        ['Факультет', data.faculty_short],
+                        ['Документ', data.title],
+                        ['Дата выдачи', formatDate(data.issued_at, { withYear: true })],
+                        ['Действительна до', formatDate(data.valid_until, { withYear: true })],
+                    ];
 
                 return (
                     <div className="flex flex-col gap-5">
@@ -127,12 +143,13 @@ function CertificateResult({ code }: { code: string })
 export function VerifyResultPage()
 {
     const { code = '' } = useParams();
+    const studentCard = useCertificate(code).data?.kind === 'student_card'; // тот же запрос, что в CertificateResult
 
     return (
         <div className="max-w-2xl">
-            <PageHeader title="Проверка справки" subtitle={validCode(code) ? `Код ${code}` : 'Проверьте формат кода'} />
+            <PageHeader title="Проверка документа" subtitle={validCode(code) ? `Код ${code}` : 'Проверьте формат кода'} />
             <CertificateResult code={code} />
-            <DemoNote />
+            <DemoNote studentCard={studentCard} />
         </div>
     );
 }

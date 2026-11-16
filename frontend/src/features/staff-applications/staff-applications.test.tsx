@@ -152,6 +152,61 @@ describe('Шаблоны ответов', () => {
   });
 });
 
+describe('Деканат видит ответы студентов (W4)', () => {
+  it('метка «Студент написал» — только у заявок, где последнее сообщение от студента', async () => {
+    renderWithProviders(<AppRoutes />, { route: '/staff', login: 'dekanat.mo' });
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByText('Студент написал')).toHaveLength(1);
+    const row = within(table).getByRole('link', { name: '№ 000011' }).closest('tr')!;
+    expect(within(row).getByText('Студент написал')).toBeInTheDocument();
+    // № 000001 и № 000003: последним писал деканат
+    for (const n of ['№ 000001', '№ 000003']) {
+      expect(within(within(table).getByRole('link', { name: n }).closest('tr')!).queryByText('Студент написал')).not.toBeInTheDocument();
+    }
+  });
+
+  it('счётчики администратора — по выбранному факультету, как список', async () => {
+    const urls: URL[] = [];
+    server.use(
+      http.get('/api/requests/staff/stats', ({ request }) => {
+        urls.push(new URL(request.url));
+      }),
+    );
+    renderWithProviders(<AppRoutes />, { route: `/staff?faculty_id=${FACULTY_ID['МЭО']}`, login: 'admin' });
+    // У МЭО в работе нет ничего, у всех факультетов вместе — две заявки ФМО
+    expect(await screen.findByRole('button', { name: 'В работе: 0' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ждут студента: 1' })).toBeInTheDocument();
+    expect(urls.at(-1)?.searchParams.get('faculty_id')).toBe(FACULTY_ID['МЭО']);
+  });
+
+  it('«Завершить» у документа без файла: подсказка «где и когда забрать» и предупреждение', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: appUrl(3), login: 'dekanat.mo' });
+    await user.click(await screen.findByRole('button', { name: 'Завершить заявку' }));
+    const dialog = screen.getByRole('dialog', { name: 'Завершить заявку № 000003?' });
+    expect(within(dialog).getByLabelText(/Комментарий для студента/)).toHaveAttribute('placeholder', 'Где и когда забрать документ');
+    expect(within(dialog).getByText(/Файл документа не приложен/)).toBeInTheDocument();
+  });
+
+  it('с файлом-результатом предупреждения нет', async () => {
+    applications
+      .find((a) => a.number === '000003')!
+      .attachments.push({
+        id: '52000000-0000-4000-8000-000000000999',
+        file_name: 'spravka.pdf',
+        content_type: 'application/pdf',
+        size: 1024,
+        uploaded_by_role: 'staff',
+        is_result: true,
+        created_at: new Date().toISOString(),
+      });
+    const { user } = renderWithProviders(<AppRoutes />, { route: appUrl(3), login: 'dekanat.mo' });
+    await user.click(await screen.findByRole('button', { name: 'Завершить заявку' }));
+    const dialog = screen.getByRole('dialog', { name: 'Завершить заявку № 000003?' });
+    expect(within(dialog).getByLabelText(/Комментарий для студента/)).toHaveAttribute('placeholder', 'Где и когда забрать документ');
+    expect(within(dialog).queryByText(/Файл документа не приложен/)).not.toBeInTheDocument();
+  });
+});
+
 describe('Общее хранилище моков (T10 + T12)', () => {
   it('ответ деканата попадает в ту же заявку, которую видит студент', async () => {
     const { user } = renderWithProviders(<AppRoutes />, { route: appUrl(3), login: 'dekanat.mo' });
