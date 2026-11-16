@@ -10,7 +10,7 @@ export MSYS_NO_PATHCONV=1 # Git Bash на Windows не должен перепи
 compose=(docker compose -f deploy/docker-compose.yml --env-file .env)
 psql_db() { "${compose[@]}" exec -T -e PGOPTIONS="-c client_min_messages=warning" postgres psql -v ON_ERROR_STOP=1 -q -U postgres -d "$1" "${@:2}"; }
 
-for svc in auth academic requests notifications; do
+for svc in auth academic requests notifications assistant; do
   psql_db "$svc" -c "CREATE TABLE IF NOT EXISTS _seed_applied (file text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"
   for f in services/"$svc"/seed/*.sql; do
     [ -f "$f" ] || continue

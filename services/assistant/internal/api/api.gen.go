@@ -9,9 +9,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
+	"time"
 
+	"github.com/oapi-codegen/runtime"
 	strictnethttp "github.com/oapi-codegen/runtime/strictmiddleware/nethttp"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -20,19 +24,26 @@ const (
 
 // Defines values for AnswerProvider.
 const (
-	Faq AnswerProvider = "faq"
-	Llm AnswerProvider = "llm"
+	AnswerProviderFaq AnswerProvider = "faq"
+	AnswerProviderLlm AnswerProvider = "llm"
+)
+
+// Defines values for AnswerSourceKind.
+const (
+	AnswerSourceKindDocument AnswerSourceKind = "document"
+	AnswerSourceKindFaq      AnswerSourceKind = "faq"
 )
 
 // Answer defines model for Answer.
 type Answer struct {
 	// Answer Обычный текст. Фронтенд подписывает «Ответ сгенерирован ИИ и может содержать ошибки» при provider = llm
-	Answer   string         `json:"answer"`
+	Answer string `json:"answer"`
+
+	// Provider llm — ответ модели; faq — без модели (запись справочника или фрагмент документа как есть)
 	Provider AnswerProvider `json:"provider"`
-	Sources  []struct {
-		FaqId string `json:"faq_id"`
-		Title string `json:"title"`
-	} `json:"sources"`
+
+	// Sources Справочник и документы, по которым дан ответ, без повторов
+	Sources []AnswerSource `json:"sources"`
 
 	// SuggestedAction Предложение открыть форму заявки с заполненными полями
 	SuggestedAction *struct {
@@ -41,8 +52,26 @@ type Answer struct {
 	} `json:"suggested_action"`
 }
 
-// AnswerProvider defines model for Answer.Provider.
+// AnswerProvider llm — ответ модели; faq — без модели (запись справочника или фрагмент документа как есть)
 type AnswerProvider string
+
+// AnswerSource defines model for AnswerSource.
+type AnswerSource struct {
+	// FaqId ID записи справочника или UUID документа базы знаний
+	FaqId string `json:"faq_id"`
+
+	// Kind faq — запись справочника content/faq.md, document — документ базы знаний
+	Kind  *AnswerSourceKind `json:"kind,omitempty"`
+	Title string            `json:"title"`
+}
+
+// AnswerSourceKind faq — запись справочника content/faq.md, document — документ базы знаний
+type AnswerSourceKind string
+
+// AskRequest defines model for AskRequest.
+type AskRequest struct {
+	Question string `json:"question"`
+}
 
 // Error defines model for Error.
 type Error struct {
@@ -51,19 +80,88 @@ type Error struct {
 	Message string                  `json:"message"`
 }
 
-// AskJSONBody defines parameters for Ask.
-type AskJSONBody struct {
-	Question string `json:"question"`
+// KnowledgeDocument defines model for KnowledgeDocument.
+type KnowledgeDocument struct {
+	Active bool `json:"active"`
+
+	// AuthorLabel «Деканат» или «Администрация» — без имён сотрудников (D37)
+	AuthorLabel string `json:"author_label"`
+
+	// Chars Символов в тексте
+	Chars int `json:"chars"`
+
+	// Chunks Фрагментов для поиска
+	Chunks    int                `json:"chunks"`
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// SourceName Имя загруженного файла; null — текст вставлен вручную
+	SourceName *string `json:"source_name"`
+	Title      string  `json:"title"`
+}
+
+// KnowledgeUpload defines model for KnowledgeUpload.
+type KnowledgeUpload struct {
+	// File .txt, .md или .docx до 5 МБ. Либо file, либо text
+	File *openapi_types.File `json:"file,omitempty"`
+
+	// Text Текст документа, если он не в файле
+	Text  *string `json:"text,omitempty"`
+	Title string  `json:"title"`
+}
+
+// Forbidden defines model for Forbidden.
+type Forbidden = Error
+
+// NotFound defines model for NotFound.
+type NotFound = Error
+
+// TooManyAttempts defines model for TooManyAttempts.
+type TooManyAttempts = Error
+
+// Unauthenticated defines model for Unauthenticated.
+type Unauthenticated = Error
+
+// Validation defines model for Validation.
+type Validation = Error
+
+// SetKnowledgeActiveJSONBody defines parameters for SetKnowledgeActive.
+type SetKnowledgeActiveJSONBody struct {
+	Active bool `json:"active"`
 }
 
 // AskJSONRequestBody defines body for Ask for application/json ContentType.
-type AskJSONRequestBody AskJSONBody
+type AskJSONRequestBody = AskRequest
+
+// StaffAskJSONRequestBody defines body for StaffAsk for application/json ContentType.
+type StaffAskJSONRequestBody = AskRequest
+
+// AddKnowledgeMultipartRequestBody defines body for AddKnowledge for multipart/form-data ContentType.
+type AddKnowledgeMultipartRequestBody = KnowledgeUpload
+
+// SetKnowledgeActiveJSONRequestBody defines body for SetKnowledgeActive for application/json ContentType.
+type SetKnowledgeActiveJSONRequestBody SetKnowledgeActiveJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Задать вопрос о порядках в вузе
 	// (POST /ask)
 	Ask(w http.ResponseWriter, r *http.Request)
+	// Проверить, как ответит помощник
+	// (POST /staff/ask)
+	StaffAsk(w http.ResponseWriter, r *http.Request)
+	// Документы базы знаний помощника
+	// (GET /staff/knowledge)
+	ListKnowledge(w http.ResponseWriter, r *http.Request)
+	// Добавить документ
+	// (POST /staff/knowledge)
+	AddKnowledge(w http.ResponseWriter, r *http.Request)
+	// Удалить документ
+	// (DELETE /staff/knowledge/{document_id})
+	DeleteKnowledge(w http.ResponseWriter, r *http.Request, documentId openapi_types.UUID)
+	// Включить или выключить документ
+	// (PATCH /staff/knowledge/{document_id})
+	SetKnowledgeActive(w http.ResponseWriter, r *http.Request, documentId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -86,6 +184,128 @@ func (siw *ServerInterfaceWrapper) Ask(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Ask(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StaffAsk operation middleware
+func (siw *ServerInterfaceWrapper) StaffAsk(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StaffAsk(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListKnowledge operation middleware
+func (siw *ServerInterfaceWrapper) ListKnowledge(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListKnowledge(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddKnowledge operation middleware
+func (siw *ServerInterfaceWrapper) AddKnowledge(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddKnowledge(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteKnowledge operation middleware
+func (siw *ServerInterfaceWrapper) DeleteKnowledge(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "document_id" -------------
+	var documentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "document_id", r.PathValue("document_id"), &documentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "document_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteKnowledge(w, r, documentId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetKnowledgeActive operation middleware
+func (siw *ServerInterfaceWrapper) SetKnowledgeActive(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "document_id" -------------
+	var documentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "document_id", r.PathValue("document_id"), &documentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "document_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetKnowledgeActive(w, r, documentId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -216,9 +436,31 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/ask", wrapper.Ask)
+	m.HandleFunc("POST "+options.BaseURL+"/staff/ask", wrapper.StaffAsk)
+	m.HandleFunc("GET "+options.BaseURL+"/staff/knowledge", wrapper.ListKnowledge)
+	m.HandleFunc("POST "+options.BaseURL+"/staff/knowledge", wrapper.AddKnowledge)
+	m.HandleFunc("DELETE "+options.BaseURL+"/staff/knowledge/{document_id}", wrapper.DeleteKnowledge)
+	m.HandleFunc("PATCH "+options.BaseURL+"/staff/knowledge/{document_id}", wrapper.SetKnowledgeActive)
 
 	return m
 }
+
+type ForbiddenJSONResponse Error
+
+type NotFoundJSONResponse Error
+
+type TooManyAttemptsResponseHeaders struct {
+	RetryAfter int
+}
+type TooManyAttemptsJSONResponse struct {
+	Body Error
+
+	Headers TooManyAttemptsResponseHeaders
+}
+
+type UnauthenticatedJSONResponse Error
+
+type ValidationJSONResponse Error
 
 type AskRequestObject struct {
 	Body *AskJSONRequestBody
@@ -237,7 +479,7 @@ func (response Ask200JSONResponse) VisitAskResponse(w http.ResponseWriter) error
 	return json.NewEncoder(w).Encode(response)
 }
 
-type Ask400JSONResponse Error
+type Ask400JSONResponse struct{ ValidationJSONResponse }
 
 func (response Ask400JSONResponse) VisitAskResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -246,7 +488,7 @@ func (response Ask400JSONResponse) VisitAskResponse(w http.ResponseWriter) error
 	return json.NewEncoder(w).Encode(response)
 }
 
-type Ask401JSONResponse Error
+type Ask401JSONResponse struct{ UnauthenticatedJSONResponse }
 
 func (response Ask401JSONResponse) VisitAskResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -255,7 +497,7 @@ func (response Ask401JSONResponse) VisitAskResponse(w http.ResponseWriter) error
 	return json.NewEncoder(w).Encode(response)
 }
 
-type Ask403JSONResponse Error
+type Ask403JSONResponse struct{ ForbiddenJSONResponse }
 
 func (response Ask403JSONResponse) VisitAskResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -264,14 +506,7 @@ func (response Ask403JSONResponse) VisitAskResponse(w http.ResponseWriter) error
 	return json.NewEncoder(w).Encode(response)
 }
 
-type Ask429ResponseHeaders struct {
-	RetryAfter int
-}
-
-type Ask429JSONResponse struct {
-	Body    Error
-	Headers Ask429ResponseHeaders
-}
+type Ask429JSONResponse struct{ TooManyAttemptsJSONResponse }
 
 func (response Ask429JSONResponse) VisitAskResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -281,11 +516,273 @@ func (response Ask429JSONResponse) VisitAskResponse(w http.ResponseWriter) error
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type StaffAskRequestObject struct {
+	Body *StaffAskJSONRequestBody
+}
+
+type StaffAskResponseObject interface {
+	VisitStaffAskResponse(w http.ResponseWriter) error
+}
+
+type StaffAsk200JSONResponse Answer
+
+func (response StaffAsk200JSONResponse) VisitStaffAskResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StaffAsk400JSONResponse struct{ ValidationJSONResponse }
+
+func (response StaffAsk400JSONResponse) VisitStaffAskResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StaffAsk401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response StaffAsk401JSONResponse) VisitStaffAskResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StaffAsk403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response StaffAsk403JSONResponse) VisitStaffAskResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StaffAsk429JSONResponse struct{ TooManyAttemptsJSONResponse }
+
+func (response StaffAsk429JSONResponse) VisitStaffAskResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type ListKnowledgeRequestObject struct {
+}
+
+type ListKnowledgeResponseObject interface {
+	VisitListKnowledgeResponse(w http.ResponseWriter) error
+}
+
+type ListKnowledge200JSONResponse []KnowledgeDocument
+
+func (response ListKnowledge200JSONResponse) VisitListKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListKnowledge401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response ListKnowledge401JSONResponse) VisitListKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListKnowledge403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListKnowledge403JSONResponse) VisitListKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledgeRequestObject struct {
+	Body *multipart.Reader
+}
+
+type AddKnowledgeResponseObject interface {
+	VisitAddKnowledgeResponse(w http.ResponseWriter) error
+}
+
+type AddKnowledge201JSONResponse KnowledgeDocument
+
+func (response AddKnowledge201JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledge400JSONResponse struct{ ValidationJSONResponse }
+
+func (response AddKnowledge400JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledge401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response AddKnowledge401JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledge403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response AddKnowledge403JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledge413JSONResponse Error
+
+func (response AddKnowledge413JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(413)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AddKnowledge415JSONResponse Error
+
+func (response AddKnowledge415JSONResponse) VisitAddKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(415)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteKnowledgeRequestObject struct {
+	DocumentId openapi_types.UUID `json:"document_id"`
+}
+
+type DeleteKnowledgeResponseObject interface {
+	VisitDeleteKnowledgeResponse(w http.ResponseWriter) error
+}
+
+type DeleteKnowledge204Response struct {
+}
+
+func (response DeleteKnowledge204Response) VisitDeleteKnowledgeResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteKnowledge401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response DeleteKnowledge401JSONResponse) VisitDeleteKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteKnowledge403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DeleteKnowledge403JSONResponse) VisitDeleteKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteKnowledge404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DeleteKnowledge404JSONResponse) VisitDeleteKnowledgeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetKnowledgeActiveRequestObject struct {
+	DocumentId openapi_types.UUID `json:"document_id"`
+	Body       *SetKnowledgeActiveJSONRequestBody
+}
+
+type SetKnowledgeActiveResponseObject interface {
+	VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error
+}
+
+type SetKnowledgeActive200JSONResponse KnowledgeDocument
+
+func (response SetKnowledgeActive200JSONResponse) VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetKnowledgeActive400JSONResponse struct{ ValidationJSONResponse }
+
+func (response SetKnowledgeActive400JSONResponse) VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetKnowledgeActive401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response SetKnowledgeActive401JSONResponse) VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetKnowledgeActive403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response SetKnowledgeActive403JSONResponse) VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type SetKnowledgeActive404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response SetKnowledgeActive404JSONResponse) VisitSetKnowledgeActiveResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Задать вопрос о порядках в вузе
 	// (POST /ask)
 	Ask(ctx context.Context, request AskRequestObject) (AskResponseObject, error)
+	// Проверить, как ответит помощник
+	// (POST /staff/ask)
+	StaffAsk(ctx context.Context, request StaffAskRequestObject) (StaffAskResponseObject, error)
+	// Документы базы знаний помощника
+	// (GET /staff/knowledge)
+	ListKnowledge(ctx context.Context, request ListKnowledgeRequestObject) (ListKnowledgeResponseObject, error)
+	// Добавить документ
+	// (POST /staff/knowledge)
+	AddKnowledge(ctx context.Context, request AddKnowledgeRequestObject) (AddKnowledgeResponseObject, error)
+	// Удалить документ
+	// (DELETE /staff/knowledge/{document_id})
+	DeleteKnowledge(ctx context.Context, request DeleteKnowledgeRequestObject) (DeleteKnowledgeResponseObject, error)
+	// Включить или выключить документ
+	// (PATCH /staff/knowledge/{document_id})
+	SetKnowledgeActive(ctx context.Context, request SetKnowledgeActiveRequestObject) (SetKnowledgeActiveResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -341,6 +838,151 @@ func (sh *strictHandler) Ask(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AskResponseObject); ok {
 		if err := validResponse.VisitAskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StaffAsk operation middleware
+func (sh *strictHandler) StaffAsk(w http.ResponseWriter, r *http.Request) {
+	var request StaffAskRequestObject
+
+	var body StaffAskJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StaffAsk(ctx, request.(StaffAskRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StaffAsk")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StaffAskResponseObject); ok {
+		if err := validResponse.VisitStaffAskResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListKnowledge operation middleware
+func (sh *strictHandler) ListKnowledge(w http.ResponseWriter, r *http.Request) {
+	var request ListKnowledgeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListKnowledge(ctx, request.(ListKnowledgeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListKnowledge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListKnowledgeResponseObject); ok {
+		if err := validResponse.VisitListKnowledgeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddKnowledge operation middleware
+func (sh *strictHandler) AddKnowledge(w http.ResponseWriter, r *http.Request) {
+	var request AddKnowledgeRequestObject
+
+	if reader, err := r.MultipartReader(); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode multipart body: %w", err))
+		return
+	} else {
+		request.Body = reader
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddKnowledge(ctx, request.(AddKnowledgeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddKnowledge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddKnowledgeResponseObject); ok {
+		if err := validResponse.VisitAddKnowledgeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteKnowledge operation middleware
+func (sh *strictHandler) DeleteKnowledge(w http.ResponseWriter, r *http.Request, documentId openapi_types.UUID) {
+	var request DeleteKnowledgeRequestObject
+
+	request.DocumentId = documentId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteKnowledge(ctx, request.(DeleteKnowledgeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteKnowledge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteKnowledgeResponseObject); ok {
+		if err := validResponse.VisitDeleteKnowledgeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetKnowledgeActive operation middleware
+func (sh *strictHandler) SetKnowledgeActive(w http.ResponseWriter, r *http.Request, documentId openapi_types.UUID) {
+	var request SetKnowledgeActiveRequestObject
+
+	request.DocumentId = documentId
+
+	var body SetKnowledgeActiveJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetKnowledgeActive(ctx, request.(SetKnowledgeActiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetKnowledgeActive")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetKnowledgeActiveResponseObject); ok {
+		if err := validResponse.VisitSetKnowledgeActiveResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

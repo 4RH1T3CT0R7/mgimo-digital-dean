@@ -7,7 +7,7 @@ dir=${BACKUP_DIR:-/var/backups/mgimo}/$(date +%F)
 compose=(docker compose -f deploy/docker-compose.yml --env-file .env)
 umask 077
 mkdir -p "$dir"
-for db in auth academic requests notifications; do
+for db in auth academic requests notifications assistant; do
   "${compose[@]}" exec -T postgres pg_dump -U postgres -Fc "$db" > "$dir/$db.dump"
   [ -s "$dir/$db.dump" ] || { echo "$(date -Is) пустой дамп $db"; exit 1; }
 done

@@ -67,7 +67,7 @@ jobs:
       - name: .env со случайными паролями
         run: |
           r() { openssl rand -hex 24; }
-          printf 'SITE_ADDRESS=localhost\nPOSTGRES_PASSWORD=%s\nAUTH_DB_PASSWORD=%s\nACADEMIC_DB_PASSWORD=%s\nREQUESTS_DB_PASSWORD=%s\nNOTIFICATIONS_DB_PASSWORD=%s\n' "$(r)" "$(r)" "$(r)" "$(r)" "$(r)" > .env
+          printf 'SITE_ADDRESS=localhost\nPOSTGRES_PASSWORD=%s\nAUTH_DB_PASSWORD=%s\nACADEMIC_DB_PASSWORD=%s\nREQUESTS_DB_PASSWORD=%s\nNOTIFICATIONS_DB_PASSWORD=%s\nASSISTANT_DB_PASSWORD=%s\n' "$(r)" "$(r)" "$(r)" "$(r)" "$(r)" "$(r)" > .env
       - run: docker compose -f deploy/docker-compose.yml --env-file .env up -d --build --wait
       - run: bash deploy/seed.sh
       - run: bash deploy/smoke.sh

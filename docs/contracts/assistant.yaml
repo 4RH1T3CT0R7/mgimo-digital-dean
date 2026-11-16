@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
   title: assistant — ИИ-помощник «Спроси деканат» (P2)
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Второй приоритет (D16). Ключ LLM (GigaChat или YandexGPT) — только в переменных окружения этого сервиса.
-    В LLM уходит только текст вопроса и выдержки из справочника, без данных профиля (security.md).
-    Если LLM недоступен или не настроен — ответ из поиска по справочнику (provider = faq).
+    В LLM уходят только текст вопроса и фрагменты из базы знаний и справочника, без данных профиля (security.md).
+    Если LLM недоступен или не настроен — ответ из поиска по базе знаний и справочнику (provider = faq).
+    База знаний (D66): документы деканата, которые загружают сотрудники; поиск — полнотекстовый PostgreSQL.
 servers:
   - url: /api/assistant
 security:
@@ -22,13 +23,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [question]
-              properties:
-                question:
-                  type: string
-                  minLength: 3
-                  maxLength: 500
+              $ref: '#/components/schemas/AskRequest'
       responses:
         '200':
           description: Ответ
@@ -37,40 +32,202 @@ paths:
               schema:
                 $ref: '#/components/schemas/Answer'
         '400':
-          description: Неверные данные (`validation_failed`)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Validation'
         '401':
-          description: Нет сессии (`unauthenticated`)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Unauthenticated'
         '403':
-          description: Роль не подходит (`forbidden`)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+          $ref: '#/components/responses/Forbidden'
         '429':
-          description: Слишком много вопросов (`too_many_attempts`)
-          headers:
-            Retry-After:
+          $ref: '#/components/responses/TooManyAttempts'
+  /staff/ask:
+    post:
+      tags: [staff]
+      operationId: staffAsk
+      summary: Проверить, как ответит помощник
+      description: |
+        Роли — staff, admin. Тот же ответ, что получит студент. Ограничение: 60 вопросов в час на пользователя, иначе 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AskRequest'
+      responses:
+        '200':
+          description: Ответ
+          content:
+            application/json:
               schema:
-                type: integer
+                $ref: '#/components/schemas/Answer'
+        '400':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyAttempts'
+  /staff/knowledge:
+    get:
+      tags: [staff]
+      operationId: listKnowledge
+      summary: Документы базы знаний помощника
+      description: |
+        Роли — staff, admin. База общая для всего вуза (D66). Новые — сверху.
+      responses:
+        '200':
+          description: Список документов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KnowledgeDocument'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [staff]
+      operationId: addKnowledge
+      summary: Добавить документ
+      description: |
+        Роли — staff, admin. Название и либо файл (.txt, .md в UTF-8 или Windows-1251, .docx; до 5 МБ), либо вставленный текст.
+        PDF не принимается (415): русский текст из него извлекается ненадёжно — нужен .docx или .txt.
+        Текст после извлечения — от 1 до 300 000 символов, иначе 400. Документ режется на фрагменты по ~1000 символов.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/KnowledgeUpload'
+      responses:
+        '201':
+          description: Документ добавлен и сразу участвует в ответах
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeDocument'
+        '400':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          description: Файл больше 5 МБ (`file_too_large`)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '415':
+          description: Тип файла не поддерживается (`unsupported_file_type`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /staff/knowledge/{document_id}:
+    parameters:
+      - in: path
+        name: document_id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [staff]
+      operationId: setKnowledgeActive
+      summary: Включить или выключить документ
+      description: Роли — staff, admin. Выключенный документ хранится, но в ответах помощника не участвует.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active]
+              properties:
+                active:
+                  type: boolean
+      responses:
+        '200':
+          description: Документ после изменения
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeDocument'
+        '400':
+          $ref: '#/components/responses/Validation'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [staff]
+      operationId: deleteKnowledge
+      summary: Удалить документ
+      description: Роли — staff, admin. Документ и его фрагменты удаляются сразу.
+      responses:
+        '204':
+          description: Удалён
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: sid
+  responses:
+    Validation:
+      description: Неверные данные (`validation_failed`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthenticated:
+      description: Нет сессии (`unauthenticated`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Роль не подходит (`forbidden`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Объекта нет (`not_found`)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyAttempts:
+      description: Слишком много вопросов (`too_many_attempts`)
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
   schemas:
+    AskRequest:
+      type: object
+      required: [question]
+      properties:
+        question:
+          type: string
+          minLength: 3
+          maxLength: 500
     Answer:
       type: object
       required: [answer, provider, sources]
@@ -81,16 +238,12 @@ components:
         provider:
           type: string
           enum: [llm, faq]
+          description: llm — ответ модели; faq — без модели (запись справочника или фрагмент документа как есть)
         sources:
           type: array
+          description: Справочник и документы, по которым дан ответ, без повторов
           items:
-            type: object
-            required: [faq_id, title]
-            properties:
-              faq_id:
-                type: string
-              title:
-                type: string
+            $ref: '#/components/schemas/AnswerSource'
         suggested_action:
           type: object
           nullable: true
@@ -103,6 +256,62 @@ components:
               type: object
               additionalProperties:
                 type: string
+    AnswerSource:
+      type: object
+      required: [faq_id, title]
+      properties:
+        faq_id:
+          type: string
+          description: ID записи справочника или UUID документа базы знаний
+        title:
+          type: string
+        kind:
+          type: string
+          enum: [faq, document]
+          description: faq — запись справочника content/faq.md, document — документ базы знаний
+    KnowledgeUpload:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+        file:
+          type: string
+          format: binary
+          description: .txt, .md или .docx до 5 МБ. Либо file, либо text
+        text:
+          type: string
+          maxLength: 300000
+          description: Текст документа, если он не в файле
+    KnowledgeDocument:
+      type: object
+      required: [id, title, chars, chunks, author_label, created_at, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        source_name:
+          type: string
+          nullable: true
+          description: Имя загруженного файла; null — текст вставлен вручную
+        chars:
+          type: integer
+          description: Символов в тексте
+        chunks:
+          type: integer
+          description: Фрагментов для поиска
+        author_label:
+          type: string
+          description: «Деканат» или «Администрация» — без имён сотрудников (D37)
+        created_at:
+          type: string
+          format: date-time
+        active:
+          type: boolean
     Error:
       type: object
       required: [code, message]
