@@ -3,8 +3,8 @@ import type { components } from '@/api/academic';
 // Данные — docs/contracts/seed.md (student.mo). Владелец дальнейших правок — T09.
 type S = components['schemas'];
 
-// Текущий семестр из services/academic/seed/00_reference.sql.
-export const mockTermEnd = '2026-12-27';
+// Текущий семестр из services/academic/seed: конец — последний день сессии (03_academic_year.sql).
+export const mockTermEnd = '2027-01-24';
 
 export const faculties: S['Faculty'][] = [
   { id: '10000000-0000-4000-8000-000000000001', short_name: 'ФМО', name: 'Факультет международных отношений' },
@@ -62,6 +62,10 @@ const ROOM = {
   n202: { building: 'Новый корпус', number: '202' },
   n220: { building: 'Новый корпус', number: '220' },
   n405: { building: 'Новый корпус', number: '405' },
+  b1049: { building: 'Корпус Б', number: '1049' },
+  b2010: { building: 'Корпус Б', number: '2010' },
+  g2116: { building: 'Корпус Г', number: '2116' },
+  g3122: { building: 'Корпус Г', number: '3122' },
 } satisfies Record<string, S['Room']>;
 
 let seq = 0;
@@ -145,6 +149,19 @@ export const weekSchedule: S['Schedule'] = {
   ],
 };
 
+/** Сессия, как в services/academic/seed/03_academic_year.sql; даты — как у дедлайнов в notifications. */
+export const sessionLessons: S['Lesson'][] = [
+    lesson('2026-12-18', 2, DISC.law, 'credit', ROOM.g3122, TEACH.tikhonov, [groupMO]),
+    lesson('2026-12-22', 3, DISC.en, 'credit', ROOM.n202, TEACH.mironova, [groupEn]),
+    lesson('2026-12-24', 3, DISC.fr, 'credit', ROOM.n220, TEACH.belova, [groupFr]),
+    lesson('2027-01-11', 3, DISC.tmo, 'consultation', ROOM.b1049, TEACH.orlov, [groupMO]),
+    lesson('2027-01-12', 1, DISC.tmo, 'exam', ROOM.b1047, TEACH.orlov, [groupMO], { end_time: '13:20' }),
+    lesson('2027-01-14', 3, DISC.hist, 'consultation', ROOM.b2010, TEACH.belova, [groupMO]),
+    lesson('2027-01-15', 1, DISC.hist, 'exam', ROOM.b2009, TEACH.belova, [groupMO], { end_time: '13:20' }),
+    lesson('2027-01-18', 3, DISC.econ, 'consultation', ROOM.g2116, TEACH.kravets, [groupMO]),
+    lesson('2027-01-19', 1, DISC.econ, 'exam', ROOM.g2115, TEACH.kravets, [groupMO], { end_time: '13:20' }),
+];
+
 const scores = [55, 50, 48, 40, 55, 30];
 const attendance = [95, 90, 85, 90, 65, 90];
 
@@ -157,7 +174,8 @@ export const currentGrades: S['CurrentGrades'] = {
 
         return {
             discipline,
-            control_form: index === 5 ? 'credit' : 'exam',
+            // Как в seed: зачёты — по дисциплинам с зачётом в сессии (МПП, языки)
+            control_form: index >= 3 ? 'credit' : 'exam',
             teacher: Object.values(TEACH)[index % 5],
             score,
             max_to_date: 60,
@@ -205,6 +223,28 @@ export const gradesSummary: S['GradesSummary'] = {
     traffic: { green: 3, yellow: 2, red: 1 },
 };
 
+/** Календарный план (D62): периоды и события из тех же контрольных точек и занятий сессии. */
+export const academicCalendar: S['AcademicCalendar'] = {
+    term: { academic_year: '2026/2027', term: 'autumn', start_date: '2026-09-01', end_date: mockTermEnd },
+    periods: [
+        { kind: 'study', start_date: '2026-09-01', end_date: '2026-12-20' },
+        { kind: 'credit_week', start_date: '2026-12-21', end_date: '2026-12-27' },
+        { kind: 'holidays', start_date: '2026-12-28', end_date: '2027-01-10' },
+        { kind: 'session', start_date: '2027-01-11', end_date: '2027-01-24' },
+        { kind: 'vacation', start_date: '2027-01-25', end_date: '2027-02-07' },
+    ],
+    events: [
+        ...currentGrades.disciplines.flatMap(({ discipline, control_points }, i) => control_points.map((point, j): S['AcademicEvent'] => ({
+            id: `72000000-0000-4000-8000-${String(i * 3 + j + 1).padStart(12, '0')}`,
+            kind: 'control_point', date: point.date, start_time: null, end_time: null, title: point.title, discipline, room: null,
+        }))),
+        ...sessionLessons.map((item): S['AcademicEvent'] => ({
+            id: item.id, kind: item.kind as S['AcademicEventKind'], date: item.date, start_time: item.start_time, end_time: item.end_time,
+            title: null, discipline: item.discipline, room: item.room,
+        })),
+    ].sort((a, b) => a.date.localeCompare(b.date) || (a.start_time ?? '').localeCompare(b.start_time ?? '')),
+};
+
 export const staffGroups: S['GroupInfo'][] = [
     { ...groupMO, kind: 'academic', course: 2, faculty_short: 'ФМО' },
     { ...groupEn, kind: 'language', course: 2, faculty_short: 'ФМО' },
@@ -212,10 +252,10 @@ export const staffGroups: S['GroupInfo'][] = [
     { id: '20000000-0000-4000-8000-000000000004', name: 'МЭО-23-02', kind: 'academic', course: 3, faculty_short: 'МЭО' },
 ];
 
-export const academicState = { lessons: structuredClone(weekSchedule.lessons), asOf: weekSchedule.as_of };
+export const academicState = { lessons: structuredClone([...weekSchedule.lessons, ...sessionLessons]), asOf: weekSchedule.as_of };
 
 export function resetAcademicState()
 {
-    academicState.lessons = structuredClone(weekSchedule.lessons);
+    academicState.lessons = structuredClone([...weekSchedule.lessons, ...sessionLessons]);
     academicState.asOf = weekSchedule.as_of;
 }

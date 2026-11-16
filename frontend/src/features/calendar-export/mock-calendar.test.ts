@@ -30,10 +30,10 @@ describe('T16: файл календаря в MSW', () =>
 {
     it('без параметров включает только активные занятия с сегодня до конца семестра', async () =>
     {
-        academicState.lessons.push({ ...lesson, id: '90000000-0000-4000-8000-000000000001', date: '2026-12-28' });
+        academicState.lessons.push({ ...lesson, id: '90000000-0000-4000-8000-000000000001', date: '2027-01-25' });
         const response = await download();
         const text = await response.text();
-        const expected = academicState.lessons.filter((item) => item.date >= '2026-11-18' && item.date <= '2026-12-27'
+        const expected = academicState.lessons.filter((item) => item.date >= '2026-11-18' && item.date <= '2027-01-24'
             && item.status !== 'cancelled' && item.status !== 'moved_away').map((item) => `UID:${item.id}`).sort();
 
         expect(response.status).toBe(200);

@@ -77,7 +77,8 @@ export interface paths {
         /**
          * Выгрузка расписания в календарь (I4)
          * @description Роли — student. Файл iCalendar для импорта в календарь телефона.
-         *     Без параметров — с сегодняшнего дня до конца семестра. Отменённые и `moved_away` занятия не включаются.
+         *     Без параметров — с сегодняшнего дня до конца семестра (последний день сессии). Отменённые и `moved_away` занятия не включаются.
+         *     Зачёты, консультации и экзамены — занятия с видом в названии; контрольные точки студента — события на весь день.
          */
         get: operations["getMyScheduleIcs"];
         put?: never;
@@ -140,6 +141,28 @@ export interface paths {
          * @description Роли — student. Семестры от последнего к первому.
          */
         get: operations["getMySessionResults"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/academic-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Календарный план семестра (D62)
+         * @description Роли — student. Периоды текущего семестра (учёба, зачётная неделя, праздники, сессия, каникулы) по порядку
+         *     и контрольные мероприятия студента: его контрольные точки, зачёты, консультации и экзамены
+         *     академической и языковых групп. Отменённые занятия не включаются, перенесённые — на новой дате.
+         */
+        get: operations["getMyAcademicCalendar"];
         put?: never;
         post?: never;
         delete?: never;
@@ -508,6 +531,66 @@ export interface components {
             /** Format: date */
             date?: string | null;
         };
+        /**
+         * @description study — учёба; credit_week — зачётная неделя; holidays — праздники; session — сессия; vacation — каникулы
+         * @enum {string}
+         */
+        TermPeriodKind: "study" | "credit_week" | "holidays" | "session" | "vacation";
+        TermPeriod: {
+            kind: components["schemas"]["TermPeriodKind"];
+            /** Format: date */
+            start_date: string;
+            /**
+             * Format: date
+             * @description Включительно
+             */
+            end_date: string;
+        };
+        /** @enum {string} */
+        AcademicEventKind: "control_point" | "consultation" | "credit" | "exam";
+        AcademicEvent: {
+            /**
+             * Format: uuid
+             * @description ID контрольной точки или занятия
+             */
+            id: string;
+            kind: components["schemas"]["AcademicEventKind"];
+            /** Format: date */
+            date: string;
+            /** @description null у контрольной точки (на весь день) */
+            start_time?: string | null;
+            end_time?: string | null;
+            /**
+             * @description Название контрольной точки; у занятий null
+             * @example Контрольная работа 1
+             */
+            title?: string | null;
+            discipline: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            };
+            room?: components["schemas"]["Room"] | null;
+        };
+        AcademicCalendar: {
+            term: {
+                /** @example 2026/2027 */
+                academic_year: string;
+                /** @enum {string} */
+                term: "autumn" | "spring";
+                /** Format: date */
+                start_date: string;
+                /**
+                 * Format: date
+                 * @description Последний день сессии
+                 */
+                end_date: string;
+            };
+            /** @description По дате начала */
+            periods: components["schemas"]["TermPeriod"][];
+            /** @description По дате и времени; контрольные точки — раньше занятий того же дня */
+            events: components["schemas"]["AcademicEvent"][];
+        };
         Error: {
             code: string;
             message: string;
@@ -735,6 +818,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionResults"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMyAcademicCalendar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Календарный план */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcademicCalendar"];
                 };
             };
             401: components["responses"]["Unauthenticated"];

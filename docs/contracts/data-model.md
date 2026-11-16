@@ -21,6 +21,7 @@
 | `faculties` | `id`, `short_name`, `name` | UNIQUE `short_name` |
 | `programs` | `id`, `faculty_id`, `code`, `name`, `level` | `level in (bachelor, specialist, master)` |
 | `terms` | `id`, `academic_year text` («2026/2027»), `term text` (autumn/spring), `start_date`, `end_date`, `is_current bool` | частичный UNIQUE: одна строка с `is_current` |
+| `term_periods` | `term_id`, `kind` (study, credit_week, holidays, session, vacation), `start_date`, `end_date` | PK `(term_id, start_date)`. Периоды для календарного плана (D62); `terms.end_date` — конец сессии |
 | `groups` | `id`, `faculty_id`, `program_id null`, `name`, `kind`, `course int`, `language text null` | UNIQUE `name`; `kind in (academic, language)` |
 | `students` | `id` (= `auth.users.id`), `full_name`, `short_name`, `faculty_id`, `program_id`, `course`, `academic_group_id`, `student_card_no`, `study_form`, `funding`, `study_level`, `enrollment_year`, `status` | UNIQUE `student_card_no` |
 | `student_language_groups` | `student_id`, `group_id` | PK оба |
