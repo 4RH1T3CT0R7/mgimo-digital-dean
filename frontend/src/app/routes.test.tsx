@@ -68,7 +68,7 @@ describe('Охрана маршрутов', () => {
     renderWithProviders(<AppRoutes />, { route: '/', login: 'dekanat.mo' });
     expect(await screen.findByRole('heading', { name: 'Заявки' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/staff');
-    expect(within(tabBar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Заявки', 'Объявления', 'Дедлайны', 'Занятия']);
+    expect(within(tabBar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Заявки', 'Объявления', 'Дедлайны', 'Занятия', 'Помощник']);
     expect(screen.queryByLabelText('Факультет')).not.toBeInTheDocument(); // фильтр — только у admin
   });
 

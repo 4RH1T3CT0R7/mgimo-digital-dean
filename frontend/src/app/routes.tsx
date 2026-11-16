@@ -15,6 +15,7 @@ import * as requests from '@/features/requests/routes';
 import * as schedule from '@/features/schedule/routes';
 import * as staffAnnouncements from '@/features/staff-announcements/routes';
 import * as staffApplications from '@/features/staff-applications/routes';
+import * as staffKnowledge from '@/features/staff-knowledge/routes';
 import * as staffLessons from '@/features/staff-lessons/routes';
 import * as studentCard from '@/features/student-card/routes';
 import * as today from '@/features/today/routes';
@@ -39,6 +40,7 @@ const features = [
   notifications,
   verify,
   staffApplications,
+  staffKnowledge,
   staffAnnouncements,
   staffLessons,
   calendarExport,

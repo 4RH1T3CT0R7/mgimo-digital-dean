@@ -2,6 +2,7 @@ import { scenarioHandler } from '../scenario';
 import { academicHandlers } from './academic';
 import { assistantHandlers } from './assistant';
 import { authHandlers } from './auth';
+import { knowledgeHandlers } from './knowledge';
 import { notificationsHandlers } from './notifications';
 import { requestsHandlers } from './requests';
 import { requestsStaffHandlers } from './requests-staff';
@@ -15,4 +16,5 @@ export const handlers = [
   ...requestsStaffHandlers,
   ...notificationsHandlers,
   ...assistantHandlers,
+  ...knowledgeHandlers,
 ];

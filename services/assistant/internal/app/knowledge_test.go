@@ -203,8 +203,10 @@ func TestSearchFindsRussianWordForms(t *testing.T) {
 		t.Fatalf("слабое совпадение без модели: %+v", a)
 	}
 	// Вопрос из одних служебных слов и знаков не ломает поиск
-	if w := e.ask(&asStudent, "как и что?! <script> & | !"); w.Code != http.StatusOK {
-		t.Fatalf("служебные слова и знаки: %d %s", w.Code, w.Body)
+	for _, q := range []string{"как и что?! <script> & | !", "Где справка? http://x.ru/q:zz 'a' (b)"} {
+		if w := e.ask(&asStudent, q); w.Code != http.StatusOK {
+			t.Fatalf("служебные слова и знаки %q: %d %s", q, w.Code, w.Body)
+		}
 	}
 }
 

@@ -1,5 +1,6 @@
 import {
   BellIcon,
+  BookOpenTextIcon,
   CalendarClockIcon,
   CalendarRangeIcon,
   EllipsisIcon,
@@ -56,6 +57,7 @@ export function StaffShell() {
         { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
         { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
         { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+        { to: '/staff/knowledge', label: 'Помощник', icon: BookOpenTextIcon },
         ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon }] : []),
       ]}
     />
@@ -142,8 +144,8 @@ function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileL
 
       {/* Телефон: нижняя панель вкладок */}
       <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-        {/* Равные колонки по числу вкладок (5 у студента, 4 у сотрудника) и кегль 10 px: самая длинная подпись «Расписание» (~55 px)
-            помещается в колонку (69 px при 345 px с полосой прокрутки) с запасом. */}
+        {/* Равные колонки по числу вкладок (5 у студента и сотрудника, 6 у администратора) и кегль 10 px: подпись «Расписание» (~55 px)
+            помещается в колонку 69 px с запасом; у администратора «Объявления» (~58 px) — впритык к колонке 60 px. */}
         <ul className="grid h-tabbar auto-cols-fr grid-flow-col">
           {tabItems(nav).map((item) => {
             const active = isActive(item, pathname);
