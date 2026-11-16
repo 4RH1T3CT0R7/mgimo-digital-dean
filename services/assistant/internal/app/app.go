@@ -50,7 +50,7 @@ const systemPrompt = `Ты — помощник деканата в учебно
 - правила вуза;
 - как пользоваться кабинетом: заявки, «Вопрос в деканат», уведомления, расписание, успеваемость, электронный студенческий.
 
-Как устроено сообщение. Вопрос студента — внутри <question>…</question>. Фрагменты из документов деканата МГИМО и справочника кабинета — внутри <documents>…</documents>, у каждого номер [1], [2] и название.
+Как устроено сообщение. Вопрос студента — внутри <question>…</question>. Фрагменты из документов деканата МГИМО и справочника кабинета — внутри <documents>…</documents>: у каждого источника номер [1], [2] и название, несколько фрагментов одного документа разделены «…».
 
 Правила:
 1. Главный источник — фрагменты из <documents>. Если ответ в них есть, отвечай по ним и после каждого утверждения ставь номер фрагмента: [1], [2]. Не ссылайся на номера, которых нет.
@@ -146,7 +146,8 @@ func (s *Server) question(body *api.AskRequest, user uuid.UUID, limit int) (stri
 	return question, nil
 }
 
-// fragment — то, что видит модель: фрагмент документа деканата или запись справочника.
+// fragment — то, что видит модель под одним номером [n]: найденные фрагменты одного документа деканата
+// или запись справочника. Номер [n] совпадает с n-м источником в ответе.
 type fragment struct {
 	title, text string
 	source      api.AnswerSource
@@ -160,10 +161,17 @@ func (s *Server) answer(ctx context.Context, question string) (api.Answer, error
 	}
 	found := faq.Search(s.entries, question, maxFAQ)
 	var fragments []fragment
+	byDoc := map[uuid.UUID]int{}
 	for _, c := range chunks {
+		if i, ok := byDoc[c.DocumentID]; ok {
+			fragments[i].text += "\n…\n" + c.Text
+			continue
+		}
+		byDoc[c.DocumentID] = len(fragments)
 		fragments = append(fragments, fragment{"Документ деканата «" + c.Title + "»", c.Text,
 			source(c.DocumentID.String(), c.Title, api.AnswerSourceKindDocument)})
 	}
+	docs := len(fragments)
 	for _, e := range found {
 		fragments = append(fragments, fragment{"Справочник кабинета: «" + e.Question + "»", e.Answer,
 			source(e.ID, e.Question, api.AnswerSourceKindFaq)})
@@ -179,9 +187,7 @@ func (s *Server) answer(ctx context.Context, question string) (api.Answer, error
 		a.Sources = append(a.Sources, fragments[0].source)
 	case len(found) > 0:
 		a.Answer = found[0].Answer
-		for _, f := range fragments[len(chunks):] { // только справочник
-			a.Sources = append(a.Sources, f.source)
-		}
+		a.Sources = sources(fragments[docs:]) // только справочник
 	default:
 		a.Answer = notFoundAnswer
 		a.SuggestedAction = suggest("dean-question", map[string]string{"question": question})
@@ -242,15 +248,11 @@ func source(id, title string, kind api.AnswerSourceKind) api.AnswerSource {
 	return api.AnswerSource{FaqId: id, Title: title, Kind: &kind}
 }
 
-// sources — документы и записи справочника без повторов (у документа может быть несколько фрагментов).
+// sources — источники в порядке номеров [n]; фрагменты одного документа уже собраны под одним номером.
 func sources(fragments []fragment) []api.AnswerSource {
-	out := []api.AnswerSource{}
-	seen := map[string]bool{}
+	out := make([]api.AnswerSource, 0, len(fragments))
 	for _, f := range fragments {
-		if !seen[f.source.FaqId] {
-			seen[f.source.FaqId] = true
-			out = append(out, f.source)
-		}
+		out = append(out, f.source)
 	}
 	return out
 }

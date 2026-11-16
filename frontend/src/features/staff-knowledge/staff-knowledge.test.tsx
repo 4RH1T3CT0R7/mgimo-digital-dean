@@ -28,7 +28,8 @@ describe('База знаний помощника', () => {
     expect(row(retakes).getByText('Порядок пересдач.docx')).toBeVisible();
     expect(row(retakes).getByText('1 998 символов')).toBeVisible();
     expect(row(retakes).getByText(/^Администрация,/)).toHaveTextContent('Администрация, 10 ноября');
-    expect(row(retakes).getByText('Включён')).toBeVisible();
+    expect(row(retakes).queryByText('Выключен')).not.toBeInTheDocument();
+    expect(row(retakes).getByRole('button', { name: `Выключить: ${retakes}` })).toBeVisible();
     expect(row('Справки и заявления в деканат: сроки и порядок').getByText('Текст вставлен вручную')).toBeVisible();
   });
 
@@ -116,15 +117,18 @@ describe('База знаний помощника', () => {
   it('проверка ответа: ИИ по документам и «ничего не нашлось»', async () => {
     const { user } = renderPage('admin');
     const question = await screen.findByLabelText('Вопрос, как его задал бы студент');
+    await user.click(screen.getByRole('button', { name: 'Спросить' }));
+    expect(await screen.findByText('Введите вопрос, хотя бы 3 символа.')).toBeVisible();
+    expect(question).toHaveAccessibleDescription('Введите вопрос, хотя бы 3 символа.');
     await user.type(question, 'Когда приходит стипендия?');
     await user.click(screen.getByRole('button', { name: 'Спросить' }));
-    expect(await screen.findByText('Ответ ИИ по найденным документам и справочнику. Может содержать ошибки.')).toBeVisible();
+    expect(await screen.findByText('Ответ ИИ по источникам ниже — сверьте его с документами.')).toBeVisible();
     expect(screen.getByText('Документ базы знаний')).toBeVisible();
     expect(screen.getAllByText('Стипендии и материальная поддержка: памятка').length).toBeGreaterThan(1);
 
     await user.clear(question);
     await user.type(question, 'Какая погода завтра?');
     await user.click(screen.getByRole('button', { name: 'Спросить' }));
-    expect(await screen.findByText('Ничего не нашлось. Студенту предложат задать вопрос деканату.')).toBeVisible();
+    expect(await screen.findByText(/^Ничего не нашлось — студенту предложат «Вопрос в деканат»/)).toBeVisible();
   });
 });

@@ -40,11 +40,11 @@ export function KnowledgePage() {
     <>
       <PageHeader
         title="База знаний помощника"
-        subtitle="Помощник отвечает студентам по этим документам и по справочнику кабинета. Новый документ работает сразу после добавления, выключенный в ответах не участвует."
+        subtitle="Помощник отвечает студентам по этим документам и справочнику кабинета. Выключенные документы он не использует."
         actions={
           <FormDialog
             title="Добавить документ"
-            description="Один документ — одна тема: порядок пересдач, памятка о стипендиях. Без персональных данных студентов и сотрудников."
+            description="Один документ — одна тема. Без персональных данных."
             open={open}
             onOpenChange={setOpen}
           >
@@ -89,9 +89,11 @@ function DocumentRow({ doc }: { doc: KnowledgeDocument }) {
     );
   }
   return (
-    <li className="flex min-w-0 flex-col items-start gap-3 px-4 py-4 md:px-5">
-      <div className="min-w-0 space-y-2 wrap-anywhere">
-        <StatusBadge tone={doc.active ? 'success' : 'neutral'}>{doc.active ? 'Включён' : 'Выключен'}</StatusBadge>
+    // Кнопки справа, как в других списках сотрудника; рядом с блоком проверки (от 1024 px) колонка узкая — кнопки под текстом
+    <li className="flex min-w-0 flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:justify-between md:px-5 lg:flex-col">
+      <div className="min-w-0 space-y-2 wrap-anywhere sm:flex-1 lg:flex-none">
+        {/* Отмечен только выключенный: у включённого это видно по кнопке «Выключить» */}
+        {!doc.active && <StatusBadge tone="neutral">Выключен</StatusBadge>}
         <h2 className="font-semibold">{doc.title}</h2>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span>{doc.source_name ?? 'Текст вставлен вручную'}</span>
@@ -103,7 +105,7 @@ function DocumentRow({ doc }: { doc: KnowledgeDocument }) {
           </span>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 sm:shrink-0">
         <Button
           variant="outline"
           aria-label={`${doc.active ? 'Выключить' : 'Включить'}: ${doc.title}`}
@@ -255,7 +257,7 @@ function AddForm({ done }: { done: () => void }) {
             onChange={(event) => setFile(event.target.files?.[0])}
           />
           <p id="knowledge-file-hint" className="text-sm text-muted-foreground">
-            .docx, .txt или .md до 5 МБ. PDF не подойдёт: русский текст из него читается с ошибками.
+            .docx, .txt или .md до 5 МБ
           </p>
           <FieldError name="file" message={sourceError} />
         </div>
@@ -264,7 +266,7 @@ function AddForm({ done }: { done: () => void }) {
           <Label htmlFor="knowledge-text">Текст документа</Label>
           <Textarea
             id="knowledge-text"
-            rows={8}
+            rows={5}
             value={text}
             aria-invalid={!!sourceError}
             aria-describedby={sourceError ? 'knowledge-text-count text-error' : 'knowledge-text-count'}
@@ -280,37 +282,50 @@ function AddForm({ done }: { done: () => void }) {
   );
 }
 
-/** Подпись под ответом: модель это или найденный текст и откуда он. */
+/** Подпись под ответом: модель это или найденный текст, откуда он и что делать сотруднику. */
 function answerNote(answer: Answer) {
   const fromDocuments = answer.sources.some((s) => s.kind === 'document');
   if (answer.provider === 'llm') {
     return answer.sources.length > 0
-      ? 'Ответ ИИ по найденным документам и справочнику. Может содержать ошибки.'
-      : 'Ответ ИИ из общих знаний: в документах и справочнике ничего не нашлось.';
+      ? 'Ответ ИИ по источникам ниже — сверьте его с документами.'
+      : 'В документах ничего не нашлось — ответ ИИ из общих знаний. Добавьте документ на эту тему.';
   }
   if (fromDocuments) return 'Без ИИ: фрагмент документа как есть.';
   if (answer.sources.length > 0) return 'Без ИИ: ответ из справочника кабинета.';
-  return 'Ничего не нашлось. Студенту предложат задать вопрос деканату.';
+  return 'Ничего не нашлось — студенту предложат «Вопрос в деканат». Добавьте документ на эту тему.';
 }
 
 function AskCheck() {
   const ask = useStaffAsk();
   const [question, setQuestion] = useState('');
-  const count = length(question.trim());
+  const [error, setError] = useState<string>();
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (count >= 3 && !ask.isPending) ask.mutate(question.trim());
+    if (length(question.trim()) < 3) {
+      setError('Введите вопрос, хотя бы 3 символа.');
+      return;
+    }
+    setError(undefined);
+    if (!ask.isPending) ask.mutate(question.trim());
   }
 
   return (
     <Section title="Проверить, как ответит помощник">
-      <form onSubmit={submit} className="flex flex-col gap-3">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-3">
         <Label htmlFor="check-question">Вопрос, как его задал бы студент</Label>
-        <Textarea id="check-question" rows={3} maxLength={500} value={question} onChange={(event) => setQuestion(event.target.value)} />
-        <Button type="submit" disabled={count < 3 || ask.isPending} className="sm:self-start">
+        <Textarea
+          id="check-question"
+          rows={3}
+          maxLength={500}
+          value={question}
+          {...fieldState('question', error)}
+          onChange={(event) => setQuestion(event.target.value)}
+        />
+        <FieldError name="question" message={error} />
+        <Button type="submit" disabled={ask.isPending} className="sm:self-start">
           {ask.isPending && <LoaderCircleIcon className="animate-spin" aria-hidden />}
-          {ask.isPending ? 'Ищу ответ…' : 'Спросить'}
+          {ask.isPending ? 'Ищем ответ…' : 'Спросить'}
         </Button>
       </form>
       <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
@@ -329,14 +344,15 @@ function AskCheck() {
             {ask.data.sources.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <h3 className="text-sm font-semibold">Источники</h3>
-                <ul className="flex flex-col gap-1.5 text-sm">
+                {/* Номер в списке — тот же, что [n] в ответе ИИ (services/assistant собирает их в одном порядке) */}
+                <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-sm">
                   {ask.data.sources.map((s) => (
                     <li key={s.faq_id} className="wrap-anywhere">
                       {s.title}
                       <span className="block text-[0.8125rem] text-muted-foreground">{s.kind === 'document' ? 'Документ базы знаний' : 'Справочник кабинета'}</span>
                     </li>
                   ))}
-                </ul>
+                </ol>
               </div>
             )}
           </>
