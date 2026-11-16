@@ -56,7 +56,7 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     },
     workbox: {
         cacheId: 'mgimo-static',
-        globPatterns: ['**/*.{js,css,html,svg,png,jpg,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,ico,woff2}', 'maps/*.json'],
         globIgnores: ['**/api/**', '**/mockServiceWorker.js'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api(?:[/?]|$)/],

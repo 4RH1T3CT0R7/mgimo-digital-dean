@@ -1,4 +1,4 @@
-import { XIcon } from 'lucide-react';
+import { TriangleAlertIcon, XIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import type { components } from '@/api/notifications';
 import { apiErrorMessage } from '@/shared/lib/errors';
@@ -71,15 +71,18 @@ export function UrgentBanners() {
   const banners = useMyBanners().data?.filter((item) => item.priority === 'urgent') ?? [];
   if (banners.length === 0) return null;
   return (
-    <div role="status" className="border-b bg-warning-soft">
+    <div role="status" className="mb-6 flex flex-col gap-3">
       {banners.map((item) => (
-        <div key={item.id} className="mx-auto w-full max-w-6xl min-w-0 px-gutter py-3 wrap-anywhere">
-          <p className="font-semibold text-warning-strong">
-            <span className="sr-only">Важное объявление: </span>
-            {item.title}
-          </p>
-          {item.body && <p className="mt-0.5 max-w-prose text-sm">{item.body}</p>}
-          <BannerLink banner={item} />
+        <div key={item.id} className="flex min-w-0 gap-3 rounded-xl border border-warning-strong/25 bg-warning-soft p-4 wrap-anywhere">
+          <TriangleAlertIcon className="mt-0.5 size-5 shrink-0 text-warning-strong" aria-hidden />
+          <div className="min-w-0">
+            <p className="font-semibold text-warning-strong">
+              <span className="sr-only">Важное объявление: </span>
+              {item.title}
+            </p>
+            {item.body && <p className="mt-0.5 max-w-prose text-sm">{item.body}</p>}
+            <BannerLink banner={item} />
+          </div>
         </div>
       ))}
     </div>
