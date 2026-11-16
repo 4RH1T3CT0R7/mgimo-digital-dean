@@ -46,6 +46,7 @@
 | `messages` | `id`, `application_id`, `author_role`, `author_id`, `author_label`, `text`, `created_at` | |
 | `attachments` | `id`, `application_id`, `uploaded_by_role`, `uploaded_by_id`, `file_name`, `content_type`, `size int`, `data bytea`, `is_result bool`, `created_at` | CHECK `size <= 5242880`; файлы в БД, поэтому попадают в `pg_dump` |
 | `certificates` | `code text`, `application_id`, `title`, `holder`, `faculty_short`, `issued_at`, `valid_until date` | PK `code`; UNIQUE `application_id` |
+| `student_cards` | `student_id uuid`, `code text`, `holder`, `faculty_short`, `course int`, `issued_at`, `valid_until date` | PK `student_id`; UNIQUE `code` (`^[A-Z2-7]{10}$`). Электронный студенческий (D60): код выдаётся при первом открытии и не меняется, срок продлевается до 31.08 текущего учебного года. Номер билета — `student_card_no` из снимка academic |
 
 `student_snapshot` — `{full_name, short_name, faculty_short, faculty_name, program_code, program_name, course, group_name, student_card_no, study_form, funding, study_level}` из `getStudentCard` (D32).
 
@@ -54,10 +55,12 @@
 | Таблица | Колонки | Ограничения |
 |---|---|---|
 | `notifications` | `id`, `type`, `title`, `body`, `important`, `requires_ack`, `link_kind`, `link_id null`, `link_date null`, `audience_kind`, `audience_user_id null`, `audience_faculty_id null`, `audience_course null`, `audience_group_id null`, `author_id null`, `author_label null`, `source_event_id uuid null`, `created_at` | частичный UNIQUE `(source_event_id, audience_group_id) NULLS NOT DISTINCT WHERE source_event_id IS NOT NULL`: событие занятия — строка на каждую группу, личное событие (группа NULL) — одна строка; индексы по колонкам адресата |
-| `notification_reads` | `notification_id`, `user_id`, `read_at`, `acked_at null` | PK `(notification_id, user_id)` |
+| `notification_reads` | `notification_id`, `user_id`, `read_at`, `acked_at null`, `going_at null` («Пойду» на мероприятие, D61) | PK `(notification_id, user_id)` |
+| `banners` | `id`, `title`, `body null`, `priority` (normal, urgent), `link_url null`, `link_label null`, `audience_*` (как в `notifications`, без `user`), `starts_at`, `ends_at`, `author_id`, `created_at` | ссылка — https или внутренний путь (проверка в сервисе и CHECK); показываются при `starts_at ≤ now < ends_at` (D61) |
+| `banner_dismissals` | `banner_id`, `user_id`, `dismissed_at` | PK `(banner_id, user_id)`; срочный баннер закрыть нельзя |
 | `deadlines` | `id`, `title`, `description null`, `kind`, `due_at`, `service_type_id null`, `audience_*` (как в `notifications`), `author_id null`, `created_at` | индекс `(due_at)` |
 
-Объявления и новости сотрудника — это строки `notifications` с `type in (news, announcement)` и `author_id is not null`. Для всех адресатов, кроме `all` и `user`, заполняется `audience_faculty_id`: так сотрудник видит объявления своего факультета.
+Объявления и новости сотрудника — это строки `notifications` с `type in (news, announcement)` и `author_id is not null`. Мероприятие — новость с `event_starts_at` и `event_place` (оба или ни одного, D61); новости не входят в ленту и счётчик «Уведомлений», их показывает раздел «Новости и мероприятия». Для всех адресатов, кроме `all` и `user`, заполняется `audience_faculty_id`: так сотрудник видит объявления своего факультета.
 
 ---
 
