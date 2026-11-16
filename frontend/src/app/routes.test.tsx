@@ -17,14 +17,43 @@ describe('Охрана маршрутов', () => {
     expect(window.location.pathname).toBe('/login');
   });
 
-  it('student — студенческая оболочка: 5 вкладок, счётчик непрочитанных', async () => {
+  it('student — студенческая оболочка (D63): 5 вкладок с «Ещё», колокольчик со счётчиком, все разделы в боковом меню', async () => {
     renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
     expect(await screen.findByRole('heading', { name: 'Сегодня' })).toBeInTheDocument();
-    const links = within(tabBar()).getAllByRole('link');
-    expect(links.map((l) => l.textContent?.replace(/\d+$/, ''))).toHaveLength(5);
+    expect(within(tabBar()).getAllByRole('link').map((l) => l.textContent)).toEqual(['Сегодня', 'Расписание', 'Учёба', 'Заявки', 'Ещё']);
     expect(within(tabBar()).getByRole('link', { name: 'Сегодня' })).toHaveAttribute('aria-current', 'page');
-    expect(await within(tabBar()).findByRole('link', { name: /Уведомления, непрочитанных: 3/ })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Уведомления, непрочитанных: 3' })).toHaveAttribute('href', '/notifications');
+    const sidebar = screen.getAllByRole('navigation', { name: 'Разделы' })[0];
+    expect(within(sidebar).getAllByRole('link').map((l) => l.textContent?.replace(/\d+ непрочитанных$/, ''))).toEqual([
+      'Сегодня', 'Расписание', 'Учёба', 'Заявки', 'Уведомления', 'Полезное', 'Помощник', 'Профиль', 'Безопасность',
+    ]);
     expect(screen.getByRole('button', { name: 'Меню пользователя: Лебедева А. В.' })).toBeInTheDocument();
+  });
+
+  it('«Ещё» — разделы из того же конфига; вкладка активна и на этих разделах', async () => {
+    const { user } = renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
+    expect(await screen.findByRole('heading', { name: 'Сегодня' })).toBeInTheDocument();
+    await user.click(within(tabBar()).getByRole('link', { name: 'Ещё' }));
+    const more = await screen.findByRole('navigation', { name: 'Другие разделы' });
+    expect(within(more).getAllByRole('link').map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['Полезное', '/useful'],
+      ['Помощник', '/assistant'],
+      ['Профиль', '/profile'],
+      ['Безопасность', '/security'],
+    ]);
+    await user.click(within(more).getByRole('link', { name: 'Полезное' }));
+    expect(await screen.findByRole('heading', { name: 'Полезное' })).toBeInTheDocument();
+    expect(within(tabBar()).getByRole('link', { name: 'Ещё' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('колокольчик без непрочитанных — без числа', async () => {
+    server.use(http.get('/api/notifications/me/feed/counters', () => HttpResponse.json({ unread: 0, important_unacked: 0, deadlines_soon: 0 })));
+    renderWithProviders(<AppRoutes />, { route: '/notifications', login: 'student.mo' });
+    expect(await screen.findByRole('heading', { name: 'Уведомления и дедлайны' })).toBeInTheDocument();
+    // Пункт бокового меню и колокольчик (в jsdom видны оба), оба без числа
+    const links = screen.getAllByRole('link', { name: 'Уведомления' });
+    expect(links.map((l) => l.getAttribute('aria-label'))).toEqual([null, 'Уведомления']);
+    for (const link of links) expect(link).toHaveAttribute('aria-current', 'page');
   });
 
   it('student на /staff — обратно на свою главную', async () => {

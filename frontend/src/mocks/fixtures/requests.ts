@@ -344,6 +344,19 @@ function initialApplications(): MockApplication[] {
       createdHoursAgo: 2,
       history: [['submitted', 2, 'student']],
     }),
+    // У Анны деканат просит уточнить — блок «Ждёт вашего действия» на главной (W1)
+    buildApplication({
+      number: 13,
+      student: mo,
+      serviceTypeId: 'transcript',
+      fields: { language: 'Английский', period: 'Весь период обучения' },
+      createdHoursAgo: 30,
+      history: [
+        ['submitted', 30, 'student'],
+        ['in_progress', 26, 'staff'],
+        ['needs_info', 5, 'staff', 'Напишите, для какой организации нужна выписка: от этого зависит форма документа'],
+      ],
+    }),
   ];
 }
 

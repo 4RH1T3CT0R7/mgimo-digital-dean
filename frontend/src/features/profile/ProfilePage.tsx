@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useLogout } from '@/features/auth/queries';
 import { InstallAppButton } from '@/features/pwa/InstallAppButton';
+import { askDeanPath } from '@/features/requests/links';
 import { Button } from '@/shared/ui/button';
 import { EmptyState } from '@/shared/ui/empty-state';
 import { PageHeader } from '@/shared/ui/page-header';
@@ -45,7 +46,10 @@ export function ProfilePage()
                             </dl>
                         </Section>
                         <Section title="Мои данные">
-                            <p className="text-sm text-muted-foreground">Если в учебных данных есть ошибка, сообщите в деканат.</p>
+                            <p className="text-sm text-muted-foreground">
+                                Если в учебных данных есть ошибка,{' '}
+                                <Link to={askDeanPath('В моих учебных данных в профиле ошибка: ', 'Другое')} className="font-medium text-primary underline underline-offset-4">сообщите в деканат</Link>.
+                            </p>
                             <Link to="/privacy" className="flex min-h-11 items-center text-primary underline underline-offset-4">Как мы обрабатываем ваши данные</Link>
                             <Button variant="outline" disabled={logout.isPending} onClick={() => logout.mutate()}>{logout.isPending ? 'Выходим…' : 'Выйти'}</Button>
                         </Section>

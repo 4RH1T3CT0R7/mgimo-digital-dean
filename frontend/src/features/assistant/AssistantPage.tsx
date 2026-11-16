@@ -1,6 +1,7 @@
 import { ChevronDownIcon, CircleAlertIcon, InfoIcon, LoaderCircleIcon, RotateCwIcon, ShieldAlertIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link } from 'react-router';
+import { askDeanPath } from '@/features/requests/links';
 import { useServiceTypes, type ServiceType } from '@/features/requests/queries';
 import { ApiError, apiErrorMessage } from '@/shared/lib/errors';
 import { plural } from '@/shared/lib/format';
@@ -124,7 +125,7 @@ export function AssistantPage() {
         {latest && (
           <article className="flex flex-col gap-4 rounded-xl border bg-card p-5 md:p-6">
             <h2 className="text-lg leading-snug font-semibold break-words">{latest.question}</h2>
-            <AnswerView answer={latest.answer} services={services} />
+            <AnswerView question={latest.question} answer={latest.answer} services={services} />
           </article>
         )}
       </div>
@@ -144,7 +145,7 @@ export function AssistantPage() {
                     <ChevronDownIcon className="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden />
                   </summary>
                   <div className="flex flex-col gap-4 pt-2 pb-2">
-                    <AnswerView answer={entry.answer} services={services} />
+                    <AnswerView question={entry.question} answer={entry.answer} services={services} />
                   </div>
                 </details>
               </li>
@@ -156,7 +157,7 @@ export function AssistantPage() {
   );
 }
 
-function AnswerView({ answer, services }: { answer: Answer; services?: ServiceType[] }) {
+function AnswerView({ question, answer, services }: { question: string; answer: Answer; services?: ServiceType[] }) {
   const action = answer.suggested_action;
   const service = action && services?.find((s) => s.id === action.service_type_id);
   return (
@@ -176,13 +177,18 @@ function AnswerView({ answer, services }: { answer: Answer; services?: ServiceTy
           </ul>
         </div>
       )}
-      {action && (
-        <Button asChild className="h-auto min-h-11 self-start py-2.5 text-left whitespace-normal">
-          <Link to={`/requests/new/${encodeURIComponent(action.service_type_id)}?${new URLSearchParams(action.prefill)}`}>
-            {service ? `Заполнить заявление: ${service.title}` : 'Заполнить заявление'}
-          </Link>
+      <div className="flex flex-wrap gap-2">
+        {action && (
+          <Button asChild className="h-auto min-h-11 py-2.5 text-left whitespace-normal">
+            <Link to={`/requests/new/${encodeURIComponent(action.service_type_id)}?${new URLSearchParams(action.prefill)}`}>
+              {service ? `Заполнить заявление: ${service.title}` : 'Заполнить заявление'}
+            </Link>
+          </Button>
+        )}
+        <Button asChild variant="outline" className="h-auto min-h-11 py-2.5 text-left whitespace-normal">
+          <Link to={askDeanPath(question, 'Другое')}>Не помогло — спросить деканат</Link>
         </Button>
-      )}
+      </div>
     </>
   );
 }

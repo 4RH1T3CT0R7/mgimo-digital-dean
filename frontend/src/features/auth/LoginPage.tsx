@@ -1,7 +1,8 @@
-import { LoaderCircleIcon } from 'lucide-react';
+import { ExternalLinkIcon, LoaderCircleIcon } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { Navigate, useLocation, type Location } from 'react-router';
 import { homePath } from '@/app/session';
+import { campusMapUrl, deanHoursText } from '@/features/useful/resources';
 import { apiErrorMessage } from '@/shared/lib/errors';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent } from '@/shared/ui/card';
@@ -52,6 +53,19 @@ export function LoginPage() {
           </form>
         </CardContent>
       </Card>
+      <section aria-labelledby="dean-where" className="flex flex-col gap-1.5 text-sm">
+        <h2 id="dean-where" className="font-semibold">
+          Где найти деканат
+        </h2>
+        <p className="text-muted-foreground">
+          Деканаты принимают {deanHoursText}. Кабинет своего деканата вы увидите после входа, в разделе «Полезное». Часы в прототипе вымышлены.
+        </p>
+        <a href={campusMapUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-1.5 self-start text-primary underline underline-offset-4">
+          Карта кампуса на mgimo.ru
+          <ExternalLinkIcon className="size-4" aria-hidden />
+          <span className="sr-only"> (в новой вкладке)</span>
+        </a>
+      </section>
       <p className="text-sm text-muted-foreground">
         Это демонстрационный прототип. Логины и пароли тестовых пользователей — в описании конкурсной работы.
       </p>

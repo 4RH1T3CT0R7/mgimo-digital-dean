@@ -1,4 +1,6 @@
+import { Link } from 'react-router';
 import type { components } from '@/api/academic';
+import { askDeanPath } from '@/features/requests/links';
 import { formatDate, plural } from '@/shared/lib/format';
 import { cn } from '@/shared/lib/utils';
 import { AsOf } from '@/shared/ui/as-of';
@@ -11,6 +13,17 @@ import { controlFormLabels, decimal, gradeLabels, termLabels, trafficLabels, tra
 import { useCurrentGrades, useGradesSummary, useSessionResults } from './queries';
 
 type S = components['schemas'];
+
+/** Долг или «Нужно внимание» — вопрос в деканат с готовыми темой и текстом */
+function RetakeLink({ discipline }: { discipline: string })
+{
+    return (
+        <Link to={askDeanPath(`Как пересдать дисциплину «${discipline}»? Подскажите сроки и порядок.`)}
+            className="flex min-h-11 w-fit items-center text-sm font-medium text-primary underline underline-offset-4">
+            Спросить о пересдаче
+        </Link>
+    );
+}
 
 function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] })
 {
@@ -41,6 +54,7 @@ function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] 
             </div>
             <p className="text-sm">Посещаемость: {discipline.attendance_percent}%</p>
             {discipline.traffic_reason && <p className="text-sm">{discipline.traffic_reason}</p>}
+            {discipline.traffic === 'red' && <RetakeLink discipline={discipline.discipline.name} />}
             {discipline.control_form !== 'credit' && (
                 <p className="text-sm text-muted-foreground">
                     {discipline.to_excellent.needed === 0 ? 'Идёте на «отлично»' : discipline.to_excellent.achievable
@@ -75,6 +89,7 @@ function SessionResult({ result }: { result: S['SessionResult'] })
                     {result.hours} {plural(result.hours, ['час', 'часа', 'часов'])},
                     {' '}{result.credits} {plural(result.credits, ['зачётная единица', 'зачётные единицы', 'зачётных единиц'])}
                 </p>
+                {result.status === 'failed' && <RetakeLink discipline={result.discipline.name} />}
             </div>
             <div className="flex flex-col items-start gap-2 sm:items-end">
                 <StatusBadge tone={result.status === 'failed' ? 'danger' : result.status === 'passed' ? 'success' : 'neutral'}>

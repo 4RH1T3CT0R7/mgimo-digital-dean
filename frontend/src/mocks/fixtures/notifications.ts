@@ -93,6 +93,17 @@ export const deadlines: MockDeadline[] = [
     due_at: '2026-12-05T23:59:00+03:00',
     service_type_id: null,
   },
+  // Срок — завтра от момента загрузки: на главной есть блок «Ждёт вашего действия» (W1)
+  {
+    id: '70000000-0000-4000-8000-000000000006',
+    audience: group(groupMO, fmo),
+    created_at: createdAt,
+    title: 'Эссе: Теория международных отношений',
+    description: 'Сдайте эссе преподавателю на семинаре.',
+    kind: 'coursework',
+    due_at: `${toApiDate(new Date(Date.now() + 86_400_000))}T18:00:00+03:00`,
+    service_type_id: null,
+  },
 ];
 
 function publication(n: number, title: string, body: string, audience: S['Audience'], author: string, requiresAck = false): MockFeedItem {

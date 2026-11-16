@@ -6,7 +6,7 @@ import { addDays, monday, weekdayLabel } from '@/features/schedule/calendar';
 import { LessonChangeLabel } from '@/features/schedule/components/LessonRow';
 import { parityLabels } from '@/features/schedule/labels';
 import { useSchedule } from '@/features/schedule/queries';
-import { formatDate, formatDateTime, plural, toApiDate } from '@/shared/lib/format';
+import { formatDate, formatDateTime, formatTime, plural, toApiDate } from '@/shared/lib/format';
 import { Button } from '@/shared/ui/button';
 import { PageHeader } from '@/shared/ui/page-header';
 import { QueryView } from '@/shared/ui/query-view';
@@ -14,7 +14,7 @@ import { Section } from '@/shared/ui/section';
 import { StatusBadge } from '@/shared/ui/status-badge';
 import { greeting, useClock } from './clock';
 import { NextLesson } from './NextLesson';
-import { useRecentApplications, useUpcomingDeadlines } from './queries';
+import { useApplicationsNeedingInfo, useRecentApplications, useUpcomingDeadlines } from './queries';
 
 export function TodayPage()
 {
@@ -25,21 +25,27 @@ export function TodayPage()
     const applications = useRecentApplications();
     const deadlines = useUpcomingDeadlines();
     const counters = useFeedCounters();
+    const needsInfo = useApplicationsNeedingInfo();
     const week = schedule.data?.weeks.find((item) => item.start_date === monday(today));
-    const queries = [schedule, profile, applications, deadlines, counters];
+    const queries = [schedule, profile, applications, deadlines, counters, needsInfo];
     const initial = queries.every((query) => query.data === undefined);
     const initialQuery = {
         ...schedule,
         refetch: async () =>
         {
             const [result] = await Promise.all([
-                schedule.refetch(), profile.refetch(), applications.refetch(), deadlines.refetch(), counters.refetch(),
+                schedule.refetch(), profile.refetch(), applications.refetch(), deadlines.refetch(), counters.refetch(), needsInfo.refetch(),
             ]);
 
             return result;
         },
     };
-    const upcoming = deadlines.data?.filter((item) => Date.parse(item.due_at) >= now && toApiDate(item.due_at) <= addDays(today, 7)).slice(0, 3) ?? [];
+    const tomorrow = addDays(today, 1);
+    const future = deadlines.data?.filter((item) => Date.parse(item.due_at) >= now) ?? [];
+    // Сроки на сегодня и завтра — в «Ждёт вашего действия», в «Дедлайнах» их не повторяем
+    const urgent = future.filter((item) => toApiDate(item.due_at) <= tomorrow);
+    const upcoming = future.filter((item) => toApiDate(item.due_at) > tomorrow && toApiDate(item.due_at) <= addDays(today, 7)).slice(0, 3);
+    const waiting = needsInfo.data?.items ?? [];
 
     return (
         <>
@@ -57,6 +63,39 @@ export function TodayPage()
                             </Link>
                         ) : null}
                     </QueryView>
+                    {/* Пустой блок не показываем; ошибку заявок видно в «Моих заявках» */}
+                    {waiting.length + urgent.length > 0 && (
+                        <Section title="Ждёт вашего действия">
+                            <ul className="divide-y">
+                                {waiting.map((item) => (
+                                    <li key={item.id}>
+                                        <Link className="flex min-h-11 flex-col items-start justify-center gap-1 py-3" to={`/requests/${item.id}`}>
+                                            <span className="font-medium text-primary">Ответьте деканату: {item.service_type.title}</span>
+                                            <span className="text-sm text-muted-foreground">Заявка № {item.number}, деканат просит уточнить</span>
+                                        </Link>
+                                    </li>
+                                ))}
+                                {urgent.map((item) => {
+                                    const when = `${toApiDate(item.due_at) === today ? 'Сегодня' : 'Завтра'} до ${formatTime(item.due_at)}`;
+
+                                    return item.service_type_id ? (
+                                        <li key={item.id}>
+                                            <Link className="flex min-h-11 flex-col items-start justify-center gap-1 py-3"
+                                                to={`/requests/new/${encodeURIComponent(item.service_type_id)}`}>
+                                                <span className="font-medium text-primary">{item.title}</span>
+                                                <span className="text-sm text-muted-foreground">{when}</span>
+                                            </Link>
+                                        </li>
+                                    ) : (
+                                        <li key={item.id} className="py-3">
+                                            <p className="font-medium">{item.title}</p>
+                                            <p className="mt-1 text-sm text-muted-foreground">{when}</p>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </Section>
+                    )}
                     <Section title="Сейчас / Далее">
                         <QueryView query={schedule}>
                             {(data) => <NextLesson schedule={data} now={now} languageGroups={profile.data?.language_groups} />}
@@ -83,7 +122,7 @@ export function TodayPage()
                         </Section>
                         <Section title="Дедлайны">
                             <QueryView query={deadlines} isEmpty={() => upcoming.length === 0}
-                                empty={<p className="text-sm text-muted-foreground">На ближайшие 7 дней дедлайнов нет</p>}>
+                                empty={<p className="text-sm text-muted-foreground">{urgent.length > 0 ? 'Других дедлайнов на ближайшие 7 дней нет' : 'На ближайшие 7 дней дедлайнов нет'}</p>}>
                                 {() => (
                                     <ul className="divide-y">
                                         {upcoming.map((item) => (

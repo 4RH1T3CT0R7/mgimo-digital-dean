@@ -120,7 +120,7 @@ describe('T09: обязательные сценарии V1–V8', () => {
 });
 
 describe('T09: дополнительные пользовательские сценарии', () => {
-    it('запрашивает 7 дней и 3 заявки; показывает только первые три ближайших дедлайна', async () => {
+    it('запрашивает 7 дней и 3 заявки; завтрашний срок — в «Ждёт вашего действия», в «Дедлайнах» — три следующих', async () => {
         let days: string | null = null;
         let limit: string | null = null;
 
@@ -134,16 +134,21 @@ describe('T09: дополнительные пользовательские с�
                 })));
             }),
             http.get('/api/requests/me/applications', ({ request }) => {
-                limit = new URL(request.url).searchParams.get('limit');
+                const params = new URL(request.url).searchParams;
+                if (!params.has('status')) limit = params.get('limit');
 
                 return HttpResponse.json({ items: [], total: 0 });
             }),
         );
         renderWithProviders(<TodayPage />);
+        const waiting = within((await screen.findByRole('heading', { name: 'Ждёт вашего действия' })).closest('section')!);
+        const deadlines = within(screen.getByRole('heading', { name: 'Дедлайны' }).closest('section')!);
 
-        expect(await screen.findByText('Срок 19 ноября')).toBeInTheDocument();
-        expect(screen.getByText('Срок 21 ноября')).toBeInTheDocument();
-        expect(screen.queryByText('Срок 22 ноября')).not.toBeInTheDocument();
+        expect(waiting.getByText('Срок 19 ноября')).toBeInTheDocument();
+        expect(waiting.getByText('Завтра до 18:00')).toBeInTheDocument();
+        expect(deadlines.queryByText('Срок 19 ноября')).not.toBeInTheDocument();
+        expect(deadlines.getByText('Срок 20 ноября')).toBeInTheDocument();
+        expect(deadlines.getByText('Срок 22 ноября')).toBeInTheDocument();
         expect(screen.queryByText('Срок 30 ноября')).not.toBeInTheDocument();
         expect(days).toBe('7');
         expect(limit).toBe('3');
