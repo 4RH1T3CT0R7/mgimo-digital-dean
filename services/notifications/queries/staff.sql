@@ -1,7 +1,8 @@
 -- name: ListStaffAnnouncements :many
 SELECT sqlc.embed(n),
        (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id) AS read_count,
-       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.acked_at IS NOT NULL) AS acked_count
+       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.acked_at IS NOT NULL) AS acked_count,
+       (SELECT count(*) FROM notification_reads r WHERE r.notification_id = n.id AND r.going_at IS NOT NULL) AS going_count
 FROM notifications n
 WHERE n.author_id IS NOT NULL AND n.type IN ('news', 'announcement')
   AND (sqlc.narg(scope)::uuid IS NULL OR n.audience_faculty_id = sqlc.narg(scope)::uuid)
@@ -15,10 +16,12 @@ WHERE author_id IS NOT NULL AND type IN ('news', 'announcement')
 
 -- name: InsertAnnouncement :one
 INSERT INTO notifications (type, title, body, important, requires_ack, audience_kind,
-    audience_faculty_id, audience_course, audience_group_id, author_id, author_label, created_at)
+    audience_faculty_id, audience_course, audience_group_id, author_id, author_label, created_at,
+    event_starts_at, event_place)
 VALUES (sqlc.arg(type), sqlc.arg(title), sqlc.arg(body), sqlc.arg(important), sqlc.arg(requires_ack),
     sqlc.arg(audience_kind), sqlc.narg(audience_faculty_id), sqlc.narg(audience_course),
-    sqlc.narg(audience_group_id), sqlc.arg(author_id), sqlc.arg(author_label), sqlc.arg(created_at))
+    sqlc.narg(audience_group_id), sqlc.arg(author_id), sqlc.arg(author_label), sqlc.arg(created_at),
+    sqlc.narg(event_starts_at), sqlc.narg(event_place))
 RETURNING *;
 
 -- name: FindStaffAnnouncement :one

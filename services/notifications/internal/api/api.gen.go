@@ -30,6 +30,19 @@ const (
 	User    AudienceKind = "user"
 )
 
+// Defines values for BannerPriority.
+const (
+	Normal BannerPriority = "normal"
+	Urgent BannerPriority = "urgent"
+)
+
+// Defines values for BannerStatus.
+const (
+	Active    BannerStatus = "active"
+	Ended     BannerStatus = "ended"
+	Scheduled BannerStatus = "scheduled"
+)
+
 // Defines values for CreateAnnouncementRequestType.
 const (
 	CreateAnnouncementRequestTypeAnnouncement CreateAnnouncementRequestType = "announcement"
@@ -82,6 +95,34 @@ type AckStudent struct {
 	ShortName string             `json:"short_name"`
 }
 
+// AdminBanner defines model for AdminBanner.
+type AdminBanner struct {
+	// Audience all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
+	// user используется только для системных уведомлений, вручную не создаётся.
+	Audience Audience `json:"audience"`
+
+	// Body Обычный текст, без HTML
+	Body      *string   `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// DismissedCount Сколько студентов скрыли баннер
+	DismissedCount int                `json:"dismissed_count"`
+	EndsAt         time.Time          `json:"ends_at"`
+	Id             openapi_types.UUID `json:"id"`
+	LinkLabel      *string            `json:"link_label"`
+
+	// LinkUrl https-адрес или внутренний путь кабинета (`/news`)
+	LinkUrl *string `json:"link_url"`
+
+	// Priority normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+	Priority BannerPriority `json:"priority"`
+	StartsAt time.Time      `json:"starts_at"`
+
+	// Status scheduled — показ ещё не начался; active — показывается; ended — завершён
+	Status BannerStatus `json:"status"`
+	Title  string       `json:"title"`
+}
+
 // Audience all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
 // user используется только для системных уведомлений, вручную не создаётся.
 type Audience struct {
@@ -95,13 +136,42 @@ type Audience struct {
 // AudienceKind defines model for Audience.Kind.
 type AudienceKind string
 
+// Banner defines model for Banner.
+type Banner struct {
+	// Body Обычный текст, без HTML
+	Body      *string            `json:"body"`
+	EndsAt    time.Time          `json:"ends_at"`
+	Id        openapi_types.UUID `json:"id"`
+	LinkLabel *string            `json:"link_label"`
+
+	// LinkUrl https-адрес или внутренний путь кабинета (`/news`)
+	LinkUrl *string `json:"link_url"`
+
+	// Priority normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+	Priority BannerPriority `json:"priority"`
+	StartsAt time.Time      `json:"starts_at"`
+	Title    string         `json:"title"`
+}
+
+// BannerPriority normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+type BannerPriority string
+
+// BannerStatus scheduled — показ ещё не начался; active — показывается; ended — завершён
+type BannerStatus string
+
 // CreateAnnouncementRequest defines model for CreateAnnouncementRequest.
 type CreateAnnouncementRequest struct {
 	// Audience all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
 	// user используется только для системных уведомлений, вручную не создаётся.
-	Audience  Audience `json:"audience"`
-	Body      string   `json:"body"`
-	Important bool     `json:"important"`
+	Audience Audience `json:"audience"`
+	Body     string   `json:"body"`
+
+	// EventPlace Место мероприятия; вместе с event_starts_at
+	EventPlace *string `json:"event_place"`
+
+	// EventStartsAt Начало мероприятия (в будущем); только для type=news, вместе с event_place
+	EventStartsAt *time.Time `json:"event_starts_at"`
+	Important     bool       `json:"important"`
 
 	// RequiresAck Требует подтверждения ознакомления; только для type=announcement
 	RequiresAck bool                          `json:"requires_ack"`
@@ -111,6 +181,24 @@ type CreateAnnouncementRequest struct {
 
 // CreateAnnouncementRequestType defines model for CreateAnnouncementRequest.Type.
 type CreateAnnouncementRequestType string
+
+// CreateBannerRequest defines model for CreateBannerRequest.
+type CreateBannerRequest struct {
+	// Audience all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
+	// user используется только для системных уведомлений, вручную не создаётся.
+	Audience Audience `json:"audience"`
+	Body     *string  `json:"body"`
+
+	// EndsAt Позже starts_at и в будущем
+	EndsAt    time.Time `json:"ends_at"`
+	LinkLabel *string   `json:"link_label"`
+	LinkUrl   *string   `json:"link_url"`
+
+	// Priority normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+	Priority BannerPriority `json:"priority"`
+	StartsAt time.Time      `json:"starts_at"`
+	Title    string         `json:"title"`
+}
 
 // CreateDeadlineRequest defines model for CreateDeadlineRequest.
 type CreateDeadlineRequest struct {
@@ -160,14 +248,28 @@ type FeedCounters struct {
 	Unread           int `json:"unread"`
 }
 
+// FeedEvent Есть только у новости-мероприятия
+type FeedEvent struct {
+	// Going Текущий студент отметил «Пойду»
+	Going bool `json:"going"`
+
+	// GoingCount Сколько студентов отметили «Пойду»
+	GoingCount int       `json:"going_count"`
+	Place      string    `json:"place"`
+	StartsAt   time.Time `json:"starts_at"`
+}
+
 // FeedItem defines model for FeedItem.
 type FeedItem struct {
 	AckedAt     *time.Time `json:"acked_at"`
 	AuthorLabel *string    `json:"author_label"`
 
 	// Body Обычный текст, без HTML
-	Body      string             `json:"body"`
-	CreatedAt time.Time          `json:"created_at"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// Event Есть только у новости-мероприятия
+	Event     *FeedEvent         `json:"event,omitempty"`
 	Id        openapi_types.UUID `json:"id"`
 	Important bool               `json:"important"`
 
@@ -210,9 +312,18 @@ type StaffAnnouncement struct {
 
 	// Audience all — все; faculty — факультет; course — курс факультета (faculty_id + course); group — группа; user — один студент.
 	// user используется только для системных уведомлений, вручную не создаётся.
-	Audience    Audience              `json:"audience"`
-	Body        string                `json:"body"`
-	CreatedAt   time.Time             `json:"created_at"`
+	Audience  Audience  `json:"audience"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// EventPlace Только у мероприятия
+	EventPlace *string `json:"event_place"`
+
+	// EventStartsAt Только у мероприятия
+	EventStartsAt *time.Time `json:"event_starts_at"`
+
+	// GoingCount Только у мероприятия — сколько студентов отметили «Пойду»
+	GoingCount  *int                  `json:"going_count"`
 	Id          openapi_types.UUID    `json:"id"`
 	Important   bool                  `json:"important"`
 	ReadCount   *int                  `json:"read_count,omitempty"`
@@ -249,6 +360,9 @@ type StaffDeadline struct {
 	Title         string  `json:"title"`
 }
 
+// BannerId defines model for BannerId.
+type BannerId = openapi_types.UUID
+
 // ItemId defines model for ItemId.
 type ItemId = openapi_types.UUID
 
@@ -280,7 +394,7 @@ type GetMyDeadlinesParams struct {
 
 // GetMyFeedParams defines parameters for GetMyFeed.
 type GetMyFeedParams struct {
-	// Type Можно несколько через запятую
+	// Type Можно несколько через запятую. Не указан — все типы, кроме news
 	Type       *[]FeedItemType `form:"type,omitempty" json:"type,omitempty"`
 	UnreadOnly *bool           `form:"unread_only,omitempty" json:"unread_only,omitempty"`
 	Limit      *Limit          `form:"limit,omitempty" json:"limit,omitempty"`
@@ -293,6 +407,9 @@ type ListStaffAnnouncementsParams struct {
 	Offset *Offset `form:"offset,omitempty" json:"offset,omitempty"`
 }
 
+// CreateBannerJSONRequestBody defines body for CreateBanner for application/json ContentType.
+type CreateBannerJSONRequestBody = CreateBannerRequest
+
 // CreateAnnouncementJSONRequestBody defines body for CreateAnnouncement for application/json ContentType.
 type CreateAnnouncementJSONRequestBody = CreateAnnouncementRequest
 
@@ -301,6 +418,21 @@ type CreateDeadlineJSONRequestBody = CreateDeadlineRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Все баннеры со статусом и числом закрывших
+	// (GET /admin/banners)
+	ListAdminBanners(w http.ResponseWriter, r *http.Request)
+	// Создать баннер
+	// (POST /admin/banners)
+	CreateBanner(w http.ResponseWriter, r *http.Request)
+	// Снять баннер сейчас
+	// (POST /admin/banners/{banner_id}/end)
+	EndBanner(w http.ResponseWriter, r *http.Request, bannerId BannerId)
+	// Баннеры администратора, которые сейчас видит студент (D61)
+	// (GET /me/banners)
+	GetMyBanners(w http.ResponseWriter, r *http.Request)
+	// Скрыть обычный баннер
+	// (POST /me/banners/{banner_id}/dismiss)
+	DismissBanner(w http.ResponseWriter, r *http.Request, bannerId BannerId)
 	// Ближайшие дедлайны (F5, напоминания)
 	// (GET /me/deadlines)
 	GetMyDeadlines(w http.ResponseWriter, r *http.Request, params GetMyDeadlinesParams)
@@ -316,6 +448,12 @@ type ServerInterface interface {
 	// Подтвердить ознакомление с важным объявлением (I3)
 	// (POST /me/feed/{item_id}/ack)
 	AckFeedItem(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// Отменить «Пойду»
+	// (DELETE /me/feed/{item_id}/going)
+	UnmarkFeedItemGoing(w http.ResponseWriter, r *http.Request, itemId ItemId)
+	// «Пойду» на мероприятие (D61)
+	// (POST /me/feed/{item_id}/going)
+	MarkFeedItemGoing(w http.ResponseWriter, r *http.Request, itemId ItemId)
 	// Отметить прочитанным
 	// (POST /me/feed/{item_id}/read)
 	MarkFeedItemRead(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -347,6 +485,128 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAdminBanners operation middleware
+func (siw *ServerInterfaceWrapper) ListAdminBanners(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdminBanners(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateBanner operation middleware
+func (siw *ServerInterfaceWrapper) CreateBanner(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateBanner(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EndBanner operation middleware
+func (siw *ServerInterfaceWrapper) EndBanner(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "banner_id" -------------
+	var bannerId BannerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "banner_id", r.PathValue("banner_id"), &bannerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "banner_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EndBanner(w, r, bannerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMyBanners operation middleware
+func (siw *ServerInterfaceWrapper) GetMyBanners(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMyBanners(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DismissBanner operation middleware
+func (siw *ServerInterfaceWrapper) DismissBanner(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "banner_id" -------------
+	var bannerId BannerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "banner_id", r.PathValue("banner_id"), &bannerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "banner_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DismissBanner(w, r, bannerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetMyDeadlines operation middleware
 func (siw *ServerInterfaceWrapper) GetMyDeadlines(w http.ResponseWriter, r *http.Request) {
@@ -500,6 +760,68 @@ func (siw *ServerInterfaceWrapper) AckFeedItem(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AckFeedItem(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnmarkFeedItemGoing operation middleware
+func (siw *ServerInterfaceWrapper) UnmarkFeedItemGoing(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "item_id" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "item_id", r.PathValue("item_id"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "item_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnmarkFeedItemGoing(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkFeedItemGoing operation middleware
+func (siw *ServerInterfaceWrapper) MarkFeedItemGoing(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "item_id" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "item_id", r.PathValue("item_id"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "item_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, SessionCookieScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkFeedItemGoing(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -823,11 +1145,18 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/admin/banners", wrapper.ListAdminBanners)
+	m.HandleFunc("POST "+options.BaseURL+"/admin/banners", wrapper.CreateBanner)
+	m.HandleFunc("POST "+options.BaseURL+"/admin/banners/{banner_id}/end", wrapper.EndBanner)
+	m.HandleFunc("GET "+options.BaseURL+"/me/banners", wrapper.GetMyBanners)
+	m.HandleFunc("POST "+options.BaseURL+"/me/banners/{banner_id}/dismiss", wrapper.DismissBanner)
 	m.HandleFunc("GET "+options.BaseURL+"/me/deadlines", wrapper.GetMyDeadlines)
 	m.HandleFunc("GET "+options.BaseURL+"/me/feed", wrapper.GetMyFeed)
 	m.HandleFunc("GET "+options.BaseURL+"/me/feed/counters", wrapper.GetMyFeedCounters)
 	m.HandleFunc("POST "+options.BaseURL+"/me/feed/read-all", wrapper.MarkAllFeedRead)
 	m.HandleFunc("POST "+options.BaseURL+"/me/feed/{item_id}/ack", wrapper.AckFeedItem)
+	m.HandleFunc("DELETE "+options.BaseURL+"/me/feed/{item_id}/going", wrapper.UnmarkFeedItemGoing)
+	m.HandleFunc("POST "+options.BaseURL+"/me/feed/{item_id}/going", wrapper.MarkFeedItemGoing)
 	m.HandleFunc("POST "+options.BaseURL+"/me/feed/{item_id}/read", wrapper.MarkFeedItemRead)
 	m.HandleFunc("GET "+options.BaseURL+"/staff/announcements", wrapper.ListStaffAnnouncements)
 	m.HandleFunc("POST "+options.BaseURL+"/staff/announcements", wrapper.CreateAnnouncement)
@@ -848,6 +1177,222 @@ type NotFoundJSONResponse Error
 type UnauthenticatedJSONResponse Error
 
 type ValidationFailedJSONResponse Error
+
+type ListAdminBannersRequestObject struct {
+}
+
+type ListAdminBannersResponseObject interface {
+	VisitListAdminBannersResponse(w http.ResponseWriter) error
+}
+
+type ListAdminBanners200JSONResponse []AdminBanner
+
+func (response ListAdminBanners200JSONResponse) VisitListAdminBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAdminBanners401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response ListAdminBanners401JSONResponse) VisitListAdminBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListAdminBanners403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response ListAdminBanners403JSONResponse) VisitListAdminBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBannerRequestObject struct {
+	Body *CreateBannerJSONRequestBody
+}
+
+type CreateBannerResponseObject interface {
+	VisitCreateBannerResponse(w http.ResponseWriter) error
+}
+
+type CreateBanner201JSONResponse AdminBanner
+
+func (response CreateBanner201JSONResponse) VisitCreateBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBanner400JSONResponse struct{ ValidationFailedJSONResponse }
+
+func (response CreateBanner400JSONResponse) VisitCreateBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBanner401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response CreateBanner401JSONResponse) VisitCreateBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBanner403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response CreateBanner403JSONResponse) VisitCreateBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndBannerRequestObject struct {
+	BannerId BannerId `json:"banner_id"`
+}
+
+type EndBannerResponseObject interface {
+	VisitEndBannerResponse(w http.ResponseWriter) error
+}
+
+type EndBanner204Response struct {
+}
+
+func (response EndBanner204Response) VisitEndBannerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type EndBanner401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response EndBanner401JSONResponse) VisitEndBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndBanner403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response EndBanner403JSONResponse) VisitEndBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndBanner404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response EndBanner404JSONResponse) VisitEndBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type EndBanner409JSONResponse struct{ ConflictJSONResponse }
+
+func (response EndBanner409JSONResponse) VisitEndBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBannersRequestObject struct {
+}
+
+type GetMyBannersResponseObject interface {
+	VisitGetMyBannersResponse(w http.ResponseWriter) error
+}
+
+type GetMyBanners200JSONResponse []Banner
+
+func (response GetMyBanners200JSONResponse) VisitGetMyBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBanners401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response GetMyBanners401JSONResponse) VisitGetMyBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMyBanners403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetMyBanners403JSONResponse) VisitGetMyBannersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DismissBannerRequestObject struct {
+	BannerId BannerId `json:"banner_id"`
+}
+
+type DismissBannerResponseObject interface {
+	VisitDismissBannerResponse(w http.ResponseWriter) error
+}
+
+type DismissBanner204Response struct {
+}
+
+func (response DismissBanner204Response) VisitDismissBannerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DismissBanner401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response DismissBanner401JSONResponse) VisitDismissBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DismissBanner403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response DismissBanner403JSONResponse) VisitDismissBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DismissBanner404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response DismissBanner404JSONResponse) VisitDismissBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DismissBanner409JSONResponse struct{ ConflictJSONResponse }
+
+func (response DismissBanner409JSONResponse) VisitDismissBannerResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
 
 type GetMyDeadlinesRequestObject struct {
 	Params GetMyDeadlinesParams
@@ -1032,6 +1577,110 @@ func (response AckFeedItem404JSONResponse) VisitAckFeedItemResponse(w http.Respo
 type AckFeedItem409JSONResponse struct{ ConflictJSONResponse }
 
 func (response AckFeedItem409JSONResponse) VisitAckFeedItemResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnmarkFeedItemGoingRequestObject struct {
+	ItemId ItemId `json:"item_id"`
+}
+
+type UnmarkFeedItemGoingResponseObject interface {
+	VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error
+}
+
+type UnmarkFeedItemGoing204Response struct {
+}
+
+func (response UnmarkFeedItemGoing204Response) VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type UnmarkFeedItemGoing401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response UnmarkFeedItemGoing401JSONResponse) VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnmarkFeedItemGoing403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response UnmarkFeedItemGoing403JSONResponse) VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnmarkFeedItemGoing404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response UnmarkFeedItemGoing404JSONResponse) VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UnmarkFeedItemGoing409JSONResponse struct{ ConflictJSONResponse }
+
+func (response UnmarkFeedItemGoing409JSONResponse) VisitUnmarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkFeedItemGoingRequestObject struct {
+	ItemId ItemId `json:"item_id"`
+}
+
+type MarkFeedItemGoingResponseObject interface {
+	VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error
+}
+
+type MarkFeedItemGoing204Response struct {
+}
+
+func (response MarkFeedItemGoing204Response) VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type MarkFeedItemGoing401JSONResponse struct{ UnauthenticatedJSONResponse }
+
+func (response MarkFeedItemGoing401JSONResponse) VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkFeedItemGoing403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response MarkFeedItemGoing403JSONResponse) VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkFeedItemGoing404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response MarkFeedItemGoing404JSONResponse) VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type MarkFeedItemGoing409JSONResponse struct{ ConflictJSONResponse }
+
+func (response MarkFeedItemGoing409JSONResponse) VisitMarkFeedItemGoingResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
 
@@ -1327,6 +1976,21 @@ func (response DeleteDeadline404JSONResponse) VisitDeleteDeadlineResponse(w http
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Все баннеры со статусом и числом закрывших
+	// (GET /admin/banners)
+	ListAdminBanners(ctx context.Context, request ListAdminBannersRequestObject) (ListAdminBannersResponseObject, error)
+	// Создать баннер
+	// (POST /admin/banners)
+	CreateBanner(ctx context.Context, request CreateBannerRequestObject) (CreateBannerResponseObject, error)
+	// Снять баннер сейчас
+	// (POST /admin/banners/{banner_id}/end)
+	EndBanner(ctx context.Context, request EndBannerRequestObject) (EndBannerResponseObject, error)
+	// Баннеры администратора, которые сейчас видит студент (D61)
+	// (GET /me/banners)
+	GetMyBanners(ctx context.Context, request GetMyBannersRequestObject) (GetMyBannersResponseObject, error)
+	// Скрыть обычный баннер
+	// (POST /me/banners/{banner_id}/dismiss)
+	DismissBanner(ctx context.Context, request DismissBannerRequestObject) (DismissBannerResponseObject, error)
 	// Ближайшие дедлайны (F5, напоминания)
 	// (GET /me/deadlines)
 	GetMyDeadlines(ctx context.Context, request GetMyDeadlinesRequestObject) (GetMyDeadlinesResponseObject, error)
@@ -1342,6 +2006,12 @@ type StrictServerInterface interface {
 	// Подтвердить ознакомление с важным объявлением (I3)
 	// (POST /me/feed/{item_id}/ack)
 	AckFeedItem(ctx context.Context, request AckFeedItemRequestObject) (AckFeedItemResponseObject, error)
+	// Отменить «Пойду»
+	// (DELETE /me/feed/{item_id}/going)
+	UnmarkFeedItemGoing(ctx context.Context, request UnmarkFeedItemGoingRequestObject) (UnmarkFeedItemGoingResponseObject, error)
+	// «Пойду» на мероприятие (D61)
+	// (POST /me/feed/{item_id}/going)
+	MarkFeedItemGoing(ctx context.Context, request MarkFeedItemGoingRequestObject) (MarkFeedItemGoingResponseObject, error)
 	// Отметить прочитанным
 	// (POST /me/feed/{item_id}/read)
 	MarkFeedItemRead(ctx context.Context, request MarkFeedItemReadRequestObject) (MarkFeedItemReadResponseObject, error)
@@ -1392,6 +2062,137 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListAdminBanners operation middleware
+func (sh *strictHandler) ListAdminBanners(w http.ResponseWriter, r *http.Request) {
+	var request ListAdminBannersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdminBanners(ctx, request.(ListAdminBannersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdminBanners")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdminBannersResponseObject); ok {
+		if err := validResponse.VisitListAdminBannersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateBanner operation middleware
+func (sh *strictHandler) CreateBanner(w http.ResponseWriter, r *http.Request) {
+	var request CreateBannerRequestObject
+
+	var body CreateBannerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateBanner(ctx, request.(CreateBannerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateBanner")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateBannerResponseObject); ok {
+		if err := validResponse.VisitCreateBannerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EndBanner operation middleware
+func (sh *strictHandler) EndBanner(w http.ResponseWriter, r *http.Request, bannerId BannerId) {
+	var request EndBannerRequestObject
+
+	request.BannerId = bannerId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EndBanner(ctx, request.(EndBannerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EndBanner")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EndBannerResponseObject); ok {
+		if err := validResponse.VisitEndBannerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMyBanners operation middleware
+func (sh *strictHandler) GetMyBanners(w http.ResponseWriter, r *http.Request) {
+	var request GetMyBannersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMyBanners(ctx, request.(GetMyBannersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMyBanners")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMyBannersResponseObject); ok {
+		if err := validResponse.VisitGetMyBannersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DismissBanner operation middleware
+func (sh *strictHandler) DismissBanner(w http.ResponseWriter, r *http.Request, bannerId BannerId) {
+	var request DismissBannerRequestObject
+
+	request.BannerId = bannerId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DismissBanner(ctx, request.(DismissBannerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DismissBanner")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DismissBannerResponseObject); ok {
+		if err := validResponse.VisitDismissBannerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetMyDeadlines operation middleware
@@ -1513,6 +2314,58 @@ func (sh *strictHandler) AckFeedItem(w http.ResponseWriter, r *http.Request, ite
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AckFeedItemResponseObject); ok {
 		if err := validResponse.VisitAckFeedItemResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnmarkFeedItemGoing operation middleware
+func (sh *strictHandler) UnmarkFeedItemGoing(w http.ResponseWriter, r *http.Request, itemId ItemId) {
+	var request UnmarkFeedItemGoingRequestObject
+
+	request.ItemId = itemId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnmarkFeedItemGoing(ctx, request.(UnmarkFeedItemGoingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnmarkFeedItemGoing")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnmarkFeedItemGoingResponseObject); ok {
+		if err := validResponse.VisitUnmarkFeedItemGoingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkFeedItemGoing operation middleware
+func (sh *strictHandler) MarkFeedItemGoing(w http.ResponseWriter, r *http.Request, itemId ItemId) {
+	var request MarkFeedItemGoingRequestObject
+
+	request.ItemId = itemId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkFeedItemGoing(ctx, request.(MarkFeedItemGoingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkFeedItemGoing")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(MarkFeedItemGoingResponseObject); ok {
+		if err := validResponse.VisitMarkFeedItemGoingResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

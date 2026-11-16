@@ -93,17 +93,26 @@ func audience(kind string, faculty, group *uuid.UUID, course *int32, user *uuid.
 	return a
 }
 
-func announcement(row db.Notification, read, acked int64) api.StaffAnnouncement {
-	readCount, ackedCount := int(read), int(acked)
+func announcement(row db.Notification, read, acked, going int64) api.StaffAnnouncement {
+	readCount, ackedCount, goingCount := int(read), int(acked), int(going)
 	item := api.StaffAnnouncement{
 		Id: row.ID, Type: api.StaffAnnouncementType(row.Type), Title: row.Title, Body: row.Body, Important: row.Important,
 		RequiresAck: row.RequiresAck, CreatedAt: row.CreatedAt.In(moscow), ReadCount: &readCount,
-		Audience: audience(row.AudienceKind, row.AudienceFacultyID, row.AudienceGroupID, row.AudienceCourse, row.AudienceUserID),
+		Audience:      audience(row.AudienceKind, row.AudienceFacultyID, row.AudienceGroupID, row.AudienceCourse, row.AudienceUserID),
+		EventStartsAt: inMoscow(row.EventStartsAt), EventPlace: row.EventPlace,
 	}
 	if row.RequiresAck {
 		item.AckedCount = &ackedCount
 	}
+	if row.EventStartsAt != nil {
+		item.GoingCount = &goingCount
+	}
 	return item
+}
+
+// logAdmin — журнал действий сотрудника и администратора: только тип действия и ID, без текстов и ПДн.
+func logAdmin(ctx context.Context, id platform.Identity, event string, objectID uuid.UUID) {
+	platform.Log(ctx).Info("admin", "event", event, "id", objectID.String(), "role", string(id.Role))
 }
 
 func (s *Server) ListStaffAnnouncements(ctx context.Context, req api.ListStaffAnnouncementsRequestObject) (api.ListStaffAnnouncementsResponseObject, error) {
@@ -134,7 +143,7 @@ func (s *Server) ListStaffAnnouncements(ctx context.Context, req api.ListStaffAn
 	}
 	items := make([]api.StaffAnnouncement, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, announcement(row.Notification, row.ReadCount, row.AckedCount))
+		items = append(items, announcement(row.Notification, row.ReadCount, row.AckedCount, row.GoingCount))
 	}
 	return api.ListStaffAnnouncements200JSONResponse{Items: items, Total: int(total)}, nil
 }
@@ -180,6 +189,23 @@ func (s *Server) CreateAnnouncement(ctx context.Context, req api.CreateAnnouncem
 	if b.RequiresAck && b.Type != api.CreateAnnouncementRequestTypeAnnouncement {
 		fields["requires_ack"] = "Подтверждение можно запросить только для объявления"
 	}
+	now := s.now()
+	var place *string
+	if b.EventPlace != nil {
+		p := strings.TrimSpace(*b.EventPlace)
+		place = &p
+	}
+	switch {
+	case b.EventStartsAt == nil && place == nil:
+	case b.Type != api.CreateAnnouncementRequestTypeNews:
+		fields["event_starts_at"] = "Мероприятием может быть только новость"
+	case b.EventStartsAt == nil:
+		fields["event_starts_at"] = "Укажите дату и время мероприятия"
+	case place == nil || !validText(*place, 1, 120):
+		fields["event_place"] = "Укажите место: до 120 символов"
+	case !b.EventStartsAt.After(now):
+		fields["event_starts_at"] = "Мероприятие должно быть в будущем"
+	}
 	if len(fields) != 0 {
 		return nil, platform.Validation(fields)
 	}
@@ -194,12 +220,14 @@ func (s *Server) CreateAnnouncement(ctx context.Context, req api.CreateAnnouncem
 	row, err := s.q.InsertAnnouncement(ctx, db.InsertAnnouncementParams{
 		Type: string(b.Type), Title: title, Body: body, Important: b.Important, RequiresAck: b.RequiresAck,
 		AudienceKind: string(a.Kind), AudienceFacultyID: a.FacultyId, AudienceCourse: toCourse32(a.Course),
-		AudienceGroupID: a.GroupId, AuthorID: &id.UserID, AuthorLabel: &label, CreatedAt: s.now(),
+		AudienceGroupID: a.GroupId, AuthorID: &id.UserID, AuthorLabel: &label, CreatedAt: now,
+		EventStartsAt: b.EventStartsAt, EventPlace: place,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return api.CreateAnnouncement201JSONResponse(announcement(row, 0, 0)), nil
+	logAdmin(ctx, id, "announcement_created", row.ID)
+	return api.CreateAnnouncement201JSONResponse(announcement(row, 0, 0, 0)), nil
 }
 
 func (s *Server) GetAnnouncementAcks(ctx context.Context, req api.GetAnnouncementAcksRequestObject) (api.GetAnnouncementAcksResponseObject, error) {
@@ -330,6 +358,7 @@ func (s *Server) CreateDeadline(ctx context.Context, req api.CreateDeadlineReque
 	if err != nil {
 		return nil, err
 	}
+	logAdmin(ctx, id, "deadline_created", row.ID)
 	return api.CreateDeadline201JSONResponse(staffDeadline(row, now)), nil
 }
 
@@ -345,5 +374,6 @@ func (s *Server) DeleteDeadline(ctx context.Context, req api.DeleteDeadlineReque
 	if n == 0 {
 		return nil, platform.NotFound()
 	}
+	logAdmin(ctx, id, "deadline_deleted", req.DeadlineId)
 	return api.DeleteDeadline204Response{}, nil
 }

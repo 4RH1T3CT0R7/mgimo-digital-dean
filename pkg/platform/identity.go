@@ -102,6 +102,18 @@ func RequireStaffOrAdmin(ctx context.Context) (Identity, error) {
 	return id, nil
 }
 
+// RequireAdmin — для эндпоинтов /admin/*: только администратор, иначе 401/403.
+func RequireAdmin(ctx context.Context) (Identity, error) {
+	id, err := RequireAuth(ctx)
+	if err != nil {
+		return id, err
+	}
+	if id.Role != RoleAdmin {
+		return id, Forbidden()
+	}
+	return id, nil
+}
+
 // FacultyScope — фильтр по факультету для запросов сотрудника: nil означает «все факультеты» (admin).
 func (id Identity) FacultyScope() *uuid.UUID {
 	if id.Role == RoleAdmin {
