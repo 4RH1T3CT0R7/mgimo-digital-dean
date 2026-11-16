@@ -6,6 +6,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/pkg/platform"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/requests/internal/api"
 	"github.com/4RH1T3CT0R7/mgimo-digital-dean/services/requests/internal/db"
@@ -13,14 +15,23 @@ import (
 
 // Кабинет сотрудника: staff видит только свой факультет (чужое → 404), admin — всё.
 
-func (s *Server) GetStaffStats(ctx context.Context, _ api.GetStaffStatsRequestObject) (api.GetStaffStatsResponseObject, error) {
+// facultyFilter — факультет выборки: staff — всегда свой, admin — из параметра faculty_id или все.
+func facultyFilter(me platform.Identity, param *uuid.UUID) *uuid.UUID {
+	if me.Role == platform.RoleAdmin && param != nil { // у staff фильтр игнорируется
+		return param
+	}
+	return me.FacultyScope()
+}
+
+func (s *Server) GetStaffStats(ctx context.Context, req api.GetStaffStatsRequestObject) (api.GetStaffStatsResponseObject, error) {
 	me, err := platform.RequireStaffOrAdmin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	now := s.now()
 	y, m, d := now.In(msk).Date()
-	r, err := s.q.StaffStats(ctx, db.StaffStatsParams{Now: &now, DayStart: time.Date(y, m, d, 0, 0, 0, 0, msk), FacultyID: me.FacultyScope()})
+	r, err := s.q.StaffStats(ctx, db.StaffStatsParams{Now: &now, DayStart: time.Date(y, m, d, 0, 0, 0, 0, msk),
+		FacultyID: facultyFilter(me, req.Params.FacultyId)})
 	if err != nil {
 		return nil, err
 	}
@@ -41,10 +52,7 @@ func (s *Server) ListStaffApplications(ctx context.Context, req api.ListStaffApp
 	if err != nil {
 		return nil, err
 	}
-	scope := me.FacultyScope()
-	if me.Role == platform.RoleAdmin && p.FacultyId != nil { // у staff фильтр игнорируется
-		scope = p.FacultyId
-	}
+	scope := facultyFilter(me, p.FacultyId)
 	var q *string
 	if v := optionalText(p.Q); v != nil {
 		if utf8.RuneCountInString(*v) > maxQueryLen {

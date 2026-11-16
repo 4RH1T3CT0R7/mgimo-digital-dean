@@ -153,6 +153,24 @@ SELECT * FROM certificates WHERE application_id = sqlc.arg(application_id);
 -- name: GetCertificate :one
 SELECT * FROM certificates WHERE code = sqlc.arg(code);
 
+-- ---------- Электронный студенческий (D60) ----------
+
+-- Код выдаётся при первом открытии и не меняется: при повторе обновляются только данные для проверки и срок.
+-- name: UpsertStudentCard :one
+INSERT INTO student_cards (student_id, code, holder, faculty_short, course, issued_at, valid_until)
+VALUES (sqlc.arg(student_id), sqlc.arg(code), sqlc.arg(holder), sqlc.arg(faculty_short), sqlc.arg(course),
+        sqlc.arg(now), sqlc.arg(valid_until))
+ON CONFLICT (student_id) DO UPDATE
+SET holder = EXCLUDED.holder, faculty_short = EXCLUDED.faculty_short, course = EXCLUDED.course,
+    valid_until = EXCLUDED.valid_until
+RETURNING *;
+
+-- name: GetStudentCardCode :one
+SELECT code FROM student_cards WHERE student_id = sqlc.arg(student_id);
+
+-- name: GetStudentCardByCode :one
+SELECT * FROM student_cards WHERE code = sqlc.arg(code);
+
 -- ---------- Проигрывание событий по тестовым данным (T07, флаг -seed-events) ----------
 
 -- name: ListStatusHistoryForReplay :many

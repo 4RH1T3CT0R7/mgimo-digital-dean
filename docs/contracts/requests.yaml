@@ -281,13 +281,56 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /me/student-card:
+    get:
+      tags: [student]
+      operationId: getMyStudentCard
+      summary: Электронный студенческий (D60)
+      description: |
+        Роли — student, только свой. Данные — из academic на момент запроса, номер — номер студенческого билета из профиля.
+        Код проверки выдаётся при первом запросе и дальше не меняется (формат как у справки).
+        Срок — до 31 августа текущего учебного года; при каждом запросе срок и данные для проверки обновляются.
+      responses:
+        '200':
+          description: Студенческий
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentCard'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/student-card/qr.png:
+    get:
+      tags: [student]
+      operationId: getMyStudentCardQr
+      summary: QR со ссылкой на проверку студенческого
+      description: |
+        Роли — student. В QR — полный адрес страницы проверки `/verify/{code}`.
+        Код ещё не выдан (не было запроса `/me/student-card`) — 404.
+      responses:
+        '200':
+          description: PNG
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /public/certificates/{code}:
     get:
       tags: [public]
       operationId: verifyCertificate
-      summary: Проверка справки по коду
+      summary: Проверка справки или студенческого по коду
       description: |
-        Без входа. Минимум данных: инициалы, факультет, даты. Нет кода — 404.
+        Без входа. Код справки или электронного студенческого (`kind`). Минимум данных: инициалы, факультет, даты,
+        у студенческого — курс. Нет кода — 404.
         Ограничение: 30 запросов в минуту с одного IP, иначе 429.
       security: []
       parameters:
@@ -313,7 +356,14 @@ paths:
       tags: [staff]
       operationId: getStaffStats
       summary: Счётчики для главной сотрудника
-      description: Роли — staff (свой факультет), admin (все).
+      description: Роли — staff (свой факультет), admin (все; можно ограничить факультетом, как список заявок).
+      parameters:
+        - in: query
+          name: faculty_id
+          description: Только для admin; у staff игнорируется
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Счётчики
@@ -931,8 +981,12 @@ components:
           example: /verify/K7M2QX4PWA
     CertificateVerification:
       type: object
-      required: [valid, title, holder, faculty_short, issued_at, valid_until]
+      required: [kind, valid, title, holder, faculty_short, issued_at, valid_until]
       properties:
+        kind:
+          type: string
+          enum: [certificate, student_card]
+          description: certificate — справка с места учёбы; student_card — электронный студенческий (D60)
         valid:
           type: boolean
           description: false, если срок действия истёк
@@ -944,12 +998,50 @@ components:
           example: Лебедева А. В.
         faculty_short:
           type: string
+        course:
+          type: integer
+          nullable: true
+          description: Только у студенческого
         issued_at:
           type: string
           format: date-time
         valid_until:
           type: string
           format: date
+    StudentCard:
+      type: object
+      description: Электронный студенческий учебного прототипа (D60); данные вымышленные
+      required: [number, full_name, faculty_name, program_code, program_name, course, study_form, valid_until, code, verify_url]
+      properties:
+        number:
+          type: string
+          description: Номер студенческого билета
+          example: '2401317'
+        full_name:
+          type: string
+        faculty_name:
+          type: string
+        program_code:
+          type: string
+        program_name:
+          type: string
+        course:
+          type: integer
+        study_form:
+          type: string
+          enum: [full_time, part_time, extramural]
+        valid_until:
+          type: string
+          format: date
+          description: 31 августа текущего учебного года
+        code:
+          type: string
+          description: Код проверки (как у справки)
+          example: S7TQ4C2DMA
+        verify_url:
+          type: string
+          description: Относительный адрес страницы проверки в SPA
+          example: /verify/S7TQ4C2DMA
     StudentSnapshot:
       type: object
       description: Слепок данных студента на момент подачи заявки (D32)

@@ -390,7 +390,7 @@ func (s *Server) DownloadMyCertificate(ctx context.Context, req api.DownloadMyCe
 
 var certCodeRe = regexp.MustCompile(`^[A-Z2-7]{10}$`)
 
-// VerifyCertificate — публичная проверка: только инициалы, факультет и даты.
+// VerifyCertificate — публичная проверка справки или студенческого: только инициалы, факультет и даты.
 func (s *Server) VerifyCertificate(ctx context.Context, req api.VerifyCertificateRequestObject) (api.VerifyCertificateResponseObject, error) {
 	now := s.now()
 	ip, _ := platform.ClientIP(platform.RequestFrom(ctx))
@@ -402,10 +402,14 @@ func (s *Server) VerifyCertificate(ctx context.Context, req api.VerifyCertificat
 		return nil, platform.NotFound()
 	}
 	c, err := s.q.GetCertificate(ctx, req.Code)
-	if err != nil {
-		return nil, notFound(err)
+	if errors.Is(err, pgx.ErrNoRows) { // не справка — может быть, студенческий
+		return s.verifyStudentCard(ctx, req.Code, now)
 	}
-	out := api.VerifyCertificate200JSONResponse{Valid: !dateMSK(now).After(c.ValidUntil.Time), Title: c.Title,
+	if err != nil {
+		return nil, err
+	}
+	out := api.VerifyCertificate200JSONResponse{Kind: api.CertificateVerificationKindCertificate,
+		Valid: !dateMSK(now).After(c.ValidUntil.Time), Title: c.Title,
 		Holder: c.Holder, FacultyShort: c.FacultyShort, IssuedAt: c.IssuedAt.In(msk)}
 	out.ValidUntil.Time = c.ValidUntil.Time
 	return out, nil
