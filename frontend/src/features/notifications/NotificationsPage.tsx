@@ -20,7 +20,8 @@ type FeedItem = components['schemas']['FeedItem'];
 const filters: { label: string; types?: FeedType[] }[] = [
   { label: 'Все' },
   { label: 'Важное' },
-  { label: 'Объявления', types: ['announcement', 'news'] },
+  // Новости — в разделе «Новости и мероприятия» (D61)
+  { label: 'Объявления', types: ['announcement'] },
   { label: 'Расписание', types: ['schedule_change'] },
   { label: 'Заявки', types: ['application_status', 'application_message'] },
 ];

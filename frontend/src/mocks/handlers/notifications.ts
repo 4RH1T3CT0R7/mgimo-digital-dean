@@ -1,7 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import type { components } from '@/api/notifications';
 import { faculties, staffGroups } from '../fixtures/academic';
-import { dayMs, deadlines, deadlineDays, deadlineResponse, matchesAudience, recipients, seedFeed, type MockFeedItem } from '../fixtures/notifications';
+import {
+  banners, dayMs, deadlines, deadlineDays, deadlineResponse, matchesAudience, recipients, seedFeed, seedGoing,
+  type MockBanner, type MockFeedItem,
+} from '../fixtures/notifications';
 import { serviceTypes } from '../fixtures/requests';
 import { list, page, scenario } from '../scenario';
 import { mockUser } from './auth';
@@ -18,19 +21,60 @@ const initialReads = seedFeed.filter((item) => !unreadSeed.has(item.id))
 const reads = new Map<string, { read_at: string; acked_at?: string }>(initialReads);
 const feed = [...seedFeed];
 const deadlineItems = [...deadlines];
+/** Отметки «Пойду»: ключи readKey */
+const going = new Set(seedGoing.map(([student, item]) => readKey(student, item)));
+const bannerItems = [...banners];
+/** Скрытые баннеры: ключи readKey */
+const dismissed = new Set<string>();
 
 export function resetNotificationsState() {
   reads.clear();
   for (const [key, receipt] of initialReads) reads.set(key, { ...receipt });
   feed.splice(0, feed.length, ...seedFeed);
   deadlineItems.splice(0, deadlineItems.length, ...deadlines);
+  going.clear();
+  for (const [student, item] of seedGoing) going.add(readKey(student, item));
+  bannerItems.splice(0, bannerItems.length, ...banners.map((item) => ({ ...item })));
+  dismissed.clear();
 }
 
-function access(mode: 'student' | 'staff') {
+/** student — только студент; staff — сотрудник или администратор; admin — только администратор (/admin/*) */
+function access(mode: 'student' | 'staff' | 'admin') {
   const user = mockUser();
   if (!user) return error(401, 'unauthenticated', 'Войдите в систему');
-  if ((user.role === 'student') !== (mode === 'student')) return error(403, 'forbidden', 'Этот раздел вам недоступен');
+  const allowed = mode === 'admin' ? user.role === 'admin' : (user.role === 'student') === (mode === 'student');
+  if (!allowed) return error(403, 'forbidden', 'Этот раздел вам недоступен');
   return user;
+}
+
+function goingCount(itemId: string) {
+  return [...going].filter((key) => key.endsWith(`/${itemId}`)).length;
+}
+
+function bannerStatus(item: MockBanner, now = Date.now()): S['BannerStatus'] {
+  if (now < Date.parse(item.starts_at)) return 'scheduled';
+  return now < Date.parse(item.ends_at) ? 'active' : 'ended';
+}
+
+function adminBanner(item: MockBanner): S['AdminBanner'] {
+  return { ...item, status: bannerStatus(item), dismissed_count: [...dismissed].filter((key) => key.endsWith(`/${item.id}`)).length };
+}
+
+/** Как на сервере: внутренний путь или https с хостом и без логина в адресе */
+function validLink(value: string) {
+  if (/^\/[a-z0-9][a-z0-9/_-]*$/.test(value)) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !!url.hostname && !url.username && !url.password && value.startsWith('https://');
+  } catch {
+    return false;
+  }
+}
+
+function myBanners(studentId: string) {
+  const recipient = recipients.find(({ id }) => id === studentId);
+  if (!recipient) return [];
+  return bannerItems.filter((item) => bannerStatus(item) === 'active' && matchesAudience(item.audience, recipient));
 }
 
 function error(status: number, code: string, message: string) {
@@ -57,7 +101,18 @@ function myFeed(studentId: string): S['FeedItem'][] {
   const recipient = recipients.find(({ id }) => id === studentId);
   if (!recipient) return [];
   return feed.filter(({ audience }) => matchesAudience(audience, recipient))
-    .map(({ audience: _, ...item }) => ({ ...item, ...reads.get(readKey(studentId, item.id)) }));
+    .map(({ audience: _, event_starts_at, event_place, ...item }) => ({
+      ...item,
+      ...reads.get(readKey(studentId, item.id)),
+      ...(event_starts_at && event_place && {
+        event: { starts_at: event_starts_at, place: event_place, going_count: goingCount(item.id), going: going.has(readKey(studentId, item.id)) },
+      }),
+    }));
+}
+
+/** Лента «Уведомлений» без новостей (D61) */
+function myNotifications(studentId: string) {
+  return myFeed(studentId).filter((item) => item.type !== 'news');
 }
 
 function myDeadlines(studentId: string, days: number) {
@@ -125,7 +180,23 @@ function announcementItem(item: MockFeedItem): S['StaffAnnouncement'] | null {
     requires_ack: item.requires_ack, audience: item.audience, created_at: item.created_at,
     read_count: audienceReceipts.filter((receipt) => receipt?.read_at).length,
     acked_count: item.requires_ack ? audienceReceipts.filter((receipt) => receipt?.acked_at).length : null,
+    event_starts_at: item.event_starts_at ?? null, event_place: item.event_place ?? null,
+    going_count: item.event_starts_at ? goingCount(item.id) : null,
   };
+}
+
+function setGoing(itemId: string, value: boolean) {
+  const user = access('student');
+  if (user instanceof HttpResponse) return user;
+  const item = myFeed(user.id).find(({ id }) => id === itemId);
+  if (!item) return notFound();
+  if (!item.event || Date.parse(item.event.starts_at) <= Date.now()) {
+    return error(409, 'conflict', 'Это не мероприятие или оно уже прошло');
+  }
+  mark(user.id, itemId);
+  if (value) going.add(readKey(user.id, itemId));
+  else going.delete(readKey(user.id, itemId));
+  return new HttpResponse(null, { status: 204 });
 }
 
 export const notificationsHandlers = [
@@ -136,14 +207,15 @@ export const notificationsHandlers = [
     const types = params.get('type')?.split(',');
     const unread = params.get('unread_only') === 'true';
     const priority = (item: S['FeedItem']) => Number(item.important && !item.read_at);
-    const items = myFeed(user.id).filter((item) => (!types || types.includes(item.type)) && (!unread || !item.read_at))
+    const items = (types ? myFeed(user.id) : myNotifications(user.id))
+      .filter((item) => (!types || types.includes(item.type)) && (!unread || !item.read_at))
       .sort((a, b) => priority(b) - priority(a) || Date.parse(b.created_at) - Date.parse(a.created_at));
     return HttpResponse.json(page(items, request));
   }),
   http.get(`${api}/me/feed/counters`, () => {
     const user = access('student');
     if (user instanceof HttpResponse) return user;
-    const items = list(myFeed(user.id));
+    const items = list(myNotifications(user.id));
     return HttpResponse.json({
       unread: items.filter((item) => !item.read_at).length,
       important_unacked: items.filter((item) => item.requires_ack && !item.acked_at).length,
@@ -161,11 +233,78 @@ export const notificationsHandlers = [
   http.post(`${api}/me/feed/read-all`, () => {
     const user = access('student');
     if (user instanceof HttpResponse) return user;
-    if (scenario() !== 'empty') for (const item of myFeed(user.id)) mark(user.id, item.id);
+    if (scenario() !== 'empty') for (const item of myNotifications(user.id)) mark(user.id, item.id);
     return new HttpResponse(null, { status: 204 });
   }),
   http.post(`${api}/me/feed/:id/read`, ({ params }) => markItem(String(params.id), false)),
   http.post(`${api}/me/feed/:id/ack`, ({ params }) => markItem(String(params.id), true)),
+  http.post(`${api}/me/feed/:id/going`, ({ params }) => setGoing(String(params.id), true)),
+  http.delete(`${api}/me/feed/:id/going`, ({ params }) => setGoing(String(params.id), false)),
+  http.get(`${api}/me/banners`, () => {
+    const user = access('student');
+    if (user instanceof HttpResponse) return user;
+    const items = myBanners(user.id)
+      .filter((item) => item.priority === 'urgent' || !dismissed.has(readKey(user.id, item.id)))
+      .sort((a, b) => Number(b.priority === 'urgent') - Number(a.priority === 'urgent')
+        || Date.parse(b.starts_at) - Date.parse(a.starts_at) || Date.parse(b.created_at) - Date.parse(a.created_at))
+      .slice(0, 3)
+      .map(({ audience: _, created_at: __, ...item }) => item);
+    return HttpResponse.json(list(items));
+  }),
+  http.post(`${api}/me/banners/:id/dismiss`, ({ params }) => {
+    const user = access('student');
+    if (user instanceof HttpResponse) return user;
+    const item = myBanners(user.id).find(({ id }) => id === params.id);
+    if (!item) return notFound();
+    if (item.priority === 'urgent') return error(409, 'conflict', 'Срочное объявление скрыть нельзя');
+    dismissed.add(readKey(user.id, item.id));
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.get(`${api}/admin/banners`, () => {
+    const user = access('admin');
+    if (user instanceof HttpResponse) return user;
+    const items = [...bannerItems].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at)).map(adminBanner);
+    return HttpResponse.json(list(items));
+  }),
+  http.post(`${api}/admin/banners`, async ({ request }) => {
+    const user = access('admin');
+    if (user instanceof HttpResponse) return user;
+    const body = await request.json() as S['CreateBannerRequest'];
+    const fields: Record<string, string> = {};
+    const audience = normalizeAudience(body.audience, user);
+    const link = body.link_url?.trim() || null;
+    const label = body.link_label?.trim() || null;
+    if (!audience) fields.audience = 'Выберите адресата.';
+    if (!validText(body.title, 3, 80)) fields.title = 'Введите от 3 до 80 символов.';
+    if (body.body != null && !validText(body.body, 0, 200)) fields.body = 'Не больше 200 символов.';
+    if (body.priority !== 'normal' && body.priority !== 'urgent') fields.priority = 'Выберите важность.';
+    if (link && !validLink(link)) fields.link_url = 'Ссылка — адрес https:// или раздел кабинета, например /news';
+    else if (link && !label) fields.link_label = 'Укажите подпись ссылки';
+    else if (!link && label) fields.link_url = 'Укажите ссылку или уберите подпись';
+    if (label && !validText(label, 1, 30)) fields.link_label = 'Не больше 30 символов';
+    if (!(Date.parse(body.ends_at) > Date.parse(body.starts_at))) fields.ends_at = 'Окончание должно быть позже начала';
+    else if (!(Date.parse(body.ends_at) > Date.now())) fields.ends_at = 'Окончание должно быть в будущем';
+    if (!audience || Object.keys(fields).length) return validation(fields);
+
+    const item: MockBanner = {
+      id: crypto.randomUUID(), title: body.title.trim(), body: body.body?.trim() || null, priority: body.priority,
+      link_url: link, link_label: label, audience, starts_at: body.starts_at, ends_at: body.ends_at,
+      created_at: new Date().toISOString(),
+    };
+    bannerItems.unshift(item);
+    return HttpResponse.json(adminBanner(item), { status: 201 });
+  }),
+  http.post(`${api}/admin/banners/:id/end`, ({ params }) => {
+    const user = access('admin');
+    if (user instanceof HttpResponse) return user;
+    const item = bannerItems.find(({ id }) => id === params.id);
+    if (!item) return notFound();
+    if (bannerStatus(item) === 'ended') return error(409, 'conflict', 'Баннер уже снят');
+    const now = new Date().toISOString();
+    item.ends_at = now;
+    if (Date.parse(item.starts_at) > Date.parse(now)) item.starts_at = now;
+    return new HttpResponse(null, { status: 204 });
+  }),
   http.get(`${api}/staff/announcements`, ({ request }) => {
     const user = access('staff');
     if (user instanceof HttpResponse) return user;
@@ -187,12 +326,20 @@ export const notificationsHandlers = [
     if (typeof body.requires_ack !== 'boolean' || (body.type !== 'announcement' && body.requires_ack)) {
       fields.requires_ack = 'Подтверждение доступно только для объявлений.';
     }
+    const place = body.event_place?.trim() || null;
+    if (body.event_starts_at || place) {
+      if (body.type !== 'news') fields.event_starts_at = 'Мероприятием может быть только новость';
+      else if (!body.event_starts_at) fields.event_starts_at = 'Укажите дату и время мероприятия';
+      else if (!place || !validText(place, 1, 120)) fields.event_place = 'Укажите место: до 120 символов';
+      else if (!(Date.parse(body.event_starts_at) > Date.now())) fields.event_starts_at = 'Мероприятие должно быть в будущем';
+    }
     if (!audience || Object.keys(fields).length) return validation(fields);
 
     const item: MockFeedItem = {
       id: crypto.randomUUID(), type: body.type, title: body.title.trim(), body: body.body.trim(), audience,
       author_label: user.role === 'admin' ? 'Администрация' : user.display_name, important: body.important,
       requires_ack: body.requires_ack, link: { kind: 'none' }, created_at: new Date().toISOString(),
+      ...(body.event_starts_at && place && { event_starts_at: body.event_starts_at, event_place: place }),
     };
     feed.unshift(item);
     return HttpResponse.json(announcementItem(item), { status: 201 });

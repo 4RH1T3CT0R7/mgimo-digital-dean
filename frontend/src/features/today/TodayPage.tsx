@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { TodayBanners } from '@/features/banners/Banners';
 import { useFeedCounters } from '@/features/notifications/queries';
 import { useProfile } from '@/features/profile/queries';
 import { statusLabel, statusTones } from '@/features/requests/labels';
@@ -44,6 +45,7 @@ export function TodayPage()
     return (
         <>
             <PageHeader title="Сегодня" subtitle={`${weekdayLabel(today)}, ${formatDate(today)}${week ? ` · ${week.number}-я неделя, ${parityLabels[week.parity]}` : ''}`} />
+            <TodayBanners />
             {initial ? <QueryView query={initialQuery}>{() => null}</QueryView> : <div className="flex min-w-0 flex-col gap-6">
                     <QueryView query={profile} isEmpty={(data) => !data.full_name} empty={<p className="text-lg">{greeting(now)}</p>}>
                         {(data) => <p className="text-xl font-semibold">{greeting(now)}, {data.full_name.trim().split(/\s+/)[1] ?? data.full_name}</p>}

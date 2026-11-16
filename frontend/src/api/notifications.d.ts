@@ -14,6 +14,8 @@ export interface paths {
         /**
          * Лента уведомлений (F5)
          * @description Роли — student. Сначала важные непрочитанные, затем остальные по created_at (новые сверху).
+         *     Без параметра type новости (type=news) в ленту не входят: это лента «Уведомлений», где только то, что касается
+         *     лично студента (D61). Новости и мероприятия — только при явном type=news.
          */
         get: operations["getMyFeed"];
         put?: never;
@@ -33,7 +35,7 @@ export interface paths {
         };
         /**
          * Счётчики для значка в шапке и главной «Сегодня»
-         * @description Роли — student.
+         * @description Роли — student. Новости (type=news) не считаются.
          */
         get: operations["getMyFeedCounters"];
         put?: never;
@@ -75,9 +77,123 @@ export interface paths {
         put?: never;
         /**
          * Отметить всё прочитанным
-         * @description Роли — student. Подтверждение прочтения (ack) не ставит.
+         * @description Роли — student. Подтверждение прочтения (ack) не ставит. Новости (type=news) не трогает — их нет в ленте уведомлений.
          */
         post: operations["markAllFeedRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/feed/{item_id}/going": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * «Пойду» на мероприятие (D61)
+         * @description Роли — student. Только для новости с event, которое ещё не началось, иначе 409. Заодно отмечает прочитанным.
+         *     Повторный вызов — 204. Чужой или несуществующий элемент — 404.
+         */
+        post: operations["markFeedItemGoing"];
+        /**
+         * Отменить «Пойду»
+         * @description Роли — student. Правила те же, что у POST; повторный вызов — 204.
+         */
+        delete: operations["unmarkFeedItemGoing"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Баннеры администратора, которые сейчас видит студент (D61)
+         * @description Роли — student. Только адресованные студенту и действующие сейчас (starts_at ≤ now < ends_at), без закрытых им обычных.
+         *     Срочные первыми, затем новые сверху; не больше трёх.
+         */
+        get: operations["getMyBanners"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/banners/{banner_id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Скрыть обычный баннер
+         * @description Роли — student. Баннер не адресован студенту, не действует сейчас или не существует — 404. Срочный закрыть нельзя — 409.
+         *     Повторный вызов — 204.
+         */
+        post: operations["dismissBanner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Все баннеры со статусом и числом закрывших
+         * @description Роли — admin. Новые (по created_at) сверху.
+         */
+        get: operations["listAdminBanners"];
+        put?: never;
+        /**
+         * Создать баннер
+         * @description Роли — admin. Адресат — all, faculty, course или group (user — 400). ends_at позже starts_at и в будущем.
+         *     link_url — https-адрес с хостом и без логина в адресе или внутренний путь `^/[a-z0-9][a-z0-9/_-]*$`; ссылка и подпись — обе или ни одной.
+         *     Текст выводится как обычный текст, без HTML.
+         */
+        post: operations["createBanner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/banners/{banner_id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Снять баннер сейчас
+         * @description Роли — admin. ends_at становится текущим моментом (у запланированного и starts_at тоже) — баннер завершён.
+         *     Уже завершённый — 409, несуществующий — 404.
+         */
+        post: operations["endBanner"];
         delete?: never;
         options?: never;
         head?: never;
@@ -142,6 +258,7 @@ export interface paths {
          * @description Роли — staff, admin. Адресат у staff — только внутри своего факультета
          *     (kind faculty/course/group, faculty_id подставляется сервером), иначе 400.
          *     admin может выбрать любой адресат, включая all.
+         *     Мероприятие — новость с event_starts_at (в будущем) и event_place: оба поля или ни одного, только для type=news, иначе 400.
          */
         post: operations["createAnnouncement"];
         delete?: never;
@@ -269,6 +386,65 @@ export interface components {
             /** Format: date-time */
             acked_at?: string | null;
             link: components["schemas"]["Link"];
+            event?: components["schemas"]["FeedEvent"];
+        };
+        /** @description Есть только у новости-мероприятия */
+        FeedEvent: {
+            /** Format: date-time */
+            starts_at: string;
+            place: string;
+            /** @description Сколько студентов отметили «Пойду» */
+            going_count: number;
+            /** @description Текущий студент отметил «Пойду» */
+            going: boolean;
+        };
+        /**
+         * @description normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+         * @enum {string}
+         */
+        BannerPriority: "normal" | "urgent";
+        Banner: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @description Обычный текст, без HTML */
+            body?: string | null;
+            priority: components["schemas"]["BannerPriority"];
+            /** @description https-адрес или внутренний путь кабинета (`/news`) */
+            link_url?: string | null;
+            link_label?: string | null;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+        };
+        /**
+         * @description scheduled — показ ещё не начался; active — показывается; ended — завершён
+         * @enum {string}
+         */
+        BannerStatus: "scheduled" | "active" | "ended";
+        AdminBanner: components["schemas"]["Banner"] & {
+            audience: components["schemas"]["Audience"];
+            status: components["schemas"]["BannerStatus"];
+            /** @description Сколько студентов скрыли баннер */
+            dismissed_count: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CreateBannerRequest: {
+            title: string;
+            body?: string | null;
+            priority: components["schemas"]["BannerPriority"];
+            link_url?: string | null;
+            link_label?: string | null;
+            audience: components["schemas"]["Audience"];
+            /** Format: date-time */
+            starts_at: string;
+            /**
+             * Format: date-time
+             * @description Позже starts_at и в будущем
+             */
+            ends_at: string;
         };
         FeedList: {
             items: components["schemas"]["FeedItem"][];
@@ -322,6 +498,13 @@ export interface components {
             /** @description Требует подтверждения ознакомления; только для type=announcement */
             requires_ack: boolean;
             audience: components["schemas"]["Audience"];
+            /**
+             * Format: date-time
+             * @description Начало мероприятия (в будущем); только для type=news, вместе с event_place
+             */
+            event_starts_at?: string | null;
+            /** @description Место мероприятия; вместе с event_starts_at */
+            event_place?: string | null;
         };
         StaffAnnouncement: {
             /** Format: uuid */
@@ -338,6 +521,15 @@ export interface components {
             /** @description Только при requires_ack */
             acked_count?: number | null;
             read_count?: number;
+            /**
+             * Format: date-time
+             * @description Только у мероприятия
+             */
+            event_starts_at?: string | null;
+            /** @description Только у мероприятия */
+            event_place?: string | null;
+            /** @description Только у мероприятия — сколько студентов отметили «Пойду» */
+            going_count?: number | null;
         };
         StaffAnnouncementList: {
             items: components["schemas"]["StaffAnnouncement"][];
@@ -413,6 +605,7 @@ export interface components {
     };
     parameters: {
         ItemId: string;
+        BannerId: string;
         Limit: number;
         Offset: number;
     };
@@ -425,7 +618,7 @@ export interface operations {
     getMyFeed: {
         parameters: {
             query?: {
-                /** @description Можно несколько через запятую */
+                /** @description Можно несколько через запятую. Не указан — все типы, кроме news */
                 type?: components["schemas"]["FeedItemType"][];
                 unread_only?: boolean;
                 limit?: components["parameters"]["Limit"];
@@ -513,6 +706,173 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    markFeedItemGoing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отмечено */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    unmarkFeedItemGoing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: components["parameters"]["ItemId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Отметка снята */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getMyBanners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Баннеры */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Banner"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    dismissBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                banner_id: components["parameters"]["BannerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Скрыт */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminBanners: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Баннеры */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBanner"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBannerRequest"];
+            };
+        };
+        responses: {
+            /** @description Создан */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminBanner"];
+                };
+            };
+            400: components["responses"]["ValidationFailed"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    endBanner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                banner_id: components["parameters"]["BannerId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Снят */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     ackFeedItem: {

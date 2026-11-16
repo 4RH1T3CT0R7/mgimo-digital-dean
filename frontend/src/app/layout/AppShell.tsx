@@ -11,13 +11,17 @@ import {
   MegaphoneIcon,
   MonitorIcon,
   MoonIcon,
+  NewspaperIcon,
+  PanelTopIcon,
   ShieldCheckIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/queries';
+import { UrgentBanners } from '@/features/banners/Banners';
 import { useFeedCounters } from '@/features/notifications/queries';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -42,6 +46,8 @@ type NavItem = {
   match?: (pathname: string) => boolean;
   /** Счётчик на значке (непрочитанные) */
   badge?: number;
+  /** false — только в боковом меню: шестая вкладка на 360 px не помещается (до «Ещё» по D63) */
+  tab?: false;
 };
 
 export function StudentShell() {
@@ -55,12 +61,15 @@ export function StudentShell() {
         { to: '/grades', label: 'Учёба', icon: GraduationCapIcon },
         { to: '/requests', label: 'Заявки', icon: FileTextIcon },
         { to: '/notifications', label: 'Уведомления', icon: BellIcon, badge: unread },
+        { to: '/news', label: 'Новости и мероприятия', icon: NewspaperIcon, tab: false },
       ]}
+      notice={<UrgentBanners />}
     />
   );
 }
 
 export function StaffShell() {
+  const admin = useMe().data?.role === 'admin';
   return (
     <AppShell
       nav={[
@@ -68,6 +77,7 @@ export function StaffShell() {
         { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
         { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
         { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+        ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon }] : []),
       ]}
     />
   );
@@ -81,7 +91,7 @@ function badgeText(n: number) {
   return n > 99 ? '99+' : String(n);
 }
 
-function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }) {
+function AppShell({ nav, profileLink, notice }: { nav: NavItem[]; profileLink?: string; notice?: ReactNode }) {
   const { pathname } = useLocation();
 
   return (
@@ -132,6 +142,7 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
           <Logo compact className="lg:hidden" />
           <UserMenu profileLink={profileLink} />
         </header>
+        {notice}
         <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
           {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}
@@ -148,7 +159,7 @@ function AppShell({ nav, profileLink }: { nav: NavItem[]; profileLink?: string }
             с полосой прокрутки) с запасом. Раньше ширина шла по подписи и запас был 2 px — при активной
             «Заявки» подпись обрезалась. */}
         <ul className="grid h-tabbar auto-cols-fr grid-flow-col">
-          {nav.map((item) => {
+          {nav.filter((item) => item.tab !== false).map((item) => {
             const active = isActive(item, pathname);
             return (
               <li key={item.to} className="min-w-0">

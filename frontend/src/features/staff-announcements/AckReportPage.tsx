@@ -71,7 +71,18 @@ export function AckReportPage() {
                 <p className="whitespace-pre-wrap wrap-anywhere">{item.body}</p>
               </Section>
               <div className="mt-10">
-                {item.requires_ack ? <AckReport id={item.id} /> : <EmptyState title="Подтверждение не требуется" />}
+                {item.requires_ack ? (
+                  <AckReport id={item.id} />
+                ) : item.event_starts_at ? (
+                  <section aria-label="Кто пойдёт" className="flex flex-col gap-1">
+                    <p className="text-xl font-semibold">Пойдут: {item.going_count ?? 0}</p>
+                    <p className="text-muted-foreground wrap-anywhere">
+                      <time dateTime={item.event_starts_at}>{formatDateTime(item.event_starts_at)}</time>, {item.event_place}
+                    </p>
+                  </section>
+                ) : (
+                  <EmptyState title="Подтверждение не требуется" />
+                )}
               </div>
             </>
           ) : (

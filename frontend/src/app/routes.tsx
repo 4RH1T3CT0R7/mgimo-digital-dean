@@ -1,11 +1,13 @@
 import { LoaderCircleIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation, useRoutes, type RouteObject } from 'react-router';
+import * as adminBanners from '@/features/admin-banners/routes';
 import * as assistant from '@/features/assistant/routes';
 import * as auth from '@/features/auth/routes';
 import { useMe } from '@/features/auth/queries';
 import * as calendarExport from '@/features/calendar-export/routes';
 import * as grades from '@/features/grades/routes';
+import * as news from '@/features/news/routes';
 import * as notifications from '@/features/notifications/routes';
 import * as profile from '@/features/profile/routes';
 import * as pwa from '@/features/pwa/routes';
@@ -39,6 +41,8 @@ const features = [
   calendarExport,
   pwa,
   assistant,
+  news,
+  adminBanners,
 ];
 
 /** Пускает только роли `roles`; без входа — на /login, чужую роль — на её главную. */
