@@ -1,8 +1,6 @@
 import type { components } from '@/api/academic';
 import { addDays, monday } from '@/features/schedule/calendar';
 
-const monthName = new Intl.DateTimeFormat('ru-RU', { month: 'short', timeZone: 'Europe/Moscow' });
-
 /** Недели от понедельника начала семестра до конца последнего периода (каникулы идут после сессии). */
 export function semesterWeeks({ term, periods, events }: components['schemas']['AcademicCalendar'], today: string)
 {
@@ -13,7 +11,6 @@ export function semesterWeeks({ term, periods, events }: components['schemas']['
     {
         const end = addDays(start, 6);
         const thursday = addDays(start, 3);
-        const firstOfMonth = `${end.slice(0, 8)}01`;
 
         weeks.push({
             start, end, number: weeks.length + 1,
@@ -21,7 +18,6 @@ export function semesterWeeks({ term, periods, events }: components['schemas']['
             period: periods.find((period) => period.start_date <= thursday && thursday <= period.end_date),
             events: events.filter((event) => event.date >= start && event.date <= end).length,
             current: start <= today && today <= end,
-            month: firstOfMonth >= start ? monthName.format(new Date(`${firstOfMonth}T12:00:00+03:00`)) : '',
         });
     }
 

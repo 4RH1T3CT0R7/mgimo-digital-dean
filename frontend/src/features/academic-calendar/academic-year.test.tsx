@@ -24,13 +24,19 @@ async function openYearTab(route = '/grades')
 
 describe('W2: вкладка «Учебный год»', () =>
 {
-    it('показывает полосу по неделям с периодами, отметкой «сейчас» и числом мероприятий', async () =>
+    it('показывает полосу по неделям с подписями периодов, отметкой «сейчас» и мероприятиями', async () =>
     {
         await openYearTab();
         const strip = await screen.findByRole('list', { name: 'Недели семестра' });
         const weeks = within(strip).getAllByRole('listitem');
+        const region = screen.getByRole('region', { name: 'Полоса недель' });
 
         expect(weeks).toHaveLength(23);
+        expect(region).toHaveAttribute('tabindex', '0');
+        for (const label of ['Учёба', 'Зачётная неделя', 'Праздники', 'Сессия', 'Каникулы'])
+        {
+            expect(within(region).getByText(label)).toBeInTheDocument();
+        }
         expect(strip.querySelector('[aria-current="date"]')).toHaveTextContent('12-я неделя, 16–22 ноября: учёба, сейчас');
         expect(weeks[19]).toHaveTextContent('20-я неделя, 11–17 января: сессия, 4 контрольных мероприятия');
         expect(weeks[16]).toHaveTextContent('17-я неделя, 21–27 декабря: зачётная неделя, 2 контрольных мероприятия');
@@ -44,20 +50,24 @@ describe('W2: вкладка «Учебный год»', () =>
             .toHaveAttribute('href', 'https://mgimo.ru/sveden/education/');
     });
 
-    it('перечисляет мероприятия по датам, прошедшие приглушены', async () =>
+    it('перечисляет мероприятия по датам, прошедшие свёрнуты и приглушены', async () =>
     {
         await openYearTab();
-        const list = await screen.findByRole('list', { name: 'Контрольные мероприятия по датам' });
-        const days = within(list).getAllByRole('listitem').filter((item) => item.parentElement === list);
+        const list = await screen.findByRole('list', { name: 'Ближайшие мероприятия' });
+        const pastList = screen.getByRole('list', { name: 'Прошедшие мероприятия' });
+        const daysOf = (ul: HTMLElement) => within(ul).getAllByRole('listitem').filter((item) => item.parentElement === ul);
+        const days = daysOf(list);
         const exam = days.find((day) => day.textContent?.startsWith('Вторник, 12 января'))!;
-        const past = days.find((day) => day.textContent?.startsWith('Четверг, 1 октября'))!;
+        const past = daysOf(pastList).find((day) => day.textContent?.startsWith('Четверг, 1 октября'))!;
 
-        expect(days).toHaveLength(academicCalendar.events.filter((event, i, all) => all.findIndex((other) => other.date === event.date) === i).length);
+        expect(days).toHaveLength(9);
+        expect(daysOf(pastList)).toHaveLength(3);
+        expect(pastList.closest('details')).not.toHaveAttribute('open');
+        expect(screen.getByText(/Прошедшие мероприятия: 18/)).toBeInTheDocument();
         expect(exam).toHaveTextContent('Экзамен09:00–13:20Теория международных отношений');
         expect(within(exam).getByRole('link', { name: /Корпус Б, 1047/ })).toBeInTheDocument();
         expect(exam).not.toHaveClass('text-muted-foreground');
         expect(past).toHaveClass('text-muted-foreground');
-        expect(past).toHaveTextContent('прошло');
         expect(within(past).getAllByText('Контрольная работа 1')).toHaveLength(6);
         expect(days.find((day) => day.textContent?.startsWith('Пятница, 18 декабря'))).toHaveTextContent('Зачёт10:30–11:50Международное публичное право');
     });
