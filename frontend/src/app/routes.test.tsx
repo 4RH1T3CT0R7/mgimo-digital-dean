@@ -17,11 +17,12 @@ describe('Охрана маршрутов', () => {
     expect(window.location.pathname).toBe('/login');
   });
 
-  it('student — студенческая оболочка: 5 вкладок, счётчик непрочитанных', async () => {
+  // ponytail: 6-я вкладка «Студенческий» (W4) временно; навигацию по D63 (5 вкладок с «Ещё») делает W1
+  it('student — студенческая оболочка: 6 вкладок, счётчик непрочитанных', async () => {
     renderWithProviders(<AppRoutes />, { route: '/', login: 'student.mo' });
     expect(await screen.findByRole('heading', { name: 'Сегодня' })).toBeInTheDocument();
     const links = within(tabBar()).getAllByRole('link');
-    expect(links.map((l) => l.textContent?.replace(/\d+$/, ''))).toHaveLength(5);
+    expect(links.map((l) => l.textContent?.replace(/\d+$/, ''))).toHaveLength(6);
     expect(within(tabBar()).getByRole('link', { name: 'Сегодня' })).toHaveAttribute('aria-current', 'page');
     expect(await within(tabBar()).findByRole('link', { name: /Уведомления, непрочитанных: 3/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Меню пользователя: Лебедева А. В.' })).toBeInTheDocument();

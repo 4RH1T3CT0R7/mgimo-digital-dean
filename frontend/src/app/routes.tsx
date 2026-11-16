@@ -14,6 +14,7 @@ import * as schedule from '@/features/schedule/routes';
 import * as staffAnnouncements from '@/features/staff-announcements/routes';
 import * as staffApplications from '@/features/staff-applications/routes';
 import * as staffLessons from '@/features/staff-lessons/routes';
+import * as studentCard from '@/features/student-card/routes';
 import * as today from '@/features/today/routes';
 import * as verify from '@/features/verify/routes';
 import { ErrorState } from '@/shared/ui/error-state';
@@ -39,6 +40,7 @@ const features = [
   calendarExport,
   pwa,
   assistant,
+  studentCard,
 ];
 
 /** Пускает только роли `roles`; без входа — на /login, чужую роль — на её главную. */

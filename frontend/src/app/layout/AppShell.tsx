@@ -6,6 +6,7 @@ import {
   FileTextIcon,
   GraduationCapIcon,
   HouseIcon,
+  IdCardIcon,
   InboxIcon,
   LogOutIcon,
   MegaphoneIcon,
@@ -55,6 +56,7 @@ export function StudentShell() {
         { to: '/grades', label: 'Учёба', icon: GraduationCapIcon },
         { to: '/requests', label: 'Заявки', icon: FileTextIcon },
         { to: '/notifications', label: 'Уведомления', icon: BellIcon, badge: unread },
+        { to: '/student-card', label: 'Студенческий', icon: IdCardIcon },
       ]}
     />
   );

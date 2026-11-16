@@ -196,6 +196,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/student-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Электронный студенческий (D60)
+         * @description Роли — student, только свой. Данные — из academic на момент запроса, номер — номер студенческого билета из профиля.
+         *     Код проверки выдаётся при первом запросе и дальше не меняется (формат как у справки).
+         *     Срок — до 31 августа текущего учебного года; при каждом запросе срок и данные для проверки обновляются.
+         */
+        get: operations["getMyStudentCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/student-card/qr.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * QR со ссылкой на проверку студенческого
+         * @description Роли — student. В QR — полный адрес страницы проверки `/verify/{code}`.
+         *     Код ещё не выдан (не было запроса `/me/student-card`) — 404.
+         */
+        get: operations["getMyStudentCardQr"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/public/certificates/{code}": {
         parameters: {
             query?: never;
@@ -204,8 +247,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Проверка справки по коду
-         * @description Без входа. Минимум данных: инициалы, факультет, даты. Нет кода — 404.
+         * Проверка справки или студенческого по коду
+         * @description Без входа. Код справки или электронного студенческого (`kind`). Минимум данных: инициалы, факультет, даты,
+         *     у студенческого — курс. Нет кода — 404.
          *     Ограничение: 30 запросов в минуту с одного IP, иначе 429.
          */
         get: operations["verifyCertificate"];
@@ -226,7 +270,7 @@ export interface paths {
         };
         /**
          * Счётчики для главной сотрудника
-         * @description Роли — staff (свой факультет), admin (все).
+         * @description Роли — staff (свой факультет), admin (все; можно ограничить факультетом, как список заявок).
          */
         get: operations["getStaffStats"];
         put?: never;
@@ -546,6 +590,11 @@ export interface components {
             verify_url: string;
         };
         CertificateVerification: {
+            /**
+             * @description certificate — справка с места учёбы; student_card — электронный студенческий (D60)
+             * @enum {string}
+             */
+            kind: "certificate" | "student_card";
             /** @description false, если срок действия истёк */
             valid: boolean;
             title: string;
@@ -555,10 +604,42 @@ export interface components {
              */
             holder: string;
             faculty_short: string;
+            /** @description Только у студенческого */
+            course?: number | null;
             /** Format: date-time */
             issued_at: string;
             /** Format: date */
             valid_until: string;
+        };
+        /** @description Электронный студенческий учебного прототипа (D60); данные вымышленные */
+        StudentCard: {
+            /**
+             * @description Номер студенческого билета
+             * @example 2401317
+             */
+            number: string;
+            full_name: string;
+            faculty_name: string;
+            program_code: string;
+            program_name: string;
+            course: number;
+            /** @enum {string} */
+            study_form: "full_time" | "part_time" | "extramural";
+            /**
+             * Format: date
+             * @description 31 августа текущего учебного года
+             */
+            valid_until: string;
+            /**
+             * @description Код проверки (как у справки)
+             * @example S7TQ4C2DMA
+             */
+            code: string;
+            /**
+             * @description Относительный адрес страницы проверки в SPA
+             * @example /verify/S7TQ4C2DMA
+             */
+            verify_url: string;
         };
         /** @description Слепок данных студента на момент подачи заявки (D32) */
         StudentSnapshot: {
@@ -971,6 +1052,51 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getMyStudentCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Студенческий */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentCard"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getMyStudentCardQr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PNG */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     verifyCertificate: {
         parameters: {
             query?: never;
@@ -997,7 +1123,10 @@ export interface operations {
     };
     getStaffStats: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Только для admin; у staff игнорируется */
+                faculty_id?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

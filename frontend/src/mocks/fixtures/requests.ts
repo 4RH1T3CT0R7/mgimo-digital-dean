@@ -138,6 +138,36 @@ export const students: Record<string, S['StudentSnapshot']> = {
   },
 };
 
+/** Электронный студенческий (D60) по логину: данные — как в профиле academic, код проверки постоянный */
+export const studentCards: Record<string, Omit<S['StudentCard'], 'valid_until' | 'verify_url'>> = {
+  'student.mo': {
+    number: '2401317',
+    full_name: 'Лебедева Анна Викторовна',
+    faculty_name: 'Факультет международных отношений',
+    program_code: '41.03.05',
+    program_name: 'Международные отношения',
+    course: 2,
+    study_form: 'full_time',
+    code: 'S7TQ4C2DMA',
+  },
+  'student.meo': {
+    number: '2302214',
+    full_name: 'Соколов Максим Олегович',
+    faculty_name: 'Факультет международных экономических отношений',
+    program_code: '38.03.01',
+    program_name: 'Экономика',
+    course: 3,
+    study_form: 'full_time',
+    code: 'M3XV5RKQ2B',
+  },
+};
+
+/** 31 августа текущего учебного года (учебный год начинается 1 сентября) — как на сервере */
+export function academicYearEnd(today = toApiDate()): string {
+  const [year, month] = today.split('-').map(Number);
+  return `${month >= 9 ? year + 1 : year}-08-31`;
+}
+
 /** Студенты группы МО-24-03 без логина: у деканата ФМО есть новые и просроченные заявки */
 const orlova: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000001', full_name: 'Орлова Дарья Игоревна', short_name: 'Орлова Д. И.', student_card_no: '2401322' };
 const kovalev: S['StudentSnapshot'] = { ...students['student.mo'], id: '31000000-0000-4000-8000-000000000002', full_name: 'Ковалёв Илья Андреевич', short_name: 'Ковалёв И. А.', student_card_no: '2401305' };
@@ -335,6 +365,8 @@ function initialApplications(): MockApplication[] {
         ['submitted', 9 * 24, 'student'],
         ['in_progress', 8 * 24, 'staff'],
       ],
+      // Последнее сообщение — от студента: в списке деканата метка «Студент написал»
+      messages: [['student', 5, 'Нашёлся старый билет, но он повреждён. Заявку оставить или подать новую?']],
     }),
     buildApplication({
       number: 12,
