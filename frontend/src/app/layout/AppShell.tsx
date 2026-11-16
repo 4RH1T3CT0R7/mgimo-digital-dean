@@ -8,13 +8,16 @@ import {
   MegaphoneIcon,
   MonitorIcon,
   MoonIcon,
+  PanelTopIcon,
   ShieldCheckIcon,
   SunIcon,
   UserIcon,
   type LucideIcon,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { useLogout, useMe } from '@/features/auth/queries';
+import { UrgentBanners } from '@/features/banners/Banners';
 import { useFeedCounters } from '@/features/notifications/queries';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -39,11 +42,13 @@ export function StudentShell() {
       profileLink="/profile"
       nav={studentNav.map((item) => (item.to === '/notifications' ? { ...item, badge: unread } : item))}
       bell={{ to: '/notifications', count: unread }}
+      notice={<UrgentBanners />}
     />
   );
 }
 
 export function StaffShell() {
+  const admin = useMe().data?.role === 'admin';
   return (
     <AppShell
       nav={[
@@ -51,6 +56,7 @@ export function StaffShell() {
         { to: '/staff/announcements', label: 'Объявления', icon: MegaphoneIcon },
         { to: '/staff/deadlines', label: 'Дедлайны', icon: CalendarClockIcon },
         { to: '/staff/lessons', label: 'Занятия', icon: CalendarRangeIcon },
+        ...(admin ? [{ to: '/admin/banners', label: 'Баннеры', icon: PanelTopIcon }] : []),
       ]}
     />
   );
@@ -68,7 +74,7 @@ function tabItems(nav: NavItem[]): NavItem[] {
   return [...tabs, { to: '/more', label: 'Ещё', icon: EllipsisIcon, match: (p) => p === '/more' || more.some((item) => isActive(item, p)) }];
 }
 
-function AppShell({ nav, profileLink, bell }: { nav: NavItem[]; profileLink?: string; bell?: { to: string; count?: number } }) {
+function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileLink?: string; bell?: { to: string; count?: number }; notice?: ReactNode }) {
   const { pathname } = useLocation();
 
   return (
@@ -122,6 +128,7 @@ function AppShell({ nav, profileLink, bell }: { nav: NavItem[]; profileLink?: st
             <UserMenu profileLink={profileLink} />
           </div>
         </header>
+        {notice}
         <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
           {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}

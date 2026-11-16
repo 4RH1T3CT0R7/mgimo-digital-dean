@@ -172,7 +172,7 @@ func TestN1Audience(t *testing.T) {
 		{api.Audience{Kind: api.User, UserId: &s1}, true},
 		{api.Audience{Kind: api.User, UserId: &s2}, false},
 	} {
-		id := e.notification(tc.audience, "news", false, false, clock)
+		id := e.notification(tc.audience, "announcement", false, false, clock)
 		if found := slices.Contains(ids(e.feed("").Items), id); found != tc.visible {
 			t.Fatalf("адресат %+v: видно %v", tc.audience, found)
 		}
@@ -187,7 +187,7 @@ func TestN2PriorityAndPagination(t *testing.T) {
 	a := api.Audience{Kind: api.All}
 	unread := e.notification(a, "announcement", true, false, clock.Add(-3*time.Hour))
 	importantRead := e.notification(a, "announcement", true, false, clock.Add(-2*time.Hour))
-	latest := e.notification(a, "news", false, false, clock.Add(-time.Hour))
+	latest := e.notification(a, "announcement", false, false, clock.Add(-time.Hour))
 	e.mark(importantRead, "read", 204)
 	want := []uuid.UUID{unread, latest, importantRead}
 	if got := ids(e.feed("").Items); !slices.Equal(got, want) {
@@ -217,8 +217,8 @@ func TestN3Filters(t *testing.T) {
 
 func TestN4Read(t *testing.T) {
 	e := setup(t)
-	own := e.notification(api.Audience{Kind: api.User, UserId: &s1}, "news", false, false, clock)
-	other := e.notification(api.Audience{Kind: api.User, UserId: &s2}, "news", false, false, clock)
+	own := e.notification(api.Audience{Kind: api.User, UserId: &s1}, "application_status", false, false, clock)
+	other := e.notification(api.Audience{Kind: api.User, UserId: &s2}, "application_status", false, false, clock)
 	e.mark(own, "read", 204)
 	e.now = clock.Add(time.Hour)
 	e.mark(own, "read", 204)

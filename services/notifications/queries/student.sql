@@ -1,5 +1,6 @@
 -- name: ListFeed :many
-SELECT sqlc.embed(n), r.read_at, r.acked_at
+SELECT sqlc.embed(n), r.read_at, r.acked_at, r.going_at,
+       (SELECT count(*) FROM notification_reads g WHERE g.notification_id = n.id AND g.going_at IS NOT NULL) AS going_count
 FROM notifications n
 LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = sqlc.arg(student_id)::uuid
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
@@ -27,7 +28,7 @@ FROM notifications n
 LEFT JOIN notification_reads r ON r.notification_id = n.id AND r.user_id = sqlc.arg(student_id)::uuid
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           sqlc.arg(student_id)::uuid, sqlc.arg(faculty_id)::uuid, sqlc.arg(course)::integer, sqlc.arg(group_ids)::uuid[])
-  AND n.created_at <= sqlc.arg(now)::timestamptz;
+  AND n.type <> 'news' AND n.created_at <= sqlc.arg(now)::timestamptz;
 
 -- name: FindVisibleNotification :one
 SELECT n.requires_ack
@@ -54,8 +55,21 @@ SELECT n.id, sqlc.arg(student_id)::uuid, sqlc.arg(marked_at)::timestamptz
 FROM notifications n
 WHERE notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
           sqlc.arg(student_id)::uuid, sqlc.arg(faculty_id)::uuid, sqlc.arg(course)::integer, sqlc.arg(group_ids)::uuid[])
-  AND n.created_at <= sqlc.arg(marked_at)::timestamptz
+  AND n.type <> 'news' AND n.created_at <= sqlc.arg(marked_at)::timestamptz
 ON CONFLICT (notification_id, user_id) DO NOTHING;
+
+-- name: SetGoing :execrows
+-- «Пойду» — только у мероприятия, которое ещё не началось; заодно отмечает прочитанным.
+INSERT INTO notification_reads (notification_id, user_id, read_at, going_at)
+SELECT n.id, sqlc.arg(student_id)::uuid, sqlc.arg(marked_at)::timestamptz,
+       CASE WHEN sqlc.arg(going)::boolean THEN sqlc.arg(marked_at)::timestamptz END
+FROM notifications n
+WHERE n.id = sqlc.arg(item_id)::uuid AND notification_matches(audience_kind, audience_user_id, audience_faculty_id, audience_course, audience_group_id,
+          sqlc.arg(student_id)::uuid, sqlc.arg(faculty_id)::uuid, sqlc.arg(course)::integer, sqlc.arg(group_ids)::uuid[])
+  AND n.event_starts_at > sqlc.arg(marked_at)::timestamptz
+  AND n.created_at <= sqlc.arg(marked_at)::timestamptz
+ON CONFLICT (notification_id, user_id) DO UPDATE
+SET going_at = CASE WHEN sqlc.arg(going)::boolean THEN COALESCE(notification_reads.going_at, excluded.going_at) END;
 
 -- name: ListMyDeadlines :many
 SELECT * FROM deadlines

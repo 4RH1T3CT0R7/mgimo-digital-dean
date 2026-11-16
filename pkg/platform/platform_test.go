@@ -68,6 +68,7 @@ func TestRoleChecksAndFacultyScope(t *testing.T) {
 	}
 	student := func(r *http.Request) error { _, err := platform.RequireStudent(r.Context()); return err }
 	staff := func(r *http.Request) error { _, err := platform.RequireStaffOrAdmin(r.Context()); return err }
+	admin := func(r *http.Request) error { _, err := platform.RequireAdmin(r.Context()); return err }
 	as := func(role platform.Role, fac *uuid.UUID) *http.Request {
 		r := httptest.NewRequest(http.MethodGet, "/", nil)
 		platform.SetIdentityHeaders(r.Header, platform.Identity{UserID: user, Role: role, FacultyID: fac})
@@ -85,6 +86,10 @@ func TestRoleChecksAndFacultyScope(t *testing.T) {
 		{"/staff студентом", staff, as(platform.RoleStudent, nil), 403},
 		{"/staff сотрудником", staff, as(platform.RoleStaff, &faculty), 200},
 		{"/staff администратором", staff, as(platform.RoleAdmin, nil), 200},
+		{"/admin без личности", admin, httptest.NewRequest(http.MethodGet, "/", nil), 401},
+		{"/admin студентом", admin, as(platform.RoleStudent, nil), 403},
+		{"/admin сотрудником", admin, as(platform.RoleStaff, &faculty), 403},
+		{"/admin администратором", admin, as(platform.RoleAdmin, nil), 200},
 	}
 	for _, c := range cases {
 		w := httptest.NewRecorder()

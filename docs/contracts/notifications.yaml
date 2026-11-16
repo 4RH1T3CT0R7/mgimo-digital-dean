@@ -1,12 +1,15 @@
 openapi: 3.0.3
 info:
-  title: notifications — лента, объявления, дедлайны
-  version: 1.0.0
+  title: notifications — лента, объявления, дедлайны, новости и баннеры
+  version: 1.1.0
   description: |
     Публичный API сервиса `notifications`. Соглашения — docs/contracts/README.md.
     Лента собирается при чтении по адресату (D33): личные уведомления + объявления для группы, курса, факультета или всех.
     Принадлежность студента берётся из internal/academic.yaml (getStudentMembership).
     Правило совпадения адресата — docs/contracts/data-model.md.
+    Новости и мероприятия (D61) — отдельный раздел: лента без параметра type, счётчики и «прочитать всё» новости не учитывают,
+    раздел «Новости и мероприятия» запрашивает ленту с type=news. Мероприятие — новость с датой и местом (event).
+    Баннеры администратора (D61) — отдельные записи с адресатом и сроком показа: /me/banners, /admin/banners.
 servers:
   - url: /api/notifications
 security:
@@ -16,17 +19,22 @@ tags:
     description: Эндпоинты студента (/me/*)
   - name: staff
     description: Эндпоинты сотрудника деканата и администратора (/staff/*)
+  - name: admin
+    description: Эндпоинты только для администратора (/admin/*)
 paths:
   /me/feed:
     get:
       tags: [student]
       operationId: getMyFeed
       summary: Лента уведомлений (F5)
-      description: Роли — student. Сначала важные непрочитанные, затем остальные по created_at (новые сверху).
+      description: |
+        Роли — student. Сначала важные непрочитанные, затем остальные по created_at (новые сверху).
+        Без параметра type новости (type=news) в ленту не входят: это лента «Уведомлений», где только то, что касается
+        лично студента (D61). Новости и мероприятия — только при явном type=news.
       parameters:
         - in: query
           name: type
-          description: Можно несколько через запятую
+          description: Можно несколько через запятую. Не указан — все типы, кроме news
           style: form
           explode: false
           schema:
@@ -56,7 +64,7 @@ paths:
       tags: [student]
       operationId: getMyFeedCounters
       summary: Счётчики для значка в шапке и главной «Сегодня»
-      description: Роли — student.
+      description: Роли — student. Новости (type=news) не считаются.
       responses:
         '200':
           description: Счётчики
@@ -90,7 +98,7 @@ paths:
       tags: [student]
       operationId: markAllFeedRead
       summary: Отметить всё прочитанным
-      description: Роли — student. Подтверждение прочтения (ack) не ставит.
+      description: Роли — student. Подтверждение прочтения (ack) не ставит. Новости (type=news) не трогает — их нет в ленте уведомлений.
       responses:
         '204':
           description: Отмечено
@@ -98,6 +106,155 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /me/feed/{item_id}/going:
+    post:
+      tags: [student]
+      operationId: markFeedItemGoing
+      summary: «Пойду» на мероприятие (D61)
+      description: |
+        Роли — student. Только для новости с event, которое ещё не началось, иначе 409. Заодно отмечает прочитанным.
+        Повторный вызов — 204. Чужой или несуществующий элемент — 404.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '204':
+          description: Отмечено
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [student]
+      operationId: unmarkFeedItemGoing
+      summary: Отменить «Пойду»
+      description: Роли — student. Правила те же, что у POST; повторный вызов — 204.
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+      responses:
+        '204':
+          description: Отметка снята
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /me/banners:
+    get:
+      tags: [student]
+      operationId: getMyBanners
+      summary: Баннеры администратора, которые сейчас видит студент (D61)
+      description: |
+        Роли — student. Только адресованные студенту и действующие сейчас (starts_at ≤ now < ends_at), без закрытых им обычных.
+        Срочные первыми, затем новые сверху; не больше трёх.
+      responses:
+        '200':
+          description: Баннеры
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 3
+                items:
+                  $ref: '#/components/schemas/Banner'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /me/banners/{banner_id}/dismiss:
+    post:
+      tags: [student]
+      operationId: dismissBanner
+      summary: Скрыть обычный баннер
+      description: |
+        Роли — student. Баннер не адресован студенту, не действует сейчас или не существует — 404. Срочный закрыть нельзя — 409.
+        Повторный вызов — 204.
+      parameters:
+        - $ref: '#/components/parameters/BannerId'
+      responses:
+        '204':
+          description: Скрыт
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /admin/banners:
+    get:
+      tags: [admin]
+      operationId: listAdminBanners
+      summary: Все баннеры со статусом и числом закрывших
+      description: Роли — admin. Новые (по created_at) сверху.
+      responses:
+        '200':
+          description: Баннеры
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminBanner'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [admin]
+      operationId: createBanner
+      summary: Создать баннер
+      description: |
+        Роли — admin. Адресат — all, faculty, course или group (user — 400). ends_at позже starts_at и в будущем.
+        link_url — https-адрес с хостом и без логина в адресе или внутренний путь `^/[a-z0-9][a-z0-9/_-]*$`; ссылка и подпись — обе или ни одной.
+        Текст выводится как обычный текст, без HTML.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBannerRequest'
+      responses:
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBanner'
+        '400':
+          $ref: '#/components/responses/ValidationFailed'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /admin/banners/{banner_id}/end:
+    post:
+      tags: [admin]
+      operationId: endBanner
+      summary: Снять баннер сейчас
+      description: |
+        Роли — admin. ends_at становится текущим моментом (у запланированного и starts_at тоже) — баннер завершён.
+        Уже завершённый — 409, несуществующий — 404.
+      parameters:
+        - $ref: '#/components/parameters/BannerId'
+      responses:
+        '204':
+          description: Снят
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
   /me/feed/{item_id}/ack:
     post:
       tags: [student]
@@ -173,6 +330,7 @@ paths:
         Роли — staff, admin. Адресат у staff — только внутри своего факультета
         (kind faculty/course/group, faculty_id подставляется сервером), иначе 400.
         admin может выбрать любой адресат, включая all.
+        Мероприятие — новость с event_starts_at (в будущем) и event_place: оба поля или ни одного, только для type=news, иначе 400.
       requestBody:
         required: true
         content:
@@ -294,6 +452,13 @@ components:
     ItemId:
       in: path
       name: item_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    BannerId:
+      in: path
+      name: banner_id
       required: true
       schema:
         type: string
@@ -428,6 +593,112 @@ components:
           nullable: true
         link:
           $ref: '#/components/schemas/Link'
+        event:
+          $ref: '#/components/schemas/FeedEvent'
+    FeedEvent:
+      type: object
+      required: [starts_at, place, going_count, going]
+      description: Есть только у новости-мероприятия
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        place:
+          type: string
+          maxLength: 120
+        going_count:
+          type: integer
+          description: Сколько студентов отметили «Пойду»
+        going:
+          type: boolean
+          description: Текущий студент отметил «Пойду»
+    BannerPriority:
+      type: string
+      description: normal — карточка вверху «Сегодня», её можно скрыть; urgent — полоса под шапкой на всех страницах, скрыть нельзя.
+      enum: [normal, urgent]
+    Banner:
+      type: object
+      required: [id, title, priority, starts_at, ends_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 80
+        body:
+          type: string
+          nullable: true
+          maxLength: 200
+          description: Обычный текст, без HTML
+        priority:
+          $ref: '#/components/schemas/BannerPriority'
+        link_url:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: https-адрес или внутренний путь кабинета (`/news`)
+        link_label:
+          type: string
+          nullable: true
+          maxLength: 30
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+    BannerStatus:
+      type: string
+      description: scheduled — показ ещё не начался; active — показывается; ended — завершён
+      enum: [scheduled, active, ended]
+    AdminBanner:
+      allOf:
+        - $ref: '#/components/schemas/Banner'
+        - type: object
+          required: [audience, status, dismissed_count, created_at]
+          properties:
+            audience:
+              $ref: '#/components/schemas/Audience'
+            status:
+              $ref: '#/components/schemas/BannerStatus'
+            dismissed_count:
+              type: integer
+              description: Сколько студентов скрыли баннер
+            created_at:
+              type: string
+              format: date-time
+    CreateBannerRequest:
+      type: object
+      required: [title, priority, audience, starts_at, ends_at]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 80
+        body:
+          type: string
+          nullable: true
+          maxLength: 200
+        priority:
+          $ref: '#/components/schemas/BannerPriority'
+        link_url:
+          type: string
+          nullable: true
+          maxLength: 500
+        link_label:
+          type: string
+          nullable: true
+          maxLength: 30
+        audience:
+          $ref: '#/components/schemas/Audience'
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+          description: Позже starts_at и в будущем
     FeedList:
       type: object
       required: [items, total]
@@ -535,6 +806,17 @@ components:
           description: Требует подтверждения ознакомления; только для type=announcement
         audience:
           $ref: '#/components/schemas/Audience'
+        event_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Начало мероприятия (в будущем); только для type=news, вместе с event_place
+        event_place:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 120
+          description: Место мероприятия; вместе с event_starts_at
     StaffAnnouncement:
       type: object
       required: [id, type, title, body, important, requires_ack, audience, created_at]
@@ -564,6 +846,19 @@ components:
           description: Только при requires_ack
         read_count:
           type: integer
+        event_starts_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Только у мероприятия
+        event_place:
+          type: string
+          nullable: true
+          description: Только у мероприятия
+        going_count:
+          type: integer
+          nullable: true
+          description: Только у мероприятия — сколько студентов отметили «Пойду»
     StaffAnnouncementList:
       type: object
       required: [items, total]

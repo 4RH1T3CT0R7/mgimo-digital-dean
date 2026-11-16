@@ -107,7 +107,7 @@ describe('T11', () => {
   it('запрашивает типы через запятую и следующую страницу с offset=20', async () => {
     const requested = vi.fn();
     const items = Array.from({ length: 21 }, (_, i): components['schemas']['FeedItem'] => ({
-      id: String(i), type: 'news', title: `Новости ${i + 1}`, body: 'Текст', created_at: '2026-11-18T08:00:00+03:00',
+      id: String(i), type: 'application_status', title: `Заявка ${i + 1}`, body: 'Текст', created_at: '2026-11-18T08:00:00+03:00',
       important: false, requires_ack: false, link: { kind: 'none' },
     }));
     server.use(http.get(`${api}/me/feed`, ({ request }) => {
@@ -117,10 +117,25 @@ describe('T11', () => {
       return HttpResponse.json({ items: items.slice(offset, offset + 20), total: items.length });
     }));
     const { user } = renderPage();
-    await user.click(await screen.findByRole('button', { name: 'Объявления' }));
+    await user.click(await screen.findByRole('button', { name: 'Заявки' }));
     await user.click(await screen.findByRole('button', { name: 'Показать ещё' }));
-    expect(await screen.findByText('Новости 21')).toBeVisible();
-    expect(requested).toHaveBeenCalledWith('announcement,news', '20', 20);
+    expect(await screen.findByText('Заявка 21')).toBeVisible();
+    expect(requested).toHaveBeenCalledWith('application_status,application_message', '20', 20);
+  });
+
+  it('новостей в ленте уведомлений нет: они в «Новостях и мероприятиях»', async () => {
+    const types: (string | null)[] = [];
+    server.events.on('request:start', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.pathname === `${api}/me/feed`) types.push(url.searchParams.get('type'));
+    });
+    const { user } = renderPage();
+    expect(await screen.findByText(/Проверьте время декабрьских зачётов/)).toBeVisible();
+    expect(screen.queryByText('Справку с места учёбы можно скачать сразу')).not.toBeInTheDocument();
+    expect(screen.queryByText('Открытая лекция «Как читать международный договор»')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Объявления' }));
+    await waitFor(() => expect(types).toEqual([null, 'announcement']));
+    server.events.removeAllListeners('request:start');
   });
 
   it('после прочтения обновляет общий счётчик и сохраняет требование ознакомления', async () => {
