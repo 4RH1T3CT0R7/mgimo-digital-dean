@@ -11,3 +11,9 @@
         bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     }
 }
+
+/* Пока баннер виден, внизу страницы есть место под ним — подвал и последние строки можно докрутить */
+body:has(.pwa-offline-banner:not([hidden]))
+{
+    padding-bottom: 5rem;
+}

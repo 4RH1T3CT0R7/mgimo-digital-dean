@@ -95,7 +95,7 @@ export function TodayPage()
                                     </ul>
                                 )}
                             </QueryView>
-                            <Button asChild variant="link" className="self-start px-0"><Link to="/notifications" aria-label="Все дедлайны">Все</Link></Button>
+                            <Button asChild variant="link" className="-ml-3 self-start px-3"><Link to="/notifications" aria-label="Все дедлайны">Все</Link></Button>
                         </Section>
                     </div>
                     <Section title="Мои заявки">

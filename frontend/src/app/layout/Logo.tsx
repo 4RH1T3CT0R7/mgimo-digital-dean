@@ -6,7 +6,7 @@ export function Logo({ compact = false, className }: { compact?: boolean; classN
   return (
     <Link
       to="/"
-      className={cn('flex w-fit items-center gap-2.5 rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', className)}
+      className={cn('flex min-h-11 w-fit items-center gap-2.5 rounded-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none', className)}
     >
       <img
         src="/brand/mark-64.png"
