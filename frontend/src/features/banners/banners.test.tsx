@@ -6,7 +6,7 @@ import { resetNotificationsState } from '@/mocks/handlers/notifications';
 import { renderWithProviders, server } from '@/test/render';
 
 const normal = 'Новости и мероприятия — в отдельном разделе';
-const urgent = 'Плановые работы в ночь на 28 ноября';
+const urgent = 'С 16 ноября справки и заявления — только через кабинет';
 
 beforeEach(() => {
   vi.setSystemTime(new Date('2026-11-18T10:00:00+03:00'));

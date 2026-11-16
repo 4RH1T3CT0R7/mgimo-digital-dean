@@ -148,6 +148,12 @@ function ApplicationForm({ service }: { service: ServiceType }) {
   return (
     <>
       <PageHeader title={service.title} subtitle={service.description} />
+      {/* «Подать заново»: поля прежней заявки подставлены — причину отказа показываем, чтобы студент их проверил */}
+      {params.get('rejected') && (
+        <p role="note" className="mb-6 rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-strong">
+          Прошлую заявку отклонили: {params.get('rejected')} Проверьте поля перед отправкой.
+        </p>
+      )}
       {/* У мгновенной справки срок уже сказан в описании */}
       {!instant && (
         <p className="-mt-3 mb-6 flex items-center gap-2 text-sm text-muted-foreground">

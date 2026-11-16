@@ -47,28 +47,30 @@ export function TodayPage()
     const urgent = future.filter((item) => toApiDate(item.due_at) <= tomorrow);
     const upcoming = future.filter((item) => toApiDate(item.due_at) > tomorrow && toApiDate(item.due_at) <= addDays(today, 7)).slice(0, 3);
     const waiting = needsInfo.data?.items ?? [];
+    const unacked = counters.data?.important_unacked ?? 0;
 
     return (
         <>
-            <PageHeader title="Сегодня" subtitle={`${weekdayLabel(today)}, ${formatDate(today)}${week ? ` · ${week.number}-я неделя, ${parityLabels[week.parity]}` : ''}`} />
+            <PageHeader title="Сегодня" subtitle={`${weekdayLabel(today)}, ${formatDate(today)}${week ? `, ${week.number}-я неделя, ${parityLabels[week.parity]}` : ''}`} />
             <TodayBanners />
             {initial ? <QueryView query={initialQuery}>{() => null}</QueryView> : <div className="flex min-w-0 flex-col gap-6">
                     <QueryView query={profile} isEmpty={(data) => !data.full_name} empty={<p className="text-lg">{greeting(now)}</p>}>
                         {(data) => <p className="text-xl font-semibold">{greeting(now)}, {data.full_name.trim().split(/\s+/)[1] ?? data.full_name}</p>}
                     </QueryView>
-                    <QueryView query={counters}>
-                        {(data) => data.important_unacked > 0 ? (
-                            <Link to="/notifications"
-                                className="flex min-h-11 items-center rounded-xl border bg-warning-soft p-4 font-medium text-warning-strong underline underline-offset-4">
-                                {data.important_unacked} {plural(data.important_unacked,
-                                    ['важное объявление ждёт', 'важных объявления ждут', 'важных объявлений ждут'])} ознакомления
-                            </Link>
-                        ) : null}
-                    </QueryView>
-                    {/* Пустой блок не показываем; ошибку заявок видно в «Моих заявках» */}
-                    {waiting.length + urgent.length > 0 && (
+                    {/* Всё, что ждёт действия студента, — одним списком; пустой блок не показываем, ошибки видно в своих разделах */}
+                    {unacked + waiting.length + urgent.length > 0 && (
                         <Section title="Ждёт вашего действия">
                             <ul className="divide-y">
+                                {unacked > 0 && (
+                                    <li>
+                                        <Link className="flex min-h-11 flex-col items-start justify-center gap-1 py-3" to="/notifications">
+                                            <span className="font-medium text-primary">
+                                                Ознакомьтесь: {unacked} {plural(unacked, ['важное объявление', 'важных объявления', 'важных объявлений'])}
+                                            </span>
+                                            <span className="text-sm text-muted-foreground">Деканат просит подтвердить, что вы прочитали</span>
+                                        </Link>
+                                    </li>
+                                )}
                                 {waiting.map((item) => (
                                     <li key={item.id}>
                                         <Link className="flex min-h-11 flex-col items-start justify-center gap-1 py-3" to={`/requests/${item.id}`}>
@@ -80,18 +82,14 @@ export function TodayPage()
                                 {urgent.map((item) => {
                                     const when = `${toApiDate(item.due_at) === today ? 'Сегодня' : 'Завтра'} до ${formatTime(item.due_at)}`;
 
-                                    return item.service_type_id ? (
+                                    // Срок с услугой ведёт в форму заявки, остальные — в «Дедлайны»: у каждой строки есть следующий шаг
+                                    return (
                                         <li key={item.id}>
                                             <Link className="flex min-h-11 flex-col items-start justify-center gap-1 py-3"
-                                                to={`/requests/new/${encodeURIComponent(item.service_type_id)}`}>
+                                                to={item.service_type_id ? `/requests/new/${encodeURIComponent(item.service_type_id)}` : '/notifications'}>
                                                 <span className="font-medium text-primary">{item.title}</span>
                                                 <span className="text-sm text-muted-foreground">{when}</span>
                                             </Link>
-                                        </li>
-                                    ) : (
-                                        <li key={item.id} className="py-3">
-                                            <p className="font-medium">{item.title}</p>
-                                            <p className="mt-1 text-sm text-muted-foreground">{when}</p>
                                         </li>
                                     );
                                 })}

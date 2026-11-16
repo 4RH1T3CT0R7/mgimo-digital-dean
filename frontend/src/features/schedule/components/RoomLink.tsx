@@ -110,7 +110,7 @@ export function RoomLink({ room }: { room: Room }) {
               <div className="rounded-lg border bg-muted/40 p-3">
                 <CampusScheme active={building} />
               </div>
-              <figcaption className="text-[0.8125rem] text-muted-foreground">Схема упрощённая, без масштаба.</figcaption>
+              <figcaption className="text-[0.8125rem] text-muted-foreground">Схема упрощённая, без масштаба. Н — Новый корпус.</figcaption>
             </figure>
           ) : (
             <p className="text-sm text-muted-foreground">Этого корпуса нет на нашей схеме — найдите аудиторию на карте МГИМО.</p>

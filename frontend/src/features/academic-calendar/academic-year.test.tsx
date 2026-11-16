@@ -24,7 +24,7 @@ async function openYearTab(route = '/grades')
 
 describe('W2: вкладка «Учебный год»', () =>
 {
-    it('показывает полосу по неделям с подписями периодов, отметкой «сейчас» и мероприятиями', async () =>
+    it('показывает полосу по неделям, легенду периодов, отметку «сейчас» и мероприятия', async () =>
     {
         await openYearTab();
         const strip = await screen.findByRole('list', { name: 'Недели семестра' });
@@ -33,10 +33,6 @@ describe('W2: вкладка «Учебный год»', () =>
 
         expect(weeks).toHaveLength(23);
         expect(region).toHaveAttribute('tabindex', '0');
-        for (const label of ['Учёба', 'Зачётная неделя', 'Праздники', 'Сессия', 'Каникулы'])
-        {
-            expect(within(region).getByText(label)).toBeInTheDocument();
-        }
         expect(strip.querySelector('[aria-current="date"]')).toHaveTextContent('12-я неделя, 16–22 ноября: учёба, сейчас');
         expect(weeks[19]).toHaveTextContent('20-я неделя, 11–17 января: сессия, 4 контрольных мероприятия');
         expect(weeks[16]).toHaveTextContent('17-я неделя, 21–27 декабря: зачётная неделя, 2 контрольных мероприятия');

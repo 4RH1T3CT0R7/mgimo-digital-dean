@@ -117,7 +117,7 @@ function ApplicationDetails({ application: a }: { application: Application }) {
               title="Заявка отклонена"
               action={
                 <Button asChild variant="outline" className="self-start">
-                  <Link to={resubmitPath(a)}>Подать заново</Link>
+                  <Link to={resubmitPath(a, lastComment(a, 'rejected'))}>Подать заново</Link>
                 </Button>
               }
             >

@@ -31,15 +31,15 @@ describe('W1: «Полезное»', () => {
 });
 
 describe('W1: вопрос в деканат без тупиков', () => {
-  it('«Учёба»: у дисциплины «Нужно внимание» — «Спросить о пересдаче» с темой и вопросом', async () => {
+  it('«Учёба»: у дисциплины «Нужно внимание» — «Спросить, как исправить баллы» с темой и вопросом', async () => {
     const { user } = renderWithProviders(<AppRoutes />, { route: '/grades', login: 'student.mo' });
     const first = within(await screen.findByRole('list', { name: 'Дисциплины текущего семестра' })).getAllByRole('article')[0];
-    const link = within(first).getByRole('link', { name: 'Спросить о пересдаче' });
-    expect(params(link)).toEqual({ topic: 'Учебный процесс', question: 'Как пересдать дисциплину «Французский язык»? Подскажите сроки и порядок.' });
+    const link = within(first).getByRole('link', { name: 'Спросить, как исправить баллы' });
+    expect(params(link)).toEqual({ topic: 'Учебный процесс', question: 'Как исправить баллы по дисциплине «Французский язык» до сессии? Что можно досдать?' });
 
     await user.click(link);
     expect(await screen.findByRole('combobox', { name: /Тема/ })).toHaveTextContent('Учебный процесс');
-    expect(screen.getByLabelText('Ваш вопрос')).toHaveValue('Как пересдать дисциплину «Французский язык»? Подскажите сроки и порядок.');
+    expect(screen.getByLabelText('Ваш вопрос')).toHaveValue('Как исправить баллы по дисциплине «Французский язык» до сессии? Что можно досдать?');
   });
 
   it('профиль: «сообщите в деканат» — ссылка на вопрос', async () => {

@@ -43,10 +43,10 @@ describe('Новости и мероприятия', () => {
       const { user } = renderPage();
       await screen.findByRole('heading', { name: lecture });
       await user.click(card(lecture).getByRole('button', { name: 'Пойду' }));
-      expect(await card(lecture).findByRole('button', { name: 'Иду — отменить' })).toBeEnabled();
+      expect(await card(lecture).findByRole('button', { name: 'Вы идёте', pressed: true })).toBeEnabled();
       expect(card(lecture).getByText('Пойдут 3 человека')).toBeVisible();
-      await user.click(card(lecture).getByRole('button', { name: 'Иду — отменить' }));
-      expect(await card(lecture).findByRole('button', { name: 'Пойду' })).toBeEnabled();
+      await user.click(card(lecture).getByRole('button', { name: 'Вы идёте' }));
+      expect(await card(lecture).findByRole('button', { name: 'Пойду', pressed: false })).toBeEnabled();
       expect(card(lecture).getByText('Пойдут 2 человека')).toBeVisible();
       expect(calls).toEqual(['POST', 'DELETE']);
     } finally {

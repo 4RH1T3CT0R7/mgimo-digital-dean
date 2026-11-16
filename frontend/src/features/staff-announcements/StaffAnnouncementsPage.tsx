@@ -67,7 +67,7 @@ export function StaffAnnouncementsPage() {
                         <AudienceLabel audience={item.audience} admin={me?.role === 'admin'} />
                       </span>
                       <time dateTime={item.created_at}>{formatDateTime(item.created_at)}</time>
-                      <span>Прочитали {item.read_count ?? '—'}</span>
+                      {!item.event_place && <span>Прочитали {item.read_count ?? '—'}</span>}
                     </div>
                     {item.requires_ack && (
                       <Button asChild variant="link" className="max-w-full px-0 text-left whitespace-normal">

@@ -163,10 +163,13 @@ function AnswerView({ question, answer, services }: { question: string; answer: 
   return (
     <>
       <p className="whitespace-pre-line">{answer.answer}</p>
-      <p className="flex items-start gap-2 text-sm text-muted-foreground">
-        <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {providerNotes[answer.provider]}
-      </p>
+      {/* «Ответ из справочника» — только когда ответ и правда нашёлся в справочнике */}
+      {(answer.provider === 'llm' || answer.sources.length > 0) && (
+        <p className="flex items-start gap-2 text-sm text-muted-foreground">
+          <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {providerNotes[answer.provider]}
+        </p>
+      )}
       {answer.sources.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <h3 className="text-sm font-semibold">Источники</h3>
@@ -179,15 +182,18 @@ function AnswerView({ question, answer, services }: { question: string; answer: 
       )}
       <div className="flex flex-wrap gap-2">
         {action && (
-          <Button asChild className="h-auto min-h-11 py-2.5 text-left whitespace-normal">
+          <Button asChild className="h-auto min-h-11 max-w-full py-2.5 text-left whitespace-normal">
             <Link to={`/requests/new/${encodeURIComponent(action.service_type_id)}?${new URLSearchParams(action.prefill)}`}>
               {service ? `Заполнить заявление: ${service.title}` : 'Заполнить заявление'}
             </Link>
           </Button>
         )}
-        <Button asChild variant="outline" className="h-auto min-h-11 py-2.5 text-left whitespace-normal">
-          <Link to={askDeanPath(question, 'Другое')}>Не помогло — спросить деканат</Link>
-        </Button>
+        {/* Если помощник сам предлагает вопрос в деканат, вторая кнопка вела бы в ту же форму */}
+        {action?.service_type_id !== 'dean-question' && (
+          <Button asChild variant="outline" className="h-auto min-h-11 max-w-full py-2.5 text-left whitespace-normal">
+            <Link to={askDeanPath(question, 'Другое')}>Не помогло — спросить деканат</Link>
+          </Button>
+        )}
       </div>
     </>
   );

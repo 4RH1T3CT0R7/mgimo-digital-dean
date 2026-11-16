@@ -53,6 +53,7 @@ describe('W1: «Ждёт вашего действия» на главной', (
     server.use(
       http.get('/api/notifications/me/deadlines', () => HttpResponse.json([deadline('d3', 'Реферат', '2026-11-20T18:00:00+03:00')])),
       http.get('/api/requests/me/applications', () => HttpResponse.json({ items: [], total: 0 })),
+      http.get('/api/notifications/me/feed/counters', () => HttpResponse.json({ unread: 0, important_unacked: 0, deadlines_soon: 0 })),
     );
     renderWithProviders(<TodayPage />);
 

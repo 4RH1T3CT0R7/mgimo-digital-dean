@@ -197,7 +197,7 @@ describe('T13', () => {
     const card = within((await screen.findByRole('heading', { name: 'Вечер переводчиков' })).closest('li')!);
     expect(card.getByText('Корпус Б, аудитория 1047')).toBeVisible();
     await student.user.click(card.getByRole('button', { name: 'Пойду' }));
-    expect(await card.findByRole('button', { name: 'Иду — отменить' })).toBeVisible();
+    expect(await card.findByRole('button', { name: 'Вы идёте', pressed: true })).toBeVisible();
     student.unmount();
 
     renderPage(reportPath);

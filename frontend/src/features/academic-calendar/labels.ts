@@ -12,13 +12,13 @@ export const periodTiles: Record<S['TermPeriodKind'], string> = {
     study: 'border-border bg-muted text-foreground',
     credit_week: 'border-transparent bg-warning-soft text-warning-strong',
     holidays: 'border-dashed border-input text-muted-foreground',
-    session: 'border-transparent bg-danger-soft text-danger-strong',
+    session: 'border-transparent bg-info-soft text-info-strong',
     vacation: 'border-transparent bg-success-soft text-success-strong',
 };
 
 export const periodText: Record<S['TermPeriodKind'], string> = {
     study: 'text-foreground', credit_week: 'text-warning-strong', holidays: 'text-muted-foreground',
-    session: 'text-danger-strong', vacation: 'text-success-strong',
+    session: 'text-info-strong', vacation: 'text-success-strong',
 };
 
 export const eventLabels: Record<S['AcademicEventKind'], string> = {
@@ -26,5 +26,5 @@ export const eventLabels: Record<S['AcademicEventKind'], string> = {
 };
 
 export const eventTones: Record<S['AcademicEventKind'], Tone> = {
-    control_point: 'neutral', consultation: 'info', credit: 'warning', exam: 'danger',
+    control_point: 'neutral', consultation: 'neutral', credit: 'warning', exam: 'info',
 };

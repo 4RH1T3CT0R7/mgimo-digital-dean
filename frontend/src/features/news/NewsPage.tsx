@@ -46,16 +46,17 @@ function EventActions({ item, event }: { item: FeedItem; event: NonNullable<Feed
   return (
     <>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        {event.going ? (
-          <Button variant="secondary" disabled={going.isPending} onClick={() => going.mutate({ id: item.id, going: false })}>
-            <CheckIcon className="size-5 text-success-strong" aria-hidden />
-            Иду — отменить
-          </Button>
-        ) : (
-          <Button variant="outline" disabled={going.isPending} onClick={() => going.mutate({ id: item.id, going: true })}>
-            Пойду
-          </Button>
-        )}
+        {/* Переключатель: повторное нажатие отменяет; ширина постоянная, соседние кнопки не прыгают */}
+        <Button
+          variant={event.going ? 'secondary' : 'outline'}
+          aria-pressed={event.going}
+          disabled={going.isPending}
+          className="w-36"
+          onClick={() => going.mutate({ id: item.id, going: !event.going })}
+        >
+          {event.going && <CheckIcon className="size-5 text-success-strong" aria-hidden />}
+          {event.going ? 'Вы идёте' : 'Пойду'}
+        </Button>
         <Button
           variant="outline"
           onClick={() => downloadIcs({ id: item.id, title: item.title, body: item.body, starts_at: event.starts_at, place: event.place })}

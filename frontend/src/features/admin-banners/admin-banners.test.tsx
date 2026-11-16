@@ -34,7 +34,7 @@ describe('Баннеры администратора', () => {
     await screen.findByRole('heading', { name: normal });
     expect(row(normal).getByText('Показывается')).toBeVisible();
     expect(row(normal).getByText('Скрыли: 0')).toBeVisible();
-    expect(row('Плановые работы в ночь на 28 ноября').getByText('Срочный')).toBeVisible();
+    expect(row('С 16 ноября справки и заявления — только через кабинет').getByText('Срочный')).toBeVisible();
 
     await user.click(row(normal).getByRole('button', { name: `Снять сейчас: ${normal}` }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Снять баннер' }));

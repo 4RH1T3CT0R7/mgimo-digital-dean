@@ -158,8 +158,8 @@ describe('T09: дополнительные пользовательские с�
         renderWithProviders(<TodayPage />);
 
         expect(await screen.findByText('Доброе утро, Анна')).toBeInTheDocument();
-        expect(await screen.findByText('среда, 18 ноября · 12-я неделя, чётная')).toBeInTheDocument();
-        expect(await screen.findByRole('link', { name: /важн.*ознакомления/ })).toHaveAttribute('href', '/notifications');
+        expect(await screen.findByText('среда, 18 ноября, 12-я неделя, чётная')).toBeInTheDocument();
+        expect(await screen.findByRole('link', { name: /Ознакомьтесь: \d+ важн/ })).toHaveAttribute('href', '/notifications');
     });
 
     it('во время пары показывает оставшееся время', async () => {

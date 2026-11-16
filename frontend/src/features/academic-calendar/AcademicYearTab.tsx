@@ -10,7 +10,7 @@ import { EmptyState } from '@/shared/ui/empty-state';
 import { QueryView } from '@/shared/ui/query-view';
 import { Section } from '@/shared/ui/section';
 import { StatusBadge } from '@/shared/ui/status-badge';
-import { eventLabels, eventTones, periodLabels, periodText, periodTiles } from './labels';
+import { eventLabels, eventTones, periodLabels, periodTiles } from './labels';
 import { useAcademicCalendar } from './queries';
 import { semesterWeeks } from './weeks';
 
@@ -44,16 +44,6 @@ function WeekStrip({ weeks }: { weeks: Week[] })
     return (
         <div ref={scroller} role="region" aria-label="Полоса недель" tabIndex={0}
             className="relative -mx-5 overflow-x-auto px-5 pt-0.5 pb-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:-mx-6 md:px-6">
-            {/* Подписи периодов в две строки по очереди: подпись короткого периода может зайти на соседний, но не на чужую подпись.
-                При прокрутке подпись длинного периода остаётся у левого края, пока его недели на экране */}
-            <div aria-hidden className="mb-1.5 grid gap-x-0.5 gap-y-1" style={columns}>
-                {runs.filter((run) => run.period).map((run, index) => (
-                    <span key={run.column} style={{ gridColumn: `${run.column} / span ${run.span}`, gridRow: index % 2 + 1 }}
-                        className={cn('sticky left-0 min-w-0 justify-self-start pl-0.5 text-[0.8125rem] font-medium whitespace-nowrap', periodText[run.period!.kind])}>
-                        {periodLabels[run.period!.kind]}
-                    </span>
-                ))}
-            </div>
             <ol aria-label="Недели семестра" className="grid gap-x-0.5" style={columns}>
                 {weeks.map((week) => (
                     <li key={week.start} aria-current={week.current ? 'date' : undefined} className="flex min-w-0 flex-col gap-1.5">

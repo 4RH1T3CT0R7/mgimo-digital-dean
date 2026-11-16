@@ -35,7 +35,7 @@ export const studentNav: NavItem[] = [
   { to: '/grades', label: 'Учёба', icon: GraduationCapIcon },
   { to: '/requests', label: 'Заявки', icon: FileTextIcon },
   { to: '/notifications', label: 'Уведомления', icon: BellIcon, place: 'desktop' },
-  { to: '/news', label: 'Новости и мероприятия', icon: NewspaperIcon, place: 'more' },
+  { to: '/news', label: 'Новости', icon: NewspaperIcon, place: 'more' },
   { to: '/student-card', label: 'Студенческий', icon: IdCardIcon, place: 'more' },
   { to: '/useful', label: 'Полезное', icon: BookmarkIcon, place: 'more' },
   { to: '/assistant', label: 'Помощник', icon: MessageCircleQuestionIcon, place: 'more' },

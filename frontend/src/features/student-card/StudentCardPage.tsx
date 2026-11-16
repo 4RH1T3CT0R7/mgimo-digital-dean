@@ -49,7 +49,7 @@ function Card({ c }: { c: StudentCard }) {
     { label: 'Курс', value: c.course },
     { label: 'Форма обучения', value: studyFormLabels[c.study_form] },
     { label: 'Номер билета', value: c.number },
-    { label: 'Действителен до', value: formatDate(c.valid_until, { withYear: true }) },
+    { label: 'Действителен до', value: formatDate(c.valid_until, { withYear: true }).replace(/ г\.$/, '\u00a0г.') },
   ];
   return (
     <article aria-labelledby="student-card-title" className="overflow-hidden rounded-xl border bg-card">

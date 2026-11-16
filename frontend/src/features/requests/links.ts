@@ -8,8 +8,9 @@ export function askDeanPath(question: string, topic = 'Учебный проце
 }
 
 /** Форма той же услуги с полями и комментарием отклонённой заявки. Файлы не переносятся. */
-export function resubmitPath(a: Pick<Application, 'service_type' | 'fields' | 'comment'>): string {
+export function resubmitPath(a: Pick<Application, 'service_type' | 'fields' | 'comment'>, rejectedReason?: string | null): string {
   const params = new URLSearchParams(a.fields.map((f) => [f.key, f.value]));
   if (a.comment) params.set('comment', a.comment);
+  if (rejectedReason) params.set('rejected', rejectedReason);
   return `/requests/new/${encodeURIComponent(a.service_type.id)}?${params}`;
 }
