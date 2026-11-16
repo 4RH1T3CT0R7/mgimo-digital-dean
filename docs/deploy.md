@@ -57,6 +57,23 @@ crontab -e
 - e2e на проде — с ноутбука: `cd e2e && npm ci && npx playwright install chromium`, затем `BASE_URL=https://<домен> E2E_PASSWORD_STUDENT_MO=… npx playwright test` (пароли из `~/demo-accounts.txt`, все переменные — в `e2e/README.md`). Workflow «e2e» в Actions гоняет те же сценарии на стенде внутри CI; его секреты `E2E_PASSWORD_*` — локальные пароли из `.secrets/demo-accounts.md`, а не прод.
 - **22.11 — заморозка**: последний тег; до 28.11 — только исправления критичных ошибок по согласованию команды (Н10).
 
+## 8. Новая база у сервиса на уже работающем томе
+
+`deploy/postgres/init.sh` сам выполняется только на пустом томе PostgreSQL. Когда у сервиса появляется своя база (так было с `assistant`, D66), на сервере и на ноутбуке с уже созданным томом её нужно создать один раз вручную. Скрипт идемпотентный: существующие роли и базы не трогает, данные не теряются.
+
+```bash
+# 1. В .env добавить пароль новой базы (длинная случайная строка)
+echo "ASSISTANT_DB_PASSWORD=$(openssl rand -hex 24)" >> .env
+# 2. Пересоздать контейнер postgres с новой переменной (том с данными остаётся)
+docker compose -f deploy/docker-compose.yml --env-file .env up -d postgres
+# 3. Создать недостающие роли и базы
+docker compose -f deploy/docker-compose.yml --env-file .env exec -T postgres sh /docker-entrypoint-initdb.d/init.sh
+# 4. Собрать и запустить сервисы, загрузить тестовые данные новой базы (уже применённые seed пропускаются)
+make up && make seed
+```
+
+На сервере вместо `make up && make seed` — обычная выкладка `bash deploy/deploy.sh <тег>` (она запускает и seed).
+
 ## Если что-то пошло не так
 
 | Симптом | Что сделать |

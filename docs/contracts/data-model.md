@@ -63,6 +63,17 @@
 
 Объявления и новости сотрудника — это строки `notifications` с `type in (news, announcement)` и `author_id is not null`. Мероприятие — новость с `event_starts_at` и `event_place` (оба или ни одного, D61); новости не входят в ленту и счётчик «Уведомлений», их показывает раздел «Новости и мероприятия». Для всех адресатов, кроме `all` и `user`, заполняется `audience_faculty_id`: так сотрудник видит объявления своего факультета.
 
+## assistant
+
+База знаний помощника (D66). Справочник `content/faq.md` в БД не хранится — читается из файла при запуске (D49).
+
+| Таблица | Колонки | Ограничения |
+|---|---|---|
+| `knowledge_documents` | `id`, `title`, `source_name null` (имя файла; null — текст вставлен), `text`, `chars`, `author_id`, `author_label` («Деканат» или «Администрация», D37), `created_at`, `active` | CHECK `title` 3–200 символов, `text` 1–300 000 |
+| `knowledge_chunks` | `document_id`, `n`, `text`, `tsv tsvector GENERATED ALWAYS AS (to_tsvector('russian', text)) STORED` | PK `(document_id, n)`; FK на документ `ON DELETE CASCADE`; GIN-индекс по `tsv` |
+
+Правила: документ режется на фрагменты 900–1200 символов по абзацам с перекрытием ~150 (`internal/knowledge.Chunks`). Поиск — ИЛИ по словам вопроса с русской морфологией, порядок по `ts_rank_cd`, до 5 фрагментов только включённых (`active`) документов. Без модели фрагмент показывается как есть, только если `ts_rank_cd` ≥ 0.2 (слова вопроса встретились хотя бы дважды).
+
 ---
 
 ## Бизнес-правила
