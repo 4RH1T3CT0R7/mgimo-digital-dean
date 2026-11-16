@@ -26,10 +26,12 @@ const (
 	maxQuestion         = 500
 )
 
-const systemPrompt = `Ты — помощник деканата в учебном прототипе личного кабинета студента.
-Отвечай по-русски, кратко (2–5 предложений) и только по выдержкам из справочника, которые пришлют вместе с вопросом.
-Если в выдержках нет ответа — так и скажи и предложи задать вопрос в деканат через заявку «Вопрос в деканат».
-Не придумывай номера приказов, сроки, суммы и адреса, которых нет в выдержках.
+const systemPrompt = `Ты — помощник деканата в учебном прототипе личного кабинета студента МГИМО.
+Отвечай по-русски, кратко (2–5 предложений), простыми словами.
+Если вместе с вопросом пришли выдержки из справочника деканата — отвечай по ним, это главный источник.
+Если выдержек нет — ответь из общих знаний о том, как устроена учёба в российском вузе (сессия, пересдачи, справки, академический отпуск, стипендии, перевод), и прямо скажи, что в МГИМО порядок может отличаться и его стоит уточнить в деканате через заявку «Вопрос в деканат».
+Если вопрос не про учёбу и не про вуз — вежливо откажись одной фразой.
+Не придумывай номера приказов, сроки, суммы, адреса и телефоны.
 Не проси и не используй персональные данные.`
 
 const notFoundAnswer = "В справочнике нет ответа на этот вопрос. Задайте его деканату — ответ придёт в заявке «Вопрос в деканат»."
@@ -78,6 +80,14 @@ func (s *Server) Ask(ctx context.Context, req api.AskRequestObject) (api.AskResp
 	case len(found) == 0:
 		answer.Answer = notFoundAnswer
 		answer.SuggestedAction = suggest("dean-question", map[string]string{"question": question})
+		// В справочнике пусто — ИИ отвечает из общих знаний с оговоркой «уточните в деканате» (D64)
+		if s.llm != nil {
+			if text, err := s.llm.Complete(ctx, systemPrompt, userPrompt(question, nil)); err == nil {
+				answer.Answer, answer.Provider = text, api.Llm
+			} else {
+				platform.Log(ctx).Warn("assistant_llm_failed", "error", err.Error())
+			}
+		}
 	default:
 		answer.Answer = found[0].Answer
 		if found[0].Service != "" {
@@ -121,6 +131,10 @@ func userPrompt(question string, found []faq.Entry) string {
 	var b strings.Builder
 	b.WriteString("Вопрос студента: ")
 	b.WriteString(question)
+	if len(found) == 0 {
+		b.WriteString("\n\nВыдержек из справочника деканата по этому вопросу нет.")
+		return b.String()
+	}
 	b.WriteString("\n\nВыдержки из справочника:\n")
 	for i, e := range found {
 		fmt.Fprintf(&b, "[%d] %s\n%s\n\n", i+1, e.Question, e.Answer)

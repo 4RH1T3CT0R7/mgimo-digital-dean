@@ -15,16 +15,13 @@ import { useCurrentGrades, useGradesSummary, useSessionResults } from './queries
 
 type S = components['schemas'];
 
-/** Долг — вопрос о пересдаче; «Нужно внимание» в текущем семестре — как исправить баллы до сессии */
-function RetakeLink({ discipline, current = false }: { discipline: string; current?: boolean })
+/** Несданная дисциплина в сессии — вопрос о пересдаче: её оформляет деканат. Баллы текущего семестра обсуждают с преподавателем */
+function RetakeLink({ discipline }: { discipline: string })
 {
-    const question = current
-        ? `Как исправить баллы по дисциплине «${discipline}» до сессии? Что можно досдать?`
-        : `Как пересдать дисциплину «${discipline}»? Подскажите сроки и порядок.`;
     return (
-        <Link to={askDeanPath(question)}
+        <Link to={askDeanPath(`Как пересдать дисциплину «${discipline}»? Подскажите сроки и порядок.`)}
             className="flex min-h-11 w-fit items-center text-sm font-medium text-primary underline underline-offset-4">
-            {current ? 'Спросить, как исправить баллы' : 'Спросить о пересдаче'}
+            Спросить о пересдаче
         </Link>
     );
 }
@@ -60,7 +57,6 @@ function CurrentDiscipline({ discipline }: { discipline: S['CurrentDiscipline'] 
             </div>
             <p className="text-sm">Посещаемость: {discipline.attendance_percent}%</p>
             {discipline.traffic_reason && <p className="text-sm">{discipline.traffic_reason}</p>}
-            {discipline.traffic === 'red' && <RetakeLink discipline={discipline.discipline.name} current />}
             {discipline.control_form !== 'credit' && (
                 <p className="text-sm text-muted-foreground">
                     {discipline.to_excellent.needed === 0 ? 'Идёте на «отлично»' : discipline.to_excellent.achievable

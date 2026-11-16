@@ -141,6 +141,28 @@ func TestLLMAnswerAndWhatIsSent(t *testing.T) {
 	}
 }
 
+func TestLLMAnswersWhenFAQHasNothing(t *testing.T) {
+	var body string
+	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		body = string(b)
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"Обычно пересдачу назначает деканат. В МГИМО порядок уточните в деканате."}}]}`))
+	}))
+	defer fake.Close()
+	e := setup(t, llm.New(fake.URL, "k", "", "m", 2*time.Second))
+
+	a := decode(t, e.ask(&asStudent, "Сколько раз можно пересдавать экзамен?"))
+	if a.Provider != api.Llm || !strings.Contains(a.Answer, "уточните в деканате") || len(a.Sources) != 0 {
+		t.Fatalf("ответ ИИ без справочника: %+v", a)
+	}
+	if a.SuggestedAction == nil || a.SuggestedAction.ServiceTypeId != "dean-question" {
+		t.Fatalf("и с ответом ИИ остаётся «Вопрос в деканат»: %+v", a.SuggestedAction)
+	}
+	if !strings.Contains(body, "Выдержек из справочника деканата по этому вопросу нет") {
+		t.Errorf("модель должна знать, что справочник пуст: %s", body)
+	}
+}
+
 func TestLLMFailureFallsBackToFAQ(t *testing.T) {
 	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(300 * time.Millisecond)

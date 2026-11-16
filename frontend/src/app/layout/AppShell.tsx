@@ -128,9 +128,10 @@ function AppShell({ nav, profileLink, bell, notice }: { nav: NavItem[]; profileL
             <UserMenu profileLink={profileLink} />
           </div>
         </header>
-        {notice}
         <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
+          {/* Срочное объявление — карточкой над страницей, по ширине содержимого (не полосой во весь экран под шапкой) */}
+          {notice}
           {/* key: при переходе на другую страницу она плавно появляется; обновление данных внутри страницы — без анимации */}
           <div key={pathname} className="animate-[rise_200ms_ease-out]">
             <Outlet />

@@ -31,15 +31,10 @@ describe('W1: «Полезное»', () => {
 });
 
 describe('W1: вопрос в деканат без тупиков', () => {
-  it('«Учёба»: у дисциплины «Нужно внимание» — «Спросить, как исправить баллы» с темой и вопросом', async () => {
-    const { user } = renderWithProviders(<AppRoutes />, { route: '/grades', login: 'student.mo' });
-    const first = within(await screen.findByRole('list', { name: 'Дисциплины текущего семестра' })).getAllByRole('article')[0];
-    const link = within(first).getByRole('link', { name: 'Спросить, как исправить баллы' });
-    expect(params(link)).toEqual({ topic: 'Учебный процесс', question: 'Как исправить баллы по дисциплине «Французский язык» до сессии? Что можно досдать?' });
-
-    await user.click(link);
-    expect(await screen.findByRole('combobox', { name: /Тема/ })).toHaveTextContent('Учебный процесс');
-    expect(screen.getByLabelText('Ваш вопрос')).toHaveValue('Как исправить баллы по дисциплине «Французский язык» до сессии? Что можно досдать?');
+  it('«Учёба»: у дисциплин текущего семестра вопроса в деканат нет — баллы обсуждают с преподавателем', async () => {
+    renderWithProviders(<AppRoutes />, { route: '/grades', login: 'student.mo' });
+    const current = await screen.findByRole('list', { name: 'Дисциплины текущего семестра' });
+    expect(within(current).queryByRole('link', { name: /Спросить/ })).not.toBeInTheDocument();
   });
 
   it('профиль: «сообщите в деканат» — ссылка на вопрос', async () => {
