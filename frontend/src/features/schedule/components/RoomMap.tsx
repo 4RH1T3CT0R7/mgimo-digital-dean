@@ -95,7 +95,9 @@ function parseBox(viewBox: string): Box {
 function focus(full: Box, bb: Box): Box {
   const size = Math.min(Math.max(Math.max(bb[2], bb[3]) * 7, full[2] / 6), full[2]);
   const w = size, h = size * 0.75;
-  return [bb[0] + bb[2] / 2 - w / 2, bb[1] + bb[3] / 2 - h / 2, w, h];
+  // Аудитория у края плана — вид прижимается к границе, а не показывает пустое поле за ней
+  const clamp = (v: number, from: number, len: number, view: number) => (view >= len ? from + (len - view) / 2 : Math.min(Math.max(v, from), from + len - view));
+  return [clamp(bb[0] + bb[2] / 2 - w / 2, full[0], full[2], w), clamp(bb[1] + bb[3] / 2 - h / 2, full[1], full[3], h), w, h];
 }
 
 /** План этажа: нужная аудитория выделена и подписана, сразу приближена; кнопки масштаба и перетаскивание */
