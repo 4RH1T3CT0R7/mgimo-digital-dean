@@ -4,7 +4,7 @@
 
 ## 1. Сервер и домен (делает человек)
 
-- **VPS у российского провайдера** — Timeweb Cloud, Selectel или Yandex Cloud: Ubuntu 24.04 LTS, 2 vCPU, 4 ГБ, 20+ ГБ диска. При создании добавьте свой **публичный SSH-ключ** (`~/.ssh/id_ed25519.pub`; если его нет — `ssh-keygen -t ed25519`). Сервер в России — условие доступа жюри без VPN и локализации ПДн (`security.md`).
+- **VPS у российского провайдера** — Timeweb Cloud, Selectel или Yandex Cloud: Ubuntu 24.04 или 26.04 LTS, 2 vCPU, 4 ГБ (или 2 ГБ — тогда `server-setup.sh` сам добавит swap 4 ГБ), 30–40 ГБ диска. Работающий стек занимает около 200 МБ памяти; память и диск нужны на сборку образов при выкладке. При создании добавьте свой **публичный SSH-ключ** (`~/.ssh/id_ed25519.pub`; если его нет — `ssh-keygen -t ed25519`). Сервер в России — условие доступа жюри без VPN и локализации ПДн (`security.md`).
 - **Домен** `.ru` у регистратора (Reg.ru, Timeweb и т. п.). A-запись `@` (или поддомен, например `lk`) → IP сервера. Проверка: `nslookup <домен>` возвращает IP сервера.
 
 ## 2. Подготовка сервера (один раз)
@@ -33,6 +33,25 @@ bash deploy/set-demo-passwords.sh          # новые пароли тесто�
 `deploy.sh` выкладывает только по тегу и в конце запускает `deploy/prod-check.sh`: HTTPS, редирект с HTTP, заголовки безопасности, 401 без входа, закрытый внутренний API, страница проверки справки, манифест. Сертификат Let's Encrypt Caddy получает сам при первом запросе (порт 80 должен быть открыт, A-запись — уже смотреть на сервер).
 
 Пароли из `~/demo-accounts.txt` — в комментарий к работе для жюри. В репозиторий и чаты их не копировать. Локальные пароли из `.secrets/demo-accounts.md` на проде не действуют.
+
+## 3а. Автовыкладка из main (D67)
+
+После того как настроена первая выкладка, каждый push в `main` с зелёным CI выкладывается сам: `.github/workflows/deploy.yml` заходит на сервер пользователем `deploy` и запускает `deploy/deploy.sh <коммит>` (в конце — `prod-check.sh`). Если проверка прода не прошла, workflow красный, а GitHub пришлёт письмо. Ручная выкладка тега по-прежнему работает: `bash deploy/deploy.sh v1.0.1` на сервере или Actions → deploy → Run workflow.
+
+Настройка (один раз, с ноутбука капитана):
+
+```bash
+ssh-keygen -t ed25519 -N "" -C github-actions -f actions_key          # ключ только для GitHub Actions
+ssh deploy@<IP> 'cat >> ~/.ssh/authorized_keys' < actions_key.pub
+gh secret set DEPLOY_SSH_KEY < actions_key
+gh secret set DEPLOY_HOST --body <IP>
+ssh-keyscan -t ed25519 <IP> | gh secret set DEPLOY_KNOWN_HOSTS
+rm actions_key actions_key.pub                                          # приватная часть нужна только в GitHub
+```
+
+Серверу нужен доступ на чтение к приватному репозиторию — deploy key: `ssh-keygen -f ~/.ssh/github` на сервере, `gh repo deploy-key add <github.pub>` на ноутбуке, клон по `git@github.com:…`.
+
+**Заморозка перед итогами** (прод не меняется до 28.11): `gh workflow disable deploy.yml`, после итогов — `gh workflow enable deploy.yml`.
 
 ## 4. Резервные копии
 
