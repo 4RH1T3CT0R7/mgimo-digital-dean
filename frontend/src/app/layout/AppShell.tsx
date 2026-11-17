@@ -71,7 +71,7 @@ function AppShell({ nav, profileLink, bell, notice, morePath }: {
 
   return (
     // Фон колонки меню — на всю высоту страницы (само меню закреплено и короче длинной страницы)
-    <div className="min-h-dvh lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:bg-[linear-gradient(to_right,var(--card)_calc(16rem-1px),var(--border)_calc(16rem-1px),var(--border)_16rem,transparent_16rem)]">
+    <div className="min-h-svh lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:bg-[linear-gradient(to_right,var(--card)_calc(16rem-1px),var(--border)_calc(16rem-1px),var(--border)_16rem,transparent_16rem)]">
       <a
         href="#main"
         className="sr-only z-50 rounded-md bg-card px-4 py-2 shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -112,15 +112,15 @@ function AppShell({ nav, profileLink, bell, notice, morePath }: {
         </nav>
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
-        <header className="sticky top-0 z-30 flex h-header [@media(max-height:480px)]:static shrink-0 items-center gap-2 border-b bg-background/85 px-gutter backdrop-blur">
+      <div className="flex min-h-svh min-w-0 flex-col pb-[calc(var(--tabbar-h)+env(safe-area-inset-bottom))] lg:pb-0">
+        <header className="sticky top-0 z-30 flex h-header [@media(max-height:480px)]:static shrink-0 items-center gap-2 border-b bg-background px-gutter">
           <Logo compact className="lg:hidden" />
           <div className="ml-auto flex min-w-0 items-center gap-1">
             {bell && <Bell to={bell.to} count={bell.count} active={pathname === bell.to} />}
             <UserMenu profileLink={profileLink} />
           </div>
         </header>
-        <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100dvh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
+        <main id="main" tabIndex={-1} className="relative isolate mx-auto min-h-[calc(100svh-var(--spacing-header))] w-full max-w-6xl flex-1 px-gutter py-6 outline-none md:py-10">
           <div aria-hidden className="skyline skyline-page" />
           {/* Срочное объявление — карточкой над страницей, по ширине содержимого (не полосой во весь экран под шапкой) */}
           {notice}
@@ -133,7 +133,7 @@ function AppShell({ nav, profileLink, bell, notice, morePath }: {
       </div>
 
       {/* Телефон: нижняя панель вкладок */}
-      <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+      <nav aria-label="Разделы" className="fixed inset-x-0 bottom-0 z-30 transform-gpu border-t bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
         {/* Равные колонки по числу вкладок (5 у студента и сотрудника, 6 у администратора) и кегль 10 px: подпись «Расписание» (~55 px)
             помещается в колонку 69 px с запасом; у администратора «Объявления» (~58 px) — впритык к колонке 60 px. */}
         <ul className="grid h-tabbar auto-cols-fr grid-flow-col">

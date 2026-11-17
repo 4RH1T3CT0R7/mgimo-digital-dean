@@ -59,7 +59,7 @@ function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }
 
   if (me.isPending) {
     return (
-      <div role="status" className="flex min-h-dvh items-center justify-center text-muted-foreground">
+      <div role="status" className="flex min-h-svh items-center justify-center text-muted-foreground">
         <LoaderCircleIcon className="size-6 animate-spin" aria-hidden />
         <span className="sr-only">Загрузка…</span>
       </div>

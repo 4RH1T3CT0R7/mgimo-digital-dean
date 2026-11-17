@@ -6,7 +6,7 @@ import { Logo } from './Logo';
 export function PublicLayout() {
   const { pathname } = useLocation();
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-svh flex-col">
       <header className="flex h-header shrink-0 items-center border-b bg-card/60 px-gutter">
         <div className="mx-auto w-full max-w-6xl">
           <Logo />
