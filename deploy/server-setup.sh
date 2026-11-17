@@ -14,6 +14,13 @@ apt-get update -q
 apt-get upgrade -yq
 apt-get install -yq ca-certificates curl git ufw unattended-upgrades docker.io docker-compose-v2 postgresql-client
 
+# Swap 4 ГБ, если памяти меньше 3,5 ГБ: сборка образов на сервере (deploy.sh) на пике берёт 2–3 ГБ
+if [ "$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)" -lt 3500 ] && ! swapon --show | grep -q .; then
+  fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap -q /swapfile && swapon /swapfile
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl -q vm.swappiness=20 && echo 'vm.swappiness=20' > /etc/sysctl.d/90-mgimo.conf
+fi
+
 # Пользователь для деплоя: те же ключи, что у root; Docker без sudo
 id "$user" >/dev/null 2>&1 || adduser --disabled-password --gecos "" "$user"
 usermod -aG docker "$user"

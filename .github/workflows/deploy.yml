@@ -1,0 +1,54 @@
+name: deploy
+
+# Автовыкладка на прод (D67): после зелёного CI на main сервер собирает и запускает этот коммит
+# (deploy/deploy.sh, в конце — prod-check). Вручную — Actions → deploy → Run workflow (тег или коммит).
+# Заморозка перед итогами: gh workflow disable deploy.yml, после — gh workflow enable deploy.yml.
+# Секреты репозитория: DEPLOY_HOST, DEPLOY_SSH_KEY (ключ пользователя deploy), DEPLOY_KNOWN_HOSTS.
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Тег или коммит из main
+        required: true
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # Только push в main с зелёным CI (не pull request) или ручной запуск
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: SSH-ключ сервера
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Выкладка
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          REF: ${{ github.event.inputs.ref || github.event.workflow_run.head_sha }}
+        # Сначала checkout выкладываемого коммита, чтобы работал его deploy.sh, а не старый
+        run: |
+          [[ "$REF" =~ ^[A-Za-z0-9._/-]+$ ]] || { echo "Недопустимый ref"; exit 1; }
+          ssh -o BatchMode=yes -o ServerAliveInterval=30 "deploy@$HOST" \
+            "cd ~/mgimo && git fetch --quiet --tags origin && git -c advice.detachedHead=false checkout --quiet '$REF' && bash deploy/deploy.sh '$REF'"
