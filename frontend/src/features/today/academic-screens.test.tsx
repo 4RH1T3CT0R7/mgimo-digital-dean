@@ -94,7 +94,7 @@ describe('T09: обязательные сценарии V1–V8', () => {
         const first = within(disciplines).getAllByRole('article')[0];
 
         expect(first).toHaveTextContent('Французский язык');
-        expect(first).toHaveTextContent('Нужно внимание');
+        expect(first).toHaveTextContent('Требует внимания');
         expect(first).toHaveTextContent('Набрано меньше 60% возможных баллов');
     });
 

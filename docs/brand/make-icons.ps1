@@ -1,7 +1,7 @@
 # Иконки и знак «Мой вуз» из исходной картинки docs/brand/logo-source.jpg (T17, D57).
 # Запуск из корня репозитория: pwsh -File docs/brand/make-icons.ps1
 # Вывод: frontend/public/{favicon.ico, favicon-32.png, apple-touch-icon.png}, frontend/public/icons/icon-*.png,
-#        frontend/public/brand/{mark-64.png, mark-128.png, building-outline.png}
+#        frontend/public/brand/{logo-80.png, logo-160.png, logo-320.png, building-outline.png}
 param([string]$Root = (Resolve-Path "$PSScriptRoot/../..").Path)
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
@@ -68,29 +68,18 @@ foreach ($spec in @(@{ s = 512; k = 0.80; out = "$public/icons/icon-maskable-512
   $g.Dispose(); Save $bmp $spec.out
 }
 
-# 4. Знак для фавиконки и шапки: центральный корпус здания (надпись на 16–32 px не читается)
-$mark = New-Object System.Drawing.Rectangle 300, 330, 655, 400
-function New-Mark([int]$s) {
+# 4. Логотип целиком для шапки, вкладки браузера и окна приложения (замечание команды 22.11: вырезанный
+#    из логотипа корпус на маленьких размерах выглядел странно — везде показываем один и тот же знак)
+foreach ($s in 16, 32, 48, 80, 160, 320) {
   $bmp, $g = New-Canvas $s $s
-  $g.FillPath((New-Object System.Drawing.SolidBrush $navy), (Get-RoundedPath 0 0 $s $s ($s * 0.22)))
-  $w = $s * 0.86; $h = $w * $mark.Height / $mark.Width
-  $g.DrawImage($src, (New-Object System.Drawing.RectangleF (($s - $w) / 2), (($s - $h) / 2 + $s * 0.02), $w, $h), $mark, 'Pixel')
-  $g.Dispose(); return $bmp
+  Draw-Rounded $g $src (New-Object System.Drawing.RectangleF 0, 0, $s, $s) ($s * $radiusShare) $full
+  $g.Dispose(); Save $bmp "$public/brand/logo-$s.png"
 }
-foreach ($s in 32, 48, 64, 128) { Save (New-Mark $s) "$public/brand/mark-$s.png" }
-# 16 px: уменьшенный корпус сливается в пятно, поэтому рисуем по пикселям — карниз, три панели, цоколь, вход
-$bmp, $g = New-Canvas 16 16
-$g.FillPath((New-Object System.Drawing.SolidBrush $navy), (Get-RoundedPath 0 0 16 16 3.5))
-$g.SmoothingMode = 'None'; $g.PixelOffsetMode = 'Half'
-foreach ($r in @(@(2, 2, 12, 1), @(2, 4, 3, 5), @(6, 4, 4, 5), @(11, 4, 3, 5), @(2, 10, 12, 1), @(6, 12, 4, 2))) {
-  $g.FillRectangle([System.Drawing.Brushes]::White, $r[0], $r[1], $r[2], $r[3])
-}
-$g.Dispose(); Save $bmp "$public/brand/mark-16.png"
-Copy-Item "$public/brand/mark-32.png" "$public/favicon-32.png" -Force
+Copy-Item "$public/brand/logo-32.png" "$public/favicon-32.png" -Force
 
 # 5. favicon.ico: PNG 16, 32, 48 в одном контейнере ICO
 $sizes = 16, 32, 48
-$pngs = $sizes | ForEach-Object { , [System.IO.File]::ReadAllBytes("$public/brand/mark-$_.png") }
+$pngs = $sizes | ForEach-Object { , [System.IO.File]::ReadAllBytes("$public/brand/logo-$_.png") }
 $ms = New-Object System.IO.MemoryStream; $bw = New-Object System.IO.BinaryWriter $ms
 $bw.Write([uint16]0); $bw.Write([uint16]1); $bw.Write([uint16]$sizes.Count)
 $offset = 6 + 16 * $sizes.Count
@@ -101,7 +90,7 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
 }
 foreach ($p in $pngs) { $bw.Write($p) }
 [System.IO.File]::WriteAllBytes("$public/favicon.ico", $ms.ToArray()); $bw.Dispose()
-foreach ($s in 16, 48) { Remove-Item "$public/brand/mark-$s.png" }
+foreach ($s in 16, 32, 48) { Remove-Item "$public/brand/logo-$s.png" }
 
 # 6. Силуэт здания для фона: белые линии → непрозрачные, синий фон → прозрачный (используется как CSS mask)
 $bld = New-Object System.Drawing.Rectangle 40, 340, 1175, 390

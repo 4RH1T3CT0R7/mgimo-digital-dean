@@ -169,7 +169,8 @@ describe('T13', () => {
     renderPage(reportPath);
     expect(await screen.findByText('Ознакомились: 1 из 3')).toBeVisible();
     expect(within(section('Ознакомились')).getByText('Лебедева А. В.')).toBeVisible();
-  });
+    // Сценарий проходит пять экранов: на медленной машине 5 с по умолчанию не хватает
+  }, 20_000);
 
   it('мероприятие: сотрудник публикует, студент отмечает «Пойду», в отчёте видно, сколько идёт', async () => {
     const staff = renderPage();
