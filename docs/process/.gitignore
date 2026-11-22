@@ -1,0 +1,8 @@
+# Промежуточные файлы сборки description.tex (latexmk -xelatex)
+*.aux
+*.log
+*.toc
+*.out
+*.fdb_latexmk
+*.fls
+*.xdv
