@@ -61,12 +61,12 @@ function Card({ c }: { c: StudentCard }) {
       <div className="flex flex-col gap-5 p-5">
         <div className="flex items-center gap-3">
           <img
-            src="/brand/mark-64.png"
-            srcSet="/brand/mark-32.png 1x, /brand/mark-64.png 2x, /brand/mark-128.png 4x"
-            width={32}
-            height={32}
+            src="/brand/logo-80.png"
+            srcSet="/brand/logo-80.png 2x, /brand/logo-160.png 4x"
+            width={40}
+            height={40}
             alt=""
-            className="size-8 shrink-0 rounded-[22%] dark:ring-1 dark:ring-white/15"
+            className="size-10 shrink-0"
           />
           <div className="min-w-0">
             <h2 id="student-card-title" className="leading-tight font-semibold">

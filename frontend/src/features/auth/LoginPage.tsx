@@ -26,7 +26,9 @@ export function LoginPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-6 py-6 md:py-16">
-      <div>
+      {/* Крупный логотип над формой, как на страницах входа вузов (замечание команды 22.11) */}
+      <div className="flex flex-col items-center text-center">
+        <img src="/brand/logo-160.png" srcSet="/brand/logo-160.png 1x, /brand/logo-320.png 2x" width={112} height={112} alt="" className="mb-5 size-28" />
         <h1 className="text-[1.75rem] leading-tight font-bold">Вход в личный кабинет</h1>
         <p className="mt-1.5 text-muted-foreground">Для студентов и сотрудников деканата</p>
       </div>

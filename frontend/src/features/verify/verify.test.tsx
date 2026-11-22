@@ -167,7 +167,7 @@ describe('Студенческий (D60)', () =>
     {
         renderWithProviders(<AppRoutes />, { route: '/verify/S7TQ4C2DMA' });
 
-        expect(await screen.findByRole('heading', { name: 'Студенческий действителен' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Студенческий билет действителен' })).toBeInTheDocument();
         expect(screen.getByText('Электронный студенческий билет')).toBeInTheDocument();
         expect(screen.getByText('Лебедева А. В.')).toBeInTheDocument();
         expect(screen.getByText('ФМО')).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe('Студенческий (D60)', () =>
         })));
         renderResult();
 
-        expect(await screen.findByRole('heading', { name: 'Срок действия студенческого истёк' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Срок действия студенческого билета истёк' })).toBeInTheDocument();
         expect(screen.getByText('31 августа 2026 г.')).toBeInTheDocument();
     });
 });

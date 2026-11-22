@@ -10,7 +10,7 @@ export const gradeLabels: Record<S['Grade5'], string> = {
     excellent: 'Отлично', good: 'Хорошо', satisfactory: 'Удовлетворительно', unsatisfactory: 'Неудовлетворительно',
 };
 export const trafficLabels: Record<S['Traffic'], string> = {
-    green: 'Всё хорошо', yellow: 'Есть риск', red: 'Нужно внимание',
+    green: 'В порядке', yellow: 'На грани', red: 'Требует внимания',
 };
 export const trafficTones: Record<S['Traffic'], Tone> = {
     green: 'success', yellow: 'warning', red: 'danger',
